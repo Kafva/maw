@@ -2,15 +2,14 @@ CC                := clang
 CFLAGS            := -Wall -Wextra -Werror -mmacosx-version-min=14.0 -framework AVFoundation
 
 SRC               := $(CURDIR)/src/main.m
-OUT               := $(CURDIR)/target
-OUT_PLATFORM      := $(OUT)/$(shell uname -m)
+BIN               := $(CURDIR)/bin
 
-all: $(OUT_PLATFORM)/av
+all: $(BIN)/av
 
 
-$(OUT_PLATFORM)/av: $(SRC)
+$(BIN)/av: $(SRC)
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rf $(OUT)
+	rm -rf $(BIN)

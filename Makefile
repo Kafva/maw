@@ -1,13 +1,22 @@
 CC                := clang
-CFLAGS            := -Wall -Wextra -Werror -mmacosx-version-min=14.0 -framework AVFoundation
 
 SRC               := $(CURDIR)/src/main.m
 BIN               := $(CURDIR)/bin
+PROGRAM           := av
 
-all: $(BIN)/av
+CFLAGS            += -Wall
+CFLAGS            += -Wextra
+CFLAGS            += -Werror
+CFLAGS            += -mmacosx-version-min=14.0
+CFLAGS            += -framework Foundation
+CFLAGS            += -framework AVFoundation
+CFLAGS            += -fsanitize=address
 
 
-$(BIN)/av: $(SRC)
+all: $(BIN)/$(PROGRAM)
+
+
+$(BIN)/$(PROGRAM): $(SRC)
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< -o $@
 

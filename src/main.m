@@ -1,6 +1,8 @@
-#import <AVFoundation/AVFoundation.h>
-#include <Foundation/Foundation.h>
+#include "av.h"
+
 #include <getopt.h>
+
+#define PROGRAM "av"
 
 // Multi threaded metadata assignment based on yaml config
 // '\r' progress printing
@@ -14,12 +16,11 @@
 //      Update metadata fields
 //      Erase and replace video streams
 
-#define PROGRAM "av"
 
-#define log(FORMAT, ...) \
-    fprintf(stderr, "%s\n", [[NSString stringWithFormat:FORMAT, ##__VA_ARGS__] UTF8String])
+// Entrypoint outside C to:
+//  * We can parse yaml config from C honsetly
 
-int av_dump(char*);
+
 static void usage(void);
 
 static void usage(void) {
@@ -65,35 +66,7 @@ int main(int argc, char *argv[]) {
     }
 
     (void)av_dump(input_file);
+    (void)av_yaml_parse();
 
     return EXIT_SUCCESS;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-int av_dump(char* filepath) {
-    if (access(filepath, F_OK) != 0) {
-        log(@"No such file: '%s'", filepath);
-        return 1;
-    }
-
-    @autoreleasepool {
-        NSString *filepath_s = [NSString stringWithUTF8String:filepath];
-        NSURL *fileURL = [NSURL fileURLWithPath:filepath_s isDirectory:false];
-        AVAsset *asset = [AVAsset assetWithURL: fileURL];
-
-        // Load metadata
-        NSArray *metadata = [asset metadata];
-
-        if (metadata.count == 0) {
-            log(@"No metadata: '%s'", filepath);
-            return 1;
-        }
-        
-        for (AVMetadataItem *item in metadata) {
-            log(@"Key: %@, Value: %@", item.commonKey, item.value);
-        }
-    }
-
-    return 0;
 }

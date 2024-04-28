@@ -1,7 +1,7 @@
 CC                := clang
 
 SRC               := $(wildcard $(CURDIR)/src/*.m)
-BIN               := $(CURDIR)/bin
+BUILD               := $(CURDIR)/bin
 PROGRAM           := av
 
 # Includes
@@ -32,18 +32,21 @@ CFLAGS            += -framework Foundation
 CFLAGS            += -framework AVFoundation
 CFLAGS            += -lyaml
 
-all: $(BIN)/$(PROGRAM) compile_commands.json
+all: $(BUILD)/$(PROGRAM) compile_commands.json
 
 
-$(BIN)/$(PROGRAM): $(SRC)
+$(BUILD)/$(PROGRAM): $(SRC)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
-compile_commands.json: $(BIN)/$(PROGRAM)
+compile_commands.json: $(BUILD)/$(PROGRAM)
 	@echo [ > $@
 	@cat .compile_commands.json.intermediate >> $@
 	@echo ] >> $@
 	@rm .compile_commands.json.intermediate
 
+test:
+	$(CURDIR)/tests/run
+
 clean:
-	rm -rf $(BIN)
+	rm -rf $(BUILD) $(CURDIR)/tests/music

@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
-
 require 'open3'
-require 'bundler'
 require 'json'
 require 'tempfile'
 require 'yaml'
 require 'fileutils'
+require 'optparse'
 
 class CommandError < StandardError
     # @return [String]
@@ -15,10 +14,10 @@ class CommandError < StandardError
 
     # @param program [String]
     # @param out [String]
-    def initialize(program, out)
-      @program = program
-      @out = out
-      super("Command error '#{program}': #{out}")
+    def initialize program, out
+        @program = program
+        @out = out
+        super("Command error '#{program}': #{out}")
     end
 end
 
@@ -33,8 +32,13 @@ def err args
 end
 
 # @param args [Array]
+def info args
+    warn "\e[92m❯\e[0m #{args}"
+end
+
+# @param args [Array]
 def debug args
-    return unless DEBUG
+    return unless FLAGS[:debug]
 
     warn "\e[94m❯\e[0m #{args}"
 end
@@ -126,9 +130,59 @@ def av_generate_cover color, outputfile
     system_run "convert", ["-size", "1280x720", "xc:#{color}", outputfile]
 end
 
+def setup
+    cfg_yaml = <<~HEREDOC
+        art_dir: #{ART_ROOT}
+        music_dir: #{MUSIC_ROOT}
+        playlists:
+            first:
+              - red/red1.mp4
+              - red/red2.mp4
+            second:
+              - blue/blue1.mp4
+              - blue/blue2.mp4
+        metadata:
+            red:
+              album: Red album
+              artist: Red artist
+              crop_cover: true
+              clear_metadata: true
+            blue:
+              album: Blue album
+              artist: Blue artist
+              cover: blue.png
+              clear_metadata: true
+    HEREDOC
+
+    FileUtils.mkdir_p ART_ROOT
+    FileUtils.mkdir_p MUSIC_ROOT
+    File.write(CFG, cfg_yaml)
+
+    ALBUMS.each do |album|
+        (1...5).each do |i|
+            FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
+            av_generate_cover album, "#{ART_ROOT}/#{album}.png"
+            av_generate outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
+                        cover_color: album
+        end
+    end
+
+    system "tree", "--noreport", TOP if FLAGS[:debug]
+end
+
+## tests #######################################################################
+
+# @return [Boolean]
+def test_update
+    # r = system_run AVBIN, ['-c', CFG, 'up']
+
+    sleep 1
+    r = (2 * rand).to_i % 2
+    r.zero?
+end
+
 ################################################################################
 
-DEBUG = true
 CHAR_RANGES = [
     (0x20..0x7f), # ascii
     (0x80..0x2af), # extended latin1
@@ -136,47 +190,79 @@ CHAR_RANGES = [
     (0x1f600..0x1f64f) # emoticons
 ].freeze
 
-ALBUMS = ["red", "blue", "green", "pink"]
-TOP = "#{File.dirname(__FILE__)}/music"
-ART_ROOT = "#{TOP}/art"
-MUSIC_ROOT = "#{TOP}/albums"
-CFG = "#{TOP}/av.yml"
+FLAGS = { # rubocop:disable Style/MutableConstant
+    failfast: false,
+    debug: false,
+    pattern: nil
+}
+DEBUG = false
+ALBUMS = ["red", "blue", "green", "pink"].freeze
+TOP = "#{File.dirname(__FILE__)}/music".freeze
+ART_ROOT = "#{TOP}/art".freeze
+MUSIC_ROOT = "#{TOP}/albums".freeze
+CFG = "#{TOP}/av.yml".freeze
+AVBIN = File.realpath "#{TOP}/../../bin/av"
 
-cfg_yaml = <<~HEREDOC
-    art_dir: #{ART_ROOT}
-    music_dir: #{MUSIC_ROOT}
-    playlists:
-        first:
-          - red/red1.mp4
-          - red/red2.mp4
-        second:
-          - blue/blue1.mp4
-          - blue/blue2.mp4
-    metadata:
-        red:
-          album: Red album
-          artist: Red artist
-          crop_cover: true
-          clear_metadata: true
-        blue:
-          album: Blue album
-          artist: Blue artist
-          cover: blue.png
-          clear_metadata: true
-HEREDOC
-
-FileUtils.mkdir_p ART_ROOT
-FileUtils.mkdir_p MUSIC_ROOT
-File.write(CFG, cfg_yaml)
-
-ALBUMS.each do |album|
-    (1...5).each do |i|
-        FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
-        av_generate_cover album, "#{ART_ROOT}/#{album}.png"
-        av_generate outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
-                    cover_color: album
+parser = OptionParser.new do |opts|
+    opts.banner = "usage: #{File.basename $0} [FLAGS]"
+    opts.on('-d', '--debug', 'Show debug information') do |_|
+        FLAGS[:debug] = true
+    end
+    opts.on('-f', '--fail-fast', 'Stop on first failure') do |_|
+        FLAGS[:failfast] = true
+    end
+    opts.on('-mPATTERN', '--match=PATTERN', 'Only run tests matching pattern') do |p|
+        FLAGS[:pattern] = p
+    end
+    opts.on('-h', '--help', 'Show help and exit') do |_|
+        opts.display
+        exit
     end
 end
 
-system "tree", "--noreport", TOP
+begin
+    parser.parse!
+rescue StandardError => e
+    die e.message, parser.help
+end
 
+info "Setting up testdata..."
+setup
+
+TESTS = [
+    "test_update",
+    "test_update",
+    "test_update",
+    "test_update",
+    "test_update",
+    "test_update",
+    "test_update",
+    "test_update"
+].freeze
+passed = 0
+
+info "Starting tests"
+
+TESTS.each_with_index do |t, i|
+    unless FLAGS[:pattern].nil?
+        next unless t.include? FLAGS[:pattern] # rubocop:disable Style/SoleNestedConditional
+    end
+
+    if eval t # rubocop:disable Security/Eval
+        passed += 1
+        $stderr.print "\r\e[92m❯\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
+    else
+        $stderr.print "\r\e[91m❯\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
+        if FLAGS[:failfast]
+            $stderr.print "\n"
+            die "[#{t}] FAILED"
+        end
+    end
+end
+$stderr.print "\n"
+
+if passed == TESTS.count
+    info "OK"
+else
+    err "Passed: [#{passed}/#{TESTS.count}]"
+end

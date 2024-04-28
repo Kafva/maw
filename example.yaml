@@ -1,0 +1,134 @@
+# Editors.
+main:
+  - conf:
+      panes:
+        - cwd: ~/dots
+          cmd: v
+
+# Notes (NO CODE) and Terminals.
+alt:
+  - notes:
+      panes:
+        - cwd: ~/Documents/Motes
+          cmd: v TODO.md
+  - music:
+      layout: hsplit
+      panes:
+          - cwd: ~/Music
+            cmd: mp pls
+          - cmd: mp s
+
+
+main2:
+  - sofy:
+      layout: three
+      panes:
+          - host: ayr
+            cwd: ~/repos/sofy
+            cmd: v
+          - cmd: rbenv shell 3.2.2
+          - cmd: ./scripts/iosdevel.sh
+  - nix:
+      panes:
+        - host: niex
+          cwd: /etc/nixos/inix
+          cmd: v
+        - cmd: clear
+  - cv:
+      panes:
+      - cwd: ~/Documents/XeT/cv
+        cmd: v main.tex
+  - make-ls:
+      panes:
+          - cwd: ~/repos/make-ls
+            cmd: v
+          - cmd: clear
+
+alt2:
+  - sofy:
+      layout: hsplit
+      panes:
+      - host: ayr
+        cwd: ~/repos/sofy
+        cmd: ./scripts/serverdevel.sh
+      - cmd: clear
+  - nass_release:
+      layout: four
+      panes:
+        - host: aly
+          cwd: /srv/nass
+          cmd: doas /bin/zsh
+        - cmd: doas -u nass tail -f /srv/nass/nass.log
+        - cmd: trlog
+        - cmd: doas -u nass /bin/zsh
+  - sofy_release:
+      layout: hsplit
+      panes:
+        - host: aly
+          cwd: /srv/sofy
+          cmd: sofy-log
+        - cwd: /srv/.ergo/Music
+          cmd: ls -a
+  - nass_dev:
+      layout: hsplit
+      panes:
+        - host: vel
+          cwd: ~/repos/nass
+          cmd: ./scripts/devctl.sh logs
+  - xcode:
+      panes:
+        - cwd: /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks
+          cmd: nvim
+
+
+## Windows ##
+win:
+  - conf:
+      panes:
+      - host: dsam
+        cwd: ~/dots
+        cmd: v
+  - windows:
+      panes:
+      - host: dsam
+        cwd: /mnt/c/Users/jonas/woot
+        cmd: v
+  - powershell:
+      layout: single
+      panes:
+      - host: dsam
+        cwd: /mnt/c/Users/jonas/woot
+        cmd: powershell.exe
+
+## Linux ##
+linux:
+  - bluetooth:
+      layout: hthree
+      panes:
+          - host: vel
+            cwd: ~/Music
+            cmd: bluetoothctl info|head
+          - cmd: sudo journalctl -xef
+          - cmd: pulsemixer
+  - android:
+        layout: three
+        panes:
+            - host: vel
+              cwd: ~/repos/xofy
+              cmd: go run main.go
+            - cmd: emulator -avd
+            - cmd: adb shell
+  - uber:
+      layout: hthree
+      panes:
+        - host: uber
+          cwd: ~/
+          cmd: clear
+  - alpine:
+      layout: hsplit
+      panes:
+        - host: vel
+          cwd: ~/IMG/alpine
+          cmd: sudo ./enter-chroot -u jonas
+        - cmd: sudo ./enter-chroot
+

@@ -167,7 +167,7 @@ def setup
         end
     end
 
-    system "tree", "--noreport", TOP if FLAGS[:debug]
+    system "tree", "--noreport", "#{TOP}/music" if FLAGS[:debug]
 end
 
 ## tests #######################################################################
@@ -197,11 +197,11 @@ FLAGS = { # rubocop:disable Style/MutableConstant
 }
 DEBUG = false
 ALBUMS = ["red", "blue", "green", "pink"].freeze
-TOP = "#{File.dirname(__FILE__)}/music".freeze
-ART_ROOT = "#{TOP}/art".freeze
-MUSIC_ROOT = "#{TOP}/albums".freeze
-CFG = "#{TOP}/av.yml".freeze
-AVBIN = File.realpath "#{TOP}/../../bin/av"
+TOP = File.dirname(__FILE__).freeze
+ART_ROOT = "#{TOP}/music/art".freeze
+MUSIC_ROOT = "#{TOP}/music/albums".freeze
+CFG = "#{TOP}/music/av.yml".freeze
+AVBIN = File.realpath "#{TOP}/../build/av"
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename $0} [FLAGS]"

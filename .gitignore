@@ -15,6 +15,9 @@ build
 *.rej
 .cache
 
+# Ruby
+.yardoc
+
 
 # LaTeX
 *.aux

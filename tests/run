@@ -1,14 +1,19 @@
 #!/usr/bin/env ruby
 
+require 'open3'
+require 'bundler'
+require 'json'
+
+
 # Create random unicode string
 # https://en.wikipedia.org/wiki/Unicode_block
 
 DEBUG = true
 CHAR_RANGES = [
     (0x20..0x7f), # ascii
-    # (0x80..0x2af), # extended latin1
-    # (0x3040..0x309f), # hiragana
-    # (0x1f600..0x1f64f) # emoticons
+    (0x80..0x2af), # extended latin1
+    (0x3040..0x309f), # hiragana
+    (0x1f600..0x1f64f) # emoticons
 ].freeze
 
 def die msg
@@ -16,23 +21,37 @@ def die msg
     exit 1
 end
 
+# @param args [Array]
+def err args
+    warn "\e[91m❯\e[0m #{args}"
+end
+
+# @param args [Array]
 def debug args
     return unless DEBUG
 
-    warn "\e[94mDEBUG\e[0m: #{args}"
+    warn "\e[94m❯\e[0m #{args}"
 end
 
+# @param cmdarr [Array]
+# @return [Integer]
 def system_run cmdarr
     begin
-        debug cmdarr.join ' '
-        # Unlike `...`, `system` brings the command into the foreground
-        system(*cmdarr)
+        debug cmdarr.join(' ')
+        _, stderr, status = Open3.capture3(*cmdarr)
+
+        unless status.success?
+            err "Command returned #{status.exitstatus}"
+            die stderr
+        end
     rescue Interrupt
         puts "Cancelled"
     end
-    $?
+    status.exitstatus
 end
 
+# @param minlen [Array]
+# @param maxlen [Array]
 def av_randstr minlen, maxlen
     str_len = rand minlen..maxlen
     out = ''
@@ -50,22 +69,26 @@ def av_randstr minlen, maxlen
     out.gsub(%r{/}, '').gsub('\\', '\\\\')
 end
 
-
-def av_generate outputfile:,
-                title:nil,
-                album:nil,
-                artist:nil,
-                cover:nil,
-                duration: 30
+# @param outputfile [String]
+# @param title [String, void]
+# @param album [String, void]
+# @param artist [String, void]
+# @param cover [String, void]
+# @param duration [Integer, void]
+def av_generate(outputfile:,
+                title: nil,
+                album: nil,
+                artist: nil,
+                cover: nil,
+                duration: 30)
     maxlen = 4
     maxlen_text = 4
     system_run ["convert", "-size", "1280x720", "xc:#{cover}", "red.png"]
 
     system_run ["ffmpeg", "-y",
-                          "-f", "lavfi",
-                          "-i", "anullsrc=duration=#{duration}",
-                          "-c:a", "aac", "-shortest"
-               ] +
+                "-f", "lavfi",
+                "-i", "anullsrc=duration=#{duration}",
+                "-c:a", "aac", "-shortest"] +
                (cover.nil? ? [] : ["-c:v", "copy", "-i", cover]) +
                [
                    "-metadata", "title=\"#{title.nil? ? av_randstr(1, maxlen) : title}\"",
@@ -82,5 +105,6 @@ def av_generate outputfile:,
 end
 
 
-
 av_generate outputfile: "red.mp4"
+
+

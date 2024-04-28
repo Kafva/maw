@@ -1,7 +1,7 @@
-#include "av.h"
+#include "maw.h"
 #include <yaml.h>
 
-int av_yaml_parse(void) {
+int maw_yaml_parse(void) {
     // Open the YAML file for reading
     FILE *file = fopen("example.yaml", "rb");
     if (!file) {

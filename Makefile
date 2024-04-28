@@ -3,7 +3,7 @@ CC                := clang
 SRCS              = $(wildcard src/*.m)
 OBJS              = $(SRCS:src/%.m=$(BUILD)/%.o)
 BUILD             = build
-PROGRAM           = av
+PROGRAM           = maw
 
 CFLAGS            += -mmacosx-version-min=14.0
 # Includes

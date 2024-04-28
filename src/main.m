@@ -1,8 +1,8 @@
-#include "av.h"
+#include "maw.h"
 
 #include <getopt.h>
 
-#define PROGRAM "av"
+#define PROGRAM "maw"
 
 // Multi threaded metadata assignment based on yaml config
 // '\r' progress printing
@@ -65,8 +65,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    (void)av_dump(input_file);
-    (void)av_yaml_parse();
+    (void)maw_dump(input_file);
+    (void)maw_yaml_parse();
 
     return EXIT_SUCCESS;
 }

@@ -60,7 +60,7 @@ end
 # https://en.wikipedia.org/wiki/Unicode_block
 # @param minlen [Array]
 # @param maxlen [Array]
-def av_randstr minlen, maxlen
+def randstr minlen, maxlen
     str_len = rand minlen..maxlen
     out = ''
     (0..str_len).each do |_|
@@ -83,7 +83,7 @@ end
 # @param artist [String, void]
 # @param cover_color [String, void]
 # @param duration [Integer, void]
-def av_generate(outputfile:,
+def generate_audio(outputfile:,
                 title: nil,
                 album: nil,
                 artist: nil,
@@ -94,8 +94,8 @@ def av_generate(outputfile:,
     tmpcover = nil
     begin
         unless cover_color.nil?
-            tmpcover = Tempfile.new ["av", ".png"]
-            av_generate_cover cover_color, tmpcover.path
+            tmpcover = Tempfile.new ["maw", ".png"]
+            generate_cover cover_color, tmpcover.path
         end
 
         system_run "ffmpeg", ["-y", "-f", "lavfi"] +
@@ -106,15 +106,15 @@ def av_generate(outputfile:,
                              # Audio format
                              ["-c:a", "aac", "-shortest"] +
                              # Metadata
-                             ["-metadata", "title=\"#{title.nil? ? av_randstr(1, maxlen) : title}\"",
-                             "-metadata", "album=\"#{album.nil? ? av_randstr(1, maxlen) : album}\"",
-                             "-metadata", "artist=\"#{artist.nil? ? av_randstr(1, maxlen) : artist}\"",
-                             "-metadata", "comment=\"#{av_randstr 1, maxlen_text}\"",
-                             "-metadata", "description=\"#{av_randstr 1, maxlen_text}\"",
-                             "-metadata", "genre=\"#{av_randstr 1, maxlen}\"",
-                             "-metadata", "composer=\"#{av_randstr 1, maxlen}\"",
-                             "-metadata", "copyright=\"#{av_randstr 1, maxlen}\"",
-                             "-metadata", "synopsis=\"#{av_randstr 1, maxlen_text}\"",
+                             ["-metadata", "title=\"#{title.nil? ? randstr(1, maxlen) : title}\"",
+                             "-metadata", "album=\"#{album.nil? ? randstr(1, maxlen) : album}\"",
+                             "-metadata", "artist=\"#{artist.nil? ? randstr(1, maxlen) : artist}\"",
+                             "-metadata", "comment=\"#{randstr 1, maxlen_text}\"",
+                             "-metadata", "description=\"#{randstr 1, maxlen_text}\"",
+                             "-metadata", "genre=\"#{randstr 1, maxlen}\"",
+                             "-metadata", "composer=\"#{randstr 1, maxlen}\"",
+                             "-metadata", "copyright=\"#{randstr 1, maxlen}\"",
+                             "-metadata", "synopsis=\"#{randstr 1, maxlen_text}\"",
                              outputfile]
     rescue Interrupt
         warn "Cancelled"
@@ -126,7 +126,7 @@ ensure
     tmpcover&.unlink
 end
 
-def av_generate_cover color, outputfile
+def generate_cover color, outputfile
     system_run "convert", ["-size", "1280x720", "xc:#{color}", outputfile]
 end
 
@@ -161,8 +161,8 @@ def setup
     ALBUMS.each do |album|
         (1...5).each do |i|
             FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
-            av_generate_cover album, "#{ART_ROOT}/#{album}.png"
-            av_generate outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
+            generate_cover album, "#{ART_ROOT}/#{album}.png"
+            generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
                         cover_color: album
         end
     end
@@ -200,8 +200,8 @@ ALBUMS = ["red", "blue", "green", "pink"].freeze
 TOP = File.dirname(__FILE__).freeze
 ART_ROOT = "#{TOP}/music/art".freeze
 MUSIC_ROOT = "#{TOP}/music/albums".freeze
-CFG = "#{TOP}/music/av.yml".freeze
-AVBIN = File.realpath "#{TOP}/../build/av"
+CFG = "#{TOP}/music/maw.yml".freeze
+AVBIN = File.realpath "#{TOP}/../build/maw"
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename $0} [FLAGS]"

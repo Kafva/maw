@@ -1,7 +1,7 @@
 #include <AVFoundation/AVFoundation.h>
-#include "av.h"
+#include "maw.h"
 
-int av_dump(char* filepath) {
+int maw_dump(char* filepath) {
     if (access(filepath, F_OK) != 0) {
         log(@"No such file: '%s'", filepath);
         return 1;
@@ -29,3 +29,6 @@ int av_dump(char* filepath) {
 }
 
 
+int maw_update(char *filepath, struct Metadata *metadata) {
+    return 0;
+}

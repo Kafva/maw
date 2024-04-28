@@ -3,6 +3,7 @@
 require 'open3'
 require 'bundler'
 require 'json'
+require 'tempfile'
 
 
 # Create random unicode string
@@ -34,20 +35,17 @@ def debug args
 end
 
 # @param cmdarr [Array]
-# @return [Integer]
+# @return [Process::Status]
 def system_run cmdarr
     begin
         debug cmdarr.join(' ')
         _, stderr, status = Open3.capture3(*cmdarr)
+        err stderr unless status.success?
 
-        unless status.success?
-            err "Command returned #{status.exitstatus}"
-            die stderr
-        end
     rescue Interrupt
         puts "Cancelled"
     end
-    status.exitstatus
+    status
 end
 
 # @param minlen [Array]
@@ -73,23 +71,29 @@ end
 # @param title [String, void]
 # @param album [String, void]
 # @param artist [String, void]
-# @param cover [String, void]
+# @param cover_color [String, void]
 # @param duration [Integer, void]
 def av_generate(outputfile:,
                 title: nil,
                 album: nil,
                 artist: nil,
-                cover: nil,
+                cover_color: nil,
                 duration: 30)
     maxlen = 4
     maxlen_text = 4
-    system_run ["convert", "-size", "1280x720", "xc:#{cover}", "red.png"]
+    tmpcover = nil
+    unless cover_color.nil?
+        tmpcover = Tempfile.new ["av", ".png"]
 
-    system_run ["ffmpeg", "-y",
+        r = system_run ["convert", "-size", "1280x720", "xc:#{cover_color}", tmpcover.path]
+        die "convert returned #{r.exitstatus}" unless r.success?
+    end
+
+    r = system_run ["ffmpeg", "-y",
                 "-f", "lavfi",
                 "-i", "anullsrc=duration=#{duration}",
                 "-c:a", "aac", "-shortest"] +
-               (cover.nil? ? [] : ["-c:v", "copy", "-i", cover]) +
+               (tmpcover.nil? ? [] : ["-c:v", "copy", "-i", tmpcover.path]) +
                [
                    "-metadata", "title=\"#{title.nil? ? av_randstr(1, maxlen) : title}\"",
                    "-metadata", "album=\"#{album.nil? ? av_randstr(1, maxlen) : album}\"",
@@ -102,9 +106,11 @@ def av_generate(outputfile:,
                    "-metadata", "synopsis=\"#{av_randstr 1, maxlen_text}\"",
                    outputfile
                ]
+    tmpcover.unlink
+    die "ffmpeg returned #{r.exitstatus}" unless r.success?
 end
 
 
-av_generate outputfile: "red.mp4"
+av_generate outputfile: "red.mp4", cover_color: "red"
 
 

@@ -4,21 +4,26 @@ require 'open3'
 require 'bundler'
 require 'json'
 require 'tempfile'
+require 'yaml'
+require 'fileutils'
 
+class CommandError < StandardError
+    # @return [String]
+    attr_reader :program
+    # @return [String]
+    attr_reader :out
 
-# Create random unicode string
-# https://en.wikipedia.org/wiki/Unicode_block
-
-DEBUG = true
-CHAR_RANGES = [
-    (0x20..0x7f), # ascii
-    (0x80..0x2af), # extended latin1
-    (0x3040..0x309f), # hiragana
-    (0x1f600..0x1f64f) # emoticons
-].freeze
+    # @param program [String]
+    # @param out [String]
+    def initialize(program, out)
+      @program = program
+      @out = out
+      super("Command error '#{program}': #{out}")
+    end
+end
 
 def die msg
-    warn msg
+    err msg
     exit 1
 end
 
@@ -34,20 +39,21 @@ def debug args
     warn "\e[94m❯\e[0m #{args}"
 end
 
-# @param cmdarr [Array]
+# @param program [String]
+# @param args [Array]
 # @return [Process::Status]
-def system_run cmdarr
-    begin
-        debug cmdarr.join(' ')
-        _, stderr, status = Open3.capture3(*cmdarr)
-        err stderr unless status.success?
+def system_run program, args
+    cmdarr = ([program] + args)
+    debug cmdarr.join ' '
+    _, stderr, status = Open3.capture3(*cmdarr)
 
-    rescue Interrupt
-        puts "Cancelled"
-    end
+    raise CommandError.new(program, stderr) unless status.success?
+
     status
 end
 
+# Create random unicode string
+# https://en.wikipedia.org/wiki/Unicode_block
 # @param minlen [Array]
 # @param maxlen [Array]
 def av_randstr minlen, maxlen
@@ -79,38 +85,98 @@ def av_generate(outputfile:,
                 artist: nil,
                 cover_color: nil,
                 duration: 30)
-    maxlen = 4
-    maxlen_text = 4
+    maxlen = 12
+    maxlen_text = 32
     tmpcover = nil
-    unless cover_color.nil?
-        tmpcover = Tempfile.new ["av", ".png"]
+    begin
+        unless cover_color.nil?
+            tmpcover = Tempfile.new ["av", ".png"]
+            av_generate_cover cover_color, tmpcover.path
+        end
 
-        r = system_run ["convert", "-size", "1280x720", "xc:#{cover_color}", tmpcover.path]
-        die "convert returned #{r.exitstatus}" unless r.success?
+        system_run "ffmpeg", ["-y", "-f", "lavfi"] +
+                             # Audio source
+                             ["-i", "anullsrc=duration=#{duration}"] +
+                             # Image source and format
+                             (tmpcover.nil? ? [] : ["-i", tmpcover.path, "-c:v", "copy"]) +
+                             # Audio format
+                             ["-c:a", "aac", "-shortest"] +
+                             # Metadata
+                             ["-metadata", "title=\"#{title.nil? ? av_randstr(1, maxlen) : title}\"",
+                             "-metadata", "album=\"#{album.nil? ? av_randstr(1, maxlen) : album}\"",
+                             "-metadata", "artist=\"#{artist.nil? ? av_randstr(1, maxlen) : artist}\"",
+                             "-metadata", "comment=\"#{av_randstr 1, maxlen_text}\"",
+                             "-metadata", "description=\"#{av_randstr 1, maxlen_text}\"",
+                             "-metadata", "genre=\"#{av_randstr 1, maxlen}\"",
+                             "-metadata", "composer=\"#{av_randstr 1, maxlen}\"",
+                             "-metadata", "copyright=\"#{av_randstr 1, maxlen}\"",
+                             "-metadata", "synopsis=\"#{av_randstr 1, maxlen_text}\"",
+                             outputfile]
+    rescue Interrupt
+        warn "Cancelled"
+    rescue CommandError => e
+        err e.out
+        die "Command failed: #{e.program}"
     end
-
-    r = system_run ["ffmpeg", "-y",
-                "-f", "lavfi",
-                "-i", "anullsrc=duration=#{duration}",
-                "-c:a", "aac", "-shortest"] +
-               (tmpcover.nil? ? [] : ["-c:v", "copy", "-i", tmpcover.path]) +
-               [
-                   "-metadata", "title=\"#{title.nil? ? av_randstr(1, maxlen) : title}\"",
-                   "-metadata", "album=\"#{album.nil? ? av_randstr(1, maxlen) : album}\"",
-                   "-metadata", "artist=\"#{artist.nil? ? av_randstr(1, maxlen) : artist}\"",
-                   "-metadata", "comment=\"#{av_randstr 1, maxlen_text}\"",
-                   "-metadata", "description=\"#{av_randstr 1, maxlen_text}\"",
-                   "-metadata", "genre=\"#{av_randstr 1, maxlen}\"",
-                   "-metadata", "composer=\"#{av_randstr 1, maxlen}\"",
-                   "-metadata", "copyright=\"#{av_randstr 1, maxlen}\"",
-                   "-metadata", "synopsis=\"#{av_randstr 1, maxlen_text}\"",
-                   outputfile
-               ]
-    tmpcover.unlink
-    die "ffmpeg returned #{r.exitstatus}" unless r.success?
+ensure
+    tmpcover&.unlink
 end
 
+def av_generate_cover color, outputfile
+    system_run "convert", ["-size", "1280x720", "xc:#{color}", outputfile]
+end
 
-av_generate outputfile: "red.mp4", cover_color: "red"
+################################################################################
 
+DEBUG = true
+CHAR_RANGES = [
+    (0x20..0x7f), # ascii
+    (0x80..0x2af), # extended latin1
+    (0x3040..0x309f), # hiragana
+    (0x1f600..0x1f64f) # emoticons
+].freeze
+
+ALBUMS = ["red", "blue", "green", "pink"]
+TOP = "#{File.dirname(__FILE__)}/music"
+ART_ROOT = "#{TOP}/art"
+MUSIC_ROOT = "#{TOP}/albums"
+CFG = "#{TOP}/av.yml"
+
+cfg_yaml = <<~HEREDOC
+    art_dir: #{ART_ROOT}
+    music_dir: #{MUSIC_ROOT}
+    playlists:
+        first:
+          - red/red1.mp4
+          - red/red2.mp4
+        second:
+          - blue/blue1.mp4
+          - blue/blue2.mp4
+    metadata:
+        red:
+          album: Red album
+          artist: Red artist
+          crop_cover: true
+          clear_metadata: true
+        blue:
+          album: Blue album
+          artist: Blue artist
+          cover: blue.png
+          clear_metadata: true
+HEREDOC
+
+FileUtils.mkdir_p ART_ROOT
+FileUtils.mkdir_p MUSIC_ROOT
+File.write(CFG, cfg_yaml)
+
+ALBUMS.each do |album|
+    (1...5).each do |i|
+        FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
+        av_generate_cover album, "#{ART_ROOT}/#{album}.png"
+        av_generate outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
+                    cover_color: album
+    end
+end
+
+system "tree", "--noreport", TOP
 

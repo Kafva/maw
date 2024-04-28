@@ -30,5 +30,7 @@ int maw_dump(char* filepath) {
 
 
 int maw_update(char *filepath, struct Metadata *metadata) {
+    (void)filepath;
+    (void)metadata;
     return 0;
 }

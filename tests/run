@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+
+# Create random unicode string
+# https://en.wikipedia.org/wiki/Unicode_block
+
+DEBUG = true
+CHAR_RANGES = [
+    (0x20..0x7f), # ascii
+    # (0x80..0x2af), # extended latin1
+    # (0x3040..0x309f), # hiragana
+    # (0x1f600..0x1f64f) # emoticons
+].freeze
+
+def die msg
+    warn msg
+    exit 1
+end
+
+def debug args
+    return unless DEBUG
+
+    warn "\e[94mDEBUG\e[0m: #{args}"
+end
+
+def system_run cmdarr
+    begin
+        debug cmdarr.join ' '
+        # Unlike `...`, `system` brings the command into the foreground
+        system(*cmdarr)
+    rescue Interrupt
+        puts "Cancelled"
+    end
+    $?
+end
+
+def av_randstr minlen, maxlen
+    str_len = rand minlen..maxlen
+    out = ''
+    (0..str_len).each do |_|
+        choice = rand(0..10) % 10
+        if choice.zero? # space
+            out += ' '
+        elsif choice < 5 # ascii
+            out += (rand CHAR_RANGES[0]).chr 'utf-8'
+        else # any character set
+            char_range = CHAR_RANGES.sample
+            out += (rand char_range).chr 'utf-8'
+        end
+    end
+    out.gsub(%r{/}, '').gsub('\\', '\\\\')
+end
+
+
+def av_generate outputfile:,
+                title:nil,
+                album:nil,
+                artist:nil,
+                cover:nil,
+                duration: 30
+    maxlen = 4
+    maxlen_text = 4
+    system_run ["convert", "-size", "1280x720", "xc:#{cover}", "red.png"]
+
+    system_run ["ffmpeg", "-y",
+                          "-f", "lavfi",
+                          "-i", "anullsrc=duration=#{duration}",
+                          "-c:a", "aac", "-shortest"
+               ] +
+               (cover.nil? ? [] : ["-c:v", "copy", "-i", cover]) +
+               [
+                   "-metadata", "title=\"#{title.nil? ? av_randstr(1, maxlen) : title}\"",
+                   "-metadata", "album=\"#{album.nil? ? av_randstr(1, maxlen) : album}\"",
+                   "-metadata", "artist=\"#{artist.nil? ? av_randstr(1, maxlen) : artist}\"",
+                   "-metadata", "comment=\"#{av_randstr 1, maxlen_text}\"",
+                   "-metadata", "description=\"#{av_randstr 1, maxlen_text}\"",
+                   "-metadata", "genre=\"#{av_randstr 1, maxlen}\"",
+                   "-metadata", "composer=\"#{av_randstr 1, maxlen}\"",
+                   "-metadata", "copyright=\"#{av_randstr 1, maxlen}\"",
+                   "-metadata", "synopsis=\"#{av_randstr 1, maxlen_text}\"",
+                   outputfile
+               ]
+end
+
+
+
+av_generate outputfile: "red.mp4"

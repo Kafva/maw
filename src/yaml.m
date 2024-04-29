@@ -1,11 +1,10 @@
 #include "maw.h"
 #include <yaml.h>
 
-int maw_yaml_parse(void) {
-    // Open the YAML file for reading
-    FILE *file = fopen("example.yaml", "rb");
+int maw_yaml_parse(const char *filepath) {
+    FILE *file = fopen(filepath, "rb");
     if (!file) {
-        fprintf(stderr, "Failed to open file.\n");
+        fprintf(stderr, "Failed to open yaml file: %s\n", filepath);
         return 1;
     }
 

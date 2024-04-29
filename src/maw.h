@@ -4,15 +4,16 @@
 #include <Foundation/Foundation.h>
 
 struct Metadata {
-    char* album;
-    char* artist;
+    NSString* title;
+    NSString* album;
+    NSString* artist;
     char* cover_path;
     bool clear_metadata;
 };
 
-int maw_yaml_parse(void);
-int maw_dump(char*);
-int maw_update(char*, struct Metadata*);
+int maw_yaml_parse(const char*);
+int maw_dump(const char*);
+int maw_update(const char*, const struct Metadata*);
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"

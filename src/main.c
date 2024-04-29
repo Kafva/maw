@@ -1,6 +1,9 @@
 #include "maw.h"
 
 #include <getopt.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #define PROGRAM "maw"
 
@@ -60,25 +63,24 @@ int main(int argc, char *argv[]) {
     }
 
     if (input_file == NULL || config_file == NULL) {
-        log(@"Missing required options");
+        fprintf(stderr, "Missing required options");
         usage();
         return EXIT_FAILURE;
     }
 
+    printf("OK\n");
+    
+    
+
     (void)config_file;
-    const struct Metadata metadata = {
-        .artist = @"New red artist",
-        .album = @"New red album",
-        .cover_path = "music/art/green.png",
-        .clear_metadata = false
-    };
-    printf("*** BEFORE\n");
-    (void)maw_dump(input_file);
 
-    (void)maw_update(input_file, &metadata);
+    //printf("*** BEFORE\n");
+    //(void)maw_dump(input_file);
 
-    printf("*** AFTER\n");
-    (void)maw_dump(input_file);
+    //(void)maw_update(input_file, &metadata);
+
+    //printf("*** AFTER\n");
+    //(void)maw_dump(input_file);
 
     // (void)maw_yaml_parse(config_file);
 

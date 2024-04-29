@@ -1,11 +1,11 @@
 CC                := clang
 
-SRCS              = $(wildcard src/*.m)
-OBJS              = $(SRCS:src/%.m=$(BUILD)/%.o)
+SRCS              = $(wildcard src/*.c)
+OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
 PROGRAM           = maw
 
-CFLAGS            += -mmacosx-version-min=14.0
+#CFLAGS            += -mmacosx-version-min=14.0
 # Includes
 CFLAGS            += -I$(CURDIR)/src
 CFLAGS            += -I/opt/homebrew/include
@@ -26,13 +26,13 @@ CFLAGS            += -pedantic
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all
 # Libraries
-LDFLAGS            += -framework Foundation
-LDFLAGS            += -framework AVFoundation
+# LDFLAGS            += -framework Foundation
+# LDFLAGS            += -framework AVFoundation
 LDFLAGS            += -lyaml
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
 
-$(BUILD)/%.o: $(CURDIR)/src/%.m
+$(BUILD)/%.o: $(CURDIR)/src/%.c
 	@mkdir -p $(dir $@)
 	@# A compilation database for each TU is created with `-MJ`
 	$(CC) $(CFLAGS) -MJ $(dir $@)/.$(notdir $@).json $< -c -o $@

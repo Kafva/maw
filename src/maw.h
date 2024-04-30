@@ -1,26 +1,21 @@
-#ifndef AV_H 
-#define AV_H
+#ifndef MAW_H 
+#define MAW_H
 
-//#include <Foundation/Foundation.h>
+#include <stdbool.h>
 
-// struct Metadata {
-//     NSString* title;
-//     NSString* album;
-//     NSString* artist;
-//     char* cover_path;
-//     bool clear_metadata;
-// };
+struct Metadata {
+    char* title;
+    char* album;
+    char* artist;
+    char* cover_path;
+    bool clear_metadata;
+};
 
 int maw_yaml_parse(const char*);
-// int maw_dump(const char*);
-// int maw_update(const char*, const struct Metadata*);
 
-// #pragma clang diagnostic push
-// #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-// #define log(FORMAT, ...) \
-//     fprintf(stderr, "%s\n", [[NSString stringWithFormat:FORMAT, ##__VA_ARGS__] UTF8String])
-// #pragma clang diagnostic pop
+int maw_init(int);
+int maw_dump(const char*);
+int maw_update(const char*, const struct Metadata*);
+
     
-#endif
-
-// vi: ft=objc
+#endif // MAW_H

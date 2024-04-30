@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#include <libavutil/log.h>
+
 #define PROGRAM "maw"
 
 // Multi threaded metadata assignment based on yaml config
@@ -68,19 +70,28 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    printf("OK\n");
-    
+    maw_init(AV_LOG_QUIET);
     
 
     (void)config_file;
 
-    //printf("*** BEFORE\n");
-    //(void)maw_dump(input_file);
+    struct Metadata metadata = {
+        .title = "New title",
+        .album = "New album name",
+        .artist = "New artist name",
+        .cover_path = "",
+        .clear_metadata = true,
+    };
 
-    //(void)maw_update(input_file, &metadata);
+    printf("*** BEFORE\n");
+    (void)maw_dump(input_file);
 
-    //printf("*** AFTER\n");
-    //(void)maw_dump(input_file);
+    if (maw_update(input_file, &metadata) != 0) {
+        return EXIT_FAILURE;
+    }
+
+    printf("*** AFTER\n");
+    (void)maw_dump(input_file);
 
     // (void)maw_yaml_parse(config_file);
 

@@ -5,7 +5,8 @@ OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
 PROGRAM           = maw
 
-#CFLAGS            += -mmacosx-version-min=14.0
+# XXX
+CFLAGS            += -g
 # Includes
 CFLAGS            += -I$(CURDIR)/src
 CFLAGS            += -I/opt/homebrew/include
@@ -26,8 +27,8 @@ CFLAGS            += -pedantic
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all
 # Libraries
-# LDFLAGS            += -framework Foundation
-# LDFLAGS            += -framework AVFoundation
+LDFLAGS            += -lavformat
+LDFLAGS            += -lavutil
 LDFLAGS            += -lyaml
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json

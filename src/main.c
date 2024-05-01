@@ -21,15 +21,13 @@
 //      Update metadata fields
 //      Erase and replace video streams
 
-
 // Entrypoint outside C to:
 //  * We can parse yaml config from C honsetly
-
 
 static void usage(void);
 
 static void usage(void) {
-    fprintf(stderr, "usage: "PROGRAM" [flags]\n");
+    fprintf(stderr, "usage: " PROGRAM " [flags]\n");
     fprintf(stderr, "   --input <file>\n");
     fprintf(stderr, "   --output <file>\n");
     fprintf(stderr, "   --help           Show this help message\n");
@@ -44,23 +42,22 @@ int main(int argc, char *argv[]) {
         {"input", required_argument, NULL, 'i'},
         {"output", required_argument, NULL, 'o'},
         {"help", no_argument, NULL, 'h'},
-        {NULL, 0, NULL, 0}
-    };
+        {NULL, 0, NULL, 0}};
 
     while ((opt = getopt_long(argc, argv, "i:c:h", long_options, NULL)) != -1) {
         switch (opt) {
-            case 'i':
-                input_file = optarg;
-                break;
-            case 'c':
-                config_file = optarg;
-                break;
-            case 'h':
-                usage();
-                return EXIT_FAILURE;
-            default:
-                usage();
-                return EXIT_FAILURE;
+        case 'i':
+            input_file = optarg;
+            break;
+        case 'c':
+            config_file = optarg;
+            break;
+        case 'h':
+            usage();
+            return EXIT_FAILURE;
+        default:
+            usage();
+            return EXIT_FAILURE;
         }
     }
 
@@ -71,7 +68,6 @@ int main(int argc, char *argv[]) {
     }
 
     maw_init(AV_LOG_QUIET);
-    
 
     (void)config_file;
 

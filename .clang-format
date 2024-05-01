@@ -1,0 +1,6 @@
+# vi: ft=conf
+# https://releases.llvm.org/12.0.0/tools/clang/docs/ClangFormatStyleOptions.html
+ColumnLimit: 80
+IndentWidth: 4
+BreakStringLiterals: true
+SortIncludes: false

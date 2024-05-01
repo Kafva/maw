@@ -28,23 +28,23 @@ int maw_yaml_parse(const char *filepath) {
 
         // Check the type of the event
         switch (event.type) {
-            case YAML_STREAM_START_EVENT:
-            case YAML_STREAM_END_EVENT:
-            case YAML_DOCUMENT_START_EVENT:
-            case YAML_DOCUMENT_END_EVENT:
-            case YAML_MAPPING_START_EVENT:
-            case YAML_MAPPING_END_EVENT:
-            case YAML_SEQUENCE_START_EVENT:
-            case YAML_SEQUENCE_END_EVENT:
-                // Ignore these events for now
-                break;
-            case YAML_SCALAR_EVENT:
-                // Process scalar value
-                printf("Scalar: %s\n", event.data.scalar.value);
-                break;
-            default:
-                fprintf(stderr, "Unknown YAML event.\n");
-                return 1;
+        case YAML_STREAM_START_EVENT:
+        case YAML_STREAM_END_EVENT:
+        case YAML_DOCUMENT_START_EVENT:
+        case YAML_DOCUMENT_END_EVENT:
+        case YAML_MAPPING_START_EVENT:
+        case YAML_MAPPING_END_EVENT:
+        case YAML_SEQUENCE_START_EVENT:
+        case YAML_SEQUENCE_END_EVENT:
+            // Ignore these events for now
+            break;
+        case YAML_SCALAR_EVENT:
+            // Process scalar value
+            printf("Scalar: %s\n", event.data.scalar.value);
+            break;
+        default:
+            fprintf(stderr, "Unknown YAML event.\n");
+            return 1;
         }
 
         // Check if parsing is done
@@ -60,4 +60,3 @@ int maw_yaml_parse(const char *filepath) {
 
     return 0;
 }
-

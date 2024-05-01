@@ -14,7 +14,6 @@ int maw_dump(const char *filepath) {
     AVFormatContext *fmt_ctx = NULL;
     const AVDictionaryEntry *tag = NULL;
 
-
     if ((r = avformat_open_input(&fmt_ctx, filepath, NULL, NULL))) {
         fprintf(stderr, "Cannot open %s\n", filepath);
         return r;
@@ -31,7 +30,7 @@ int maw_dump(const char *filepath) {
     }
 
     avformat_close_input(&fmt_ctx);
-    
+
     return 0;
 }
 

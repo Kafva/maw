@@ -5,6 +5,31 @@
 #include <libavutil/dict.h>
 #include <libavutil/log.h>
 
+void maw_log(int level, const char *filename, int line, const char *fmt, ...) {
+    va_list args;
+
+    va_start(args, fmt);
+
+    switch (level) {
+        case AV_LOG_DEBUG:
+            fprintf(stderr, "\033[94mDEBUG\033[0m [%s:%d] ", filename, line);
+            break;
+        case AV_LOG_INFO:
+            fprintf(stderr, "\033[92mINFO\033[0m [%s:%d] ", filename, line);
+            break;
+        case AV_LOG_WARNING:
+            fprintf(stderr, "\033[93mWARN\033[0m [%s:%d] ", filename, line);
+            break;
+        case AV_LOG_ERROR:
+            fprintf(stderr, "\033[91mERROR\033[0m [%s:%d] ", filename, line);
+            break;
+    }
+
+    fprintf(stderr, fmt, args);
+
+    va_end(args);
+}
+
 int maw_init(int level) {
     av_log_set_level(level);
     return 0;
@@ -16,16 +41,16 @@ int maw_dump(const char *filepath) {
     const AVDictionaryEntry *tag = NULL;
 
     if ((r = avformat_open_input(&fmt_ctx, filepath, NULL, NULL))) {
-        fprintf(stderr, "Cannot open %s\n", filepath);
+        MAW_LOG(AV_LOG_ERROR, "Cannot open %s\n", filepath);
         return r;
     }
 
     if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-        fprintf(stderr, "Cannot find stream information in %s\n", filepath);
+        MAW_LOG(AV_LOG_ERROR, "Cannot find stream information in %s\n", filepath);
         return r;
     }
 
-    printf("=== %s\n", filepath);
+    MAW_LOG(AV_LOG_INFO, "%s\n", filepath);
     while ((tag = av_dict_iterate(fmt_ctx->metadata, tag))) {
         printf("%s=%.32s\n", tag->key, tag->value);
     }
@@ -38,24 +63,23 @@ int maw_dump(const char *filepath) {
 int maw_update(const char *filepath, const struct Metadata *metadata) {
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
-    // AVCodecContext *decode_ctx = NULL;
-    // AVCodecContext *encode_ctx = NULL;
-    // AVFrame *decode_frame = NULL;
+    AVPacket *pkt = NULL;
+    const AVOutputFormat *output_fmt = NULL;
 
     (void)metadata;
 
-    int r = -1;
+    int r = AVERROR_UNKNOWN;
 
     // Open input file
     r = avformat_open_input(&input_fmt_ctx, filepath, NULL, NULL);
     if (r != 0) {
-        fprintf(stderr, "Cannot open %s\n", filepath);
+        MAW_LOG(AV_LOG_ERROR, "Cannot open %s\n", filepath);
         goto cleanup;
     }
 
     r = avformat_find_stream_info(input_fmt_ctx, NULL);
     if (r != 0) {
-        fprintf(stderr, "Cannot find stream information in %s\n", filepath);
+        MAW_LOG(AV_LOG_ERROR, "Cannot find stream information in %s\n", filepath);
         goto cleanup;
     }
 
@@ -78,96 +102,117 @@ int maw_update(const char *filepath, const struct Metadata *metadata) {
     const char *output_filepath = "new.m4a";
     r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, NULL, output_filepath);
     if (r != 0) {
-        fprintf(stderr, "Failed to create output avformat context\n");
+        MAW_LOG(AV_LOG_ERROR, "Failed to create output avformat context\n");
         goto cleanup;
     }
 
-    // AVStream *stream = NULL;
-    // const AVCodec *dec;
+    int stream_index = 0;
+    int *stream_mapping = NULL;
+    int stream_mapping_size = 0;
 
-    // for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
-    //     stream = input_fmt_ctx->streams[i];
-    //     dec = avcodec_find_decoder(stream->codecpar->codec_id);
-    //     AVCodecContext *codec_ctx;
-    //     if (!dec) {
-    //         av_log(NULL, AV_LOG_ERROR, "Failed to find decoder for stream #%u\n", i);
-    //         return AVERROR_DECODER_NOT_FOUND;
-    //     }
-    //     codec_ctx = avcodec_alloc_context3(dec);
-    //     if (!codec_ctx) {
-    //         av_log(NULL, AV_LOG_ERROR, "Failed to allocate the decoder context for stream #%u\n", i);
-    //         return AVERROR(ENOMEM);
-    //     }
-    //     r = avcodec_parameters_to_context(codec_ctx, stream->codecpar);
-    //     if (r < 0) {
-    //         av_log(NULL, AV_LOG_ERROR, "Failed to copy decoder parameters to input decoder context "
-    //                "for stream #%u\n", i);
-    //         return r;
-    //     }
+    stream_mapping_size = input_fmt_ctx->nb_streams;
+    stream_mapping = av_calloc(stream_mapping_size, sizeof(*stream_mapping));
+    if (!stream_mapping) {
+        r = AVERROR(ENOMEM);
+        goto cleanup;
+    }
 
-    //     /* Inform the decoder about the timebase for the packet timestamps.
-    //      * This is highly recommended, but not mandatory. */
-    //     codec_ctx->pkt_timebase = stream->time_base;
+    output_fmt = output_fmt_ctx->oformat;
 
-    //     /* Reencode video & audio and remux subtitles etc. */
-    //     if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
-    //             || codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
-    //         if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO)
-    //             codec_ctx->framerate = av_guess_frame_rate(input_fmt_ctx, stream, NULL);
-    //         /* Open decoder */
-    //         r = avcodec_open2(codec_ctx, dec, NULL);
-    //         if (r < 0) {
-    //             av_log(NULL, AV_LOG_ERROR, "Failed to open decoder for stream #%u\n", i);
-    //             return r;
-    //         }
-    //     }
-    //     decode_ctx = codec_ctx;
+    for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
+        AVStream *out_stream;
+        AVStream *in_stream = input_fmt_ctx->streams[i];
+        AVCodecParameters *in_codecpar = in_stream->codecpar;
 
-    //     decode_frame = av_frame_alloc();
-    //     if (!decode_frame) {
-    //         return AVERROR(ENOMEM);
-    //     }
-    // }
+        if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
+            in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO &&
+            in_codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
+            stream_mapping[i] = -1;
+            continue;
+        }
+
+        stream_mapping[i] = stream_index++;
+
+        out_stream = avformat_new_stream(output_fmt_ctx, NULL);
+        if (!out_stream) {
+            MAW_LOG(AV_LOG_ERROR, "Failed allocating output stream\n");
+            goto cleanup;
+        }
+
+        r = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
+        if (r < 0) {
+            MAW_LOG(AV_LOG_ERROR, "Failed to copy codec parameters\n");
+            goto cleanup;
+        }
+        out_stream->codecpar->codec_tag = 0;
+    }
+    av_dump_format(output_fmt_ctx, 0, output_filepath, 1);
+
+    if (!(output_fmt->flags & AVFMT_NOFILE)) {
+        r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
+        if (r < 0) {
+            MAW_LOG(AV_LOG_ERROR, "Could not open output file '%s'", output_filepath);
+            goto cleanup;
+        }
+    }
+
+    r = avformat_write_header(output_fmt_ctx, NULL);
+    if (r < 0) {
+        MAW_LOG(AV_LOG_ERROR, "Error occurred when opening output file\n");
+        goto cleanup;
+    }
+
+    while (true) {
+        AVStream *in_stream, *out_stream;
+
+        r = av_read_frame(input_fmt_ctx, pkt);
+        if (r < 0)
+            break;
+
+        in_stream  = input_fmt_ctx->streams[pkt->stream_index];
+        if (pkt->stream_index >= stream_mapping_size ||
+            stream_mapping[pkt->stream_index] < 0) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        pkt->stream_index = stream_mapping[pkt->stream_index];
+        out_stream = output_fmt_ctx->streams[pkt->stream_index];
 
 
+        /* copy packet */
+        av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base);
+        pkt->pos = -1;
 
 
+        r = av_interleaved_write_frame(output_fmt_ctx, pkt);
+        /* pkt is now blank (av_interleaved_write_frame() takes ownership of
+         * its contents and resets pkt), so that no unreferencing is necessary.
+         * This would be different if one used av_write_frame(). */
+        if (r < 0) {
+            MAW_LOG(AV_LOG_ERROR, "Error muxing packet\n");
+            break;
+        }
+    }
 
+    av_write_trailer(output_fmt_ctx);
 
-
-
-
-
-
-
-
-
-
-
-
-
-    // if (!(output_fmt_ctx->flags & AVFMT_NOFILE)) {
-    //     r = avio_open(&output_fmt_ctx->pb, filepath, AVIO_FLAG_WRITE);
-    //     if (r < 0) {
-    //         fprintf(stderr, "Could not open '%s' for writing", filepath);
-    //         goto cleanup;
-    //     }
-    // }
-
-    // if ((r = avformat_write_header(output_fmt_ctx, &(input_fmt_ctx->metadata))) != 0) {
-    //     goto cleanup;
-    // }
-    
     r = 0;
 
 cleanup:
+    av_packet_free(&pkt);
+    avformat_close_input(&input_fmt_ctx);
+
     if (input_fmt_ctx != NULL) {
-        avformat_close_input(&input_fmt_ctx);
         avformat_free_context(input_fmt_ctx);
     }
     if (output_fmt_ctx != NULL) {
+        if (output_fmt != NULL && !(output_fmt->flags & AVFMT_NOFILE)) {
+            avio_closep(&output_fmt_ctx->pb);
+        }
         avformat_free_context(output_fmt_ctx);
     }
+    av_freep(&stream_mapping);
 
     return r;
 }

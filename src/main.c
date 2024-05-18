@@ -10,21 +10,6 @@
 
 #define PROGRAM "maw"
 
-// Multi threaded metadata assignment based on yaml config
-// '\r' progress printing
-// sanitize filenames
-// generate playlists
-//
-//
-// make it a macOS only program, use AVAsset api instead of ffmpeg...
-// https://wiki.haskell.org/Foreign_Function_Interface
-// small objc lib to:
-//      Update metadata fields
-//      Erase and replace video streams
-
-// Entrypoint outside C to:
-//  * We can parse yaml config from C honsetly
-
 static void usage(void);
 
 static void usage(void) {
@@ -71,6 +56,9 @@ int main(int argc, char *argv[]) {
             else if (strncasecmp("error", optarg, sizeof("error") - 1) == 0) {
                 log_level = AV_LOG_ERROR;
             }
+            else if (strncasecmp("quiet", optarg, sizeof("quiet") - 1) == 0) {
+                log_level = AV_LOG_QUIET;
+            }
             else {
                 fprintf(stderr, "Invalid log level\n");
                 return EXIT_FAILURE;
@@ -83,7 +71,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (input_file == NULL || config_file == NULL) {
-        fprintf(stderr, "Missing required options\n");
+        MAW_LOG(AV_LOG_ERROR, "Missing required options\n");
         usage();
         return EXIT_FAILURE;
     }
@@ -100,15 +88,15 @@ int main(int argc, char *argv[]) {
         .clear_metadata = true,
     };
 
-    printf("*** BEFORE\n");
-    (void)maw_dump(input_file);
+    // printf("*** BEFORE\n");
+    // (void)maw_dump(input_file);
 
     if (maw_update(input_file, &metadata) != 0) {
         return EXIT_FAILURE;
     }
 
-    printf("*** AFTER\n");
-    (void)maw_dump(input_file);
+    // printf("*** AFTER\n");
+    // (void)maw_dump("new.m4a");
 
     // (void)maw_yaml_parse(config_file);
 

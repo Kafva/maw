@@ -7,6 +7,7 @@ PROGRAM           = maw
 
 # XXX
 CFLAGS            += -g
+CFLAGS            += -std=c99
 # Includes
 CFLAGS            += -I$(CURDIR)/src
 CFLAGS            += -I/opt/homebrew/include
@@ -23,6 +24,8 @@ CFLAGS            += -Wcast-qual
 CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
 CFLAGS            += -pedantic
+# Disabled Warnings
+CFLAGS            += -Wno-gnu-zero-variadic-macro-arguments
 # Santitizers
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all

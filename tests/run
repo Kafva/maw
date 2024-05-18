@@ -28,19 +28,19 @@ end
 
 # @param args [Array]
 def err args
-    warn "\e[91m❯\e[0m #{args}"
+    warn "\e[91m*\e[0m #{args}"
 end
 
 # @param args [Array]
 def info args
-    warn "\e[92m❯\e[0m #{args}"
+    warn "\e[92m*\e[0m #{args}"
 end
 
 # @param args [Array]
 def debug args
     return unless FLAGS[:debug]
 
-    warn "\e[94m❯\e[0m #{args}"
+    warn "\e[94m*\e[0m #{args}"
 end
 
 # @param program [String]
@@ -84,11 +84,11 @@ end
 # @param cover_color [String, void]
 # @param duration [Integer, void]
 def generate_audio(outputfile:,
-                title: nil,
-                album: nil,
-                artist: nil,
-                cover_color: nil,
-                duration: 30)
+                   title: nil,
+                   album: nil,
+                   artist: nil,
+                   cover_color: nil,
+                   duration: 30)
     maxlen = 12
     maxlen_text = 32
     tmpcover = nil
@@ -163,7 +163,7 @@ def setup
             FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
             generate_cover album, "#{ART_ROOT}/#{album}.png"
             generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
-                        cover_color: album
+                           cover_color: album
         end
     end
 
@@ -232,11 +232,6 @@ setup
 TESTS = [
     "test_update",
     "test_update",
-    "test_update",
-    "test_update",
-    "test_update",
-    "test_update",
-    "test_update",
     "test_update"
 ].freeze
 passed = 0
@@ -250,9 +245,9 @@ TESTS.each_with_index do |t, i|
 
     if eval t # rubocop:disable Security/Eval
         passed += 1
-        $stderr.print "\r\e[92m❯\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
+        $stderr.print "\r\e[92m*\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
     else
-        $stderr.print "\r\e[91m❯\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
+        $stderr.print "\r\e[91m*\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
         if FLAGS[:failfast]
             $stderr.print "\n"
             die "[#{t}] FAILED"

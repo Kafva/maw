@@ -1,6 +1,7 @@
 CC                := clang
 
 SRCS              = $(wildcard src/*.c)
+HEADERS           = $(wildcard src/*.h)
 OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
 PROGRAM           = maw
@@ -24,8 +25,6 @@ CFLAGS            += -Wcast-qual
 CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
 CFLAGS            += -pedantic
-# Disabled Warnings
-CFLAGS            += -Wno-gnu-zero-variadic-macro-arguments
 # Santitizers
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all
@@ -41,8 +40,8 @@ $(BUILD)/%.o: $(CURDIR)/src/%.c
 	@# A compilation database for each TU is created with `-MJ`
 	$(CC) $(CFLAGS) -MJ $(dir $@)/.$(notdir $@).json $< -c -o $@
 
-$(BUILD)/$(PROGRAM): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+$(BUILD)/$(PROGRAM): $(OBJS) $(HEADERS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
 
 compile_commands.json: $(BUILD)/$(PROGRAM)
 	@# Combine JSON fragments from build into a complete compilation database

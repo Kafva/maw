@@ -2,6 +2,7 @@
 
 .lldbinit
 tests/music
+/*.m4a
 
 # General
 **/bin/**

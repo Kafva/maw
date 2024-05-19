@@ -21,7 +21,6 @@ int maw_init(int);
 int maw_dump(const char *);
 int maw_update(const char *, const struct Metadata *);
 
-
 #define MAW_LOGF(level, fmt, ...) \
     maw_logf(level, __FILE_NAME__, __LINE__, fmt, __VA_ARGS__)
 
@@ -31,7 +30,7 @@ int maw_update(const char *, const struct Metadata *);
 // Log the description of an AV_ERROR
 #define MAW_PERROR(code, msg) do { \
     char errbuf[128] = {0}; \
-    if (av_strerror(r, errbuf, sizeof errbuf) != 0) { \
+    if (av_strerror(code, errbuf, sizeof errbuf) != 0) { \
         if (msg != NULL) { \
             MAW_LOGF(AV_LOG_ERROR, "%s: Unknown error\n", msg); \
         } else { \

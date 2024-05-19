@@ -1,4 +1,5 @@
 CC                := clang
+UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 SRCS              = $(wildcard src/*.c)
 HEADERS           = $(wildcard src/*.h)
@@ -6,12 +7,12 @@ OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
 PROGRAM           = maw
 
-# XXX
-CFLAGS            += -g
 CFLAGS            += -std=c99
 # Includes
 CFLAGS            += -I$(CURDIR)/src
+ifeq ($(UNAME),darwin)
 CFLAGS            += -I/opt/homebrew/include
+endif
 # Warnings
 CFLAGS            += -Wall
 CFLAGS            += -Wextra
@@ -25,13 +26,24 @@ CFLAGS            += -Wcast-qual
 CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
 CFLAGS            += -pedantic
-# Santitizers
+# Libraries
+LDFLAGS           += -lavcodec
+LDFLAGS           += -lavformat
+LDFLAGS           += -lavutil
+LDFLAGS           += -lyaml
+
+# Release/debug only flags
+ifeq ($(DEBUG),1)
+CFLAGS            += -g
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all
-# Libraries
-LDFLAGS            += -lavformat
-LDFLAGS            += -lavutil
-LDFLAGS            += -lyaml
+CFLAGS            += -Wno-unused
+else
+CFLAGS            += -O3
+CFLAGS            += -Wunreachable-code
+CFLAGS            += -Wunused
+endif
+
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
 

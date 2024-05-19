@@ -31,7 +31,7 @@ void maw_logf(int level, const char *filename, int line, const char *fmt, ...) {
 
     va_start(args, fmt);
 
-    fprintf(stderr, fmt, args);
+    vfprintf(stderr, fmt, args);
 
     va_end(args);
 }
@@ -147,7 +147,8 @@ int maw_update(const char *filepath, const struct Metadata *metadata) {
 
         out_stream = avformat_new_stream(output_fmt_ctx, NULL);
         if (out_stream == NULL) {
-            MAW_LOGF(AV_LOG_ERROR, "Failed to allocate output stream for '%s'\n", output_filepath);
+            MAW_LOGF(AV_LOG_ERROR, "Failed to allocate output stream for '%s'\n",
+                     output_filepath);
             goto cleanup;
         }
 

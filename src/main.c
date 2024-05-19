@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include <libavutil/log.h>
+#include <libavutil/error.h>
 
 #define PROGRAM "maw"
 
@@ -77,8 +78,6 @@ int main(int argc, char *argv[]) {
     }
 
     maw_init(log_level);
-
-    (void)config_file;
 
     struct Metadata metadata = {
         .title = "New title",

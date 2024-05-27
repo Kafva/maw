@@ -4,6 +4,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
+#include <libavutil/avassert.h>
 
 int maw_dump(const char *filepath) {
     int r;
@@ -36,6 +37,10 @@ static int maw_remux(const char *input_filepath,
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
     AVPacket *pkt = NULL;
+    int stream_index = 0;
+    // Mapping from output stream index -> input stream index
+    int *stream_mapping = NULL;
+    int nb_streams = 0;
 
     (void)metadata;
 
@@ -54,12 +59,29 @@ static int maw_remux(const char *input_filepath,
         goto cleanup;
     }
 
-    MAW_LOGF(AV_LOG_DEBUG, "%s: %d stream(s)\n", input_filepath, 
-                                                 input_fmt_ctx->nb_streams);
+    // Setup stream mapping
+    av_assert0(input_fmt_ctx->nb_streams < INT_MAX);
+    nb_streams = input_fmt_ctx->nb_streams;
+
+    stream_mapping = av_calloc(nb_streams, sizeof(*stream_mapping));
+    if (stream_mapping == NULL) {
+        r = AVERROR(ENOMEM);
+        MAW_PERROR(r, "Out of memory");
+        goto cleanup;
+    }
+
+    pkt = av_packet_alloc();
+    if (pkt == NULL) {
+        MAW_LOG(AV_LOG_ERROR, "Failed to allocate packet");
+        goto cleanup;
+    }
+
+
+    MAW_LOGF(AV_LOG_DEBUG, "%s: %d stream(s)\n", input_filepath, nb_streams);
 
     // Create context for output file
     // Possible formats: `ffmpeg -formats`
-    r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, "m4a", output_filepath);
+    r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, "mp4", output_filepath);
     if (r != 0) {
         MAW_PERROR(r, output_filepath);
         goto cleanup;
@@ -68,36 +90,85 @@ static int maw_remux(const char *input_filepath,
     // Copy the stream from the input file to the output file
     for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
         AVStream *out_stream = avformat_new_stream(output_fmt_ctx, NULL);
+
         switch (input_fmt_ctx->streams[i]->codecpar->codec_type) {
             case AVMEDIA_TYPE_AUDIO:
-                avcodec_parameters_copy(out_stream->codecpar, input_fmt_ctx->streams[i]->codecpar);
-                break;
             case AVMEDIA_TYPE_VIDEO:
-                avcodec_parameters_copy(out_stream->codecpar, input_fmt_ctx->streams[i]->codecpar);
+                r = avcodec_parameters_copy(out_stream->codecpar, input_fmt_ctx->streams[i]->codecpar);
                 break;
             default:
-                break;
+                stream_mapping[i] = -1;
+                continue;
         }
+
+        if (r != 0) {
+            MAW_PERROR(r, output_filepath);
+            goto cleanup;
+        }
+        stream_mapping[i] = stream_index++;
+        out_stream->codecpar->codec_tag = 0;
     }
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
-    if (r < 0) {
+    if (r != 0) {
         MAW_PERROR(r, output_filepath);
         goto cleanup;
     }
 
     r = avformat_write_header(output_fmt_ctx, NULL);
-    if (r < 0) {
-        MAW_PERROR(r, "Failed to write header information");
+    if (r != 0) {
+        MAW_PERROR(r, "Failed to write header");
         goto cleanup;
     }
 
-    av_write_trailer(output_fmt_ctx);
+    while (true) {
+        AVStream *in_stream, *out_stream;
 
-    r = 0;
+        r = av_read_frame(input_fmt_ctx, pkt);
+
+        if (r != 0) {
+            break;
+        }
+
+        in_stream = input_fmt_ctx->streams[pkt->stream_index];
+
+        // Bad stream index, skip
+        if (pkt->stream_index >= nb_streams || 
+            stream_mapping[pkt->stream_index] < 0) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        // Set the stream index in the output pkt to the corresponding index
+        // from the input stream
+        pkt->stream_index = stream_mapping[pkt->stream_index];
+
+        // Rescale (?)
+        out_stream = output_fmt_ctx->streams[pkt->stream_index];
+        av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base);
+        pkt->pos = -1;
+
+        r = av_interleaved_write_frame(output_fmt_ctx, pkt);
+        // pkt is now blank (av_interleaved_write_frame() takes ownership of
+        // its contents and resets pkt), so that no unreferencing is necessary.
+        // This would be different if one used av_write_frame().
+        if (r != 0) {
+            MAW_PERROR(r, "Failed to mux packet");
+            break;
+        }
+    }
+
+    r = av_write_trailer(output_fmt_ctx);
+    if (r != 0) {
+        MAW_PERROR(r, "Failed to write trailer");
+        goto cleanup;
+    }
+
+    MAW_LOG(AV_LOG_INFO, "OK\n");
 
 cleanup:
     av_packet_free(&pkt);
+    av_freep(&stream_mapping);
     avformat_close_input(&input_fmt_ctx);
 
     if (input_fmt_ctx != NULL) {
@@ -110,7 +181,6 @@ cleanup:
         }
         avformat_free_context(output_fmt_ctx);
     }
-    //av_freep(&stream_mapping);
 
     return r;
 

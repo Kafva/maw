@@ -21,7 +21,7 @@ int maw_dump(const char *filepath) {
         return r;
     }
 
-    MAW_LOG(AV_LOG_INFO, filepath);
+    MAW_LOG(MAW_INFO, filepath);
     while ((tag = av_dict_iterate(fmt_ctx->metadata, tag))) {
         printf("%s=%.32s\n", tag->key, tag->value);
     }
@@ -31,14 +31,19 @@ int maw_dump(const char *filepath) {
     return 0;
 }
 
-static int maw_remux(const char *input_filepath, 
+// See "Stream copy" section of ffmpeg(1), that is what we are doing
+static int maw_remux(const char *input_filepath,
                      const char *output_filepath,
                      const struct Metadata *metadata) {
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
+    AVStream *output_stream = NULL;
+    AVStream *input_stream = NULL;
     AVPacket *pkt = NULL;
     int stream_index = 0;
-    // Mapping from output stream index -> input stream index
+    // Mapping: [input stream index] -> [output stream index]
+    // We could keep the exact stream indices from the input but
+    // that would prevent us from e.g. dropping a subtitle stream.
     int *stream_mapping = NULL;
     int nb_streams = 0;
 
@@ -72,12 +77,12 @@ static int maw_remux(const char *input_filepath,
 
     pkt = av_packet_alloc();
     if (pkt == NULL) {
-        MAW_LOG(AV_LOG_ERROR, "Failed to allocate packet");
+        MAW_LOG(MAW_ERROR, "Failed to allocate packet");
         goto cleanup;
     }
 
 
-    MAW_LOGF(AV_LOG_DEBUG, "%s: %d stream(s)\n", input_filepath, nb_streams);
+    MAW_LOGF(MAW_DEBUG, "%s: %d stream(s)\n", input_filepath, nb_streams);
 
     // Create context for output file
     // Possible formats: `ffmpeg -formats`
@@ -87,26 +92,55 @@ static int maw_remux(const char *input_filepath,
         goto cleanup;
     }
 
-    // Copy the stream from the input file to the output file
     for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
-        AVStream *out_stream = avformat_new_stream(output_fmt_ctx, NULL);
-
         switch (input_fmt_ctx->streams[i]->codecpar->codec_type) {
             case AVMEDIA_TYPE_AUDIO:
             case AVMEDIA_TYPE_VIDEO:
-                r = avcodec_parameters_copy(out_stream->codecpar, input_fmt_ctx->streams[i]->codecpar);
+                // Create an output stream for each OK input stream
+                output_stream = avformat_new_stream(output_fmt_ctx, NULL);
+                input_stream = input_fmt_ctx->streams[i];
+
+                // Stream copy from the input stream onto the output
+                r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
+
+                if (r != 0) {
+                    MAW_PERROR(r, output_filepath);
+                    goto cleanup;
+                }
+
+                // Set matching disposition on output stream
+                // We get a deprecation warning if we do not do this since video
+                // streams with an attached_pic do not have timestamps
+                //  'Timestamps are unset in a packet for stream...'
+                output_stream->disposition = input_stream->disposition;
+
+                //output_stream->start_time = input_stream->start_time;
+                //output_stream->duration = input_stream->duration;
+                //output_stream->time_base = input_stream->time_base;
+                //output_stream->nb_frames = input_stream->nb_frames;
+
+                // Update the mapping
+                stream_mapping[i] = stream_index++;
                 break;
             default:
                 stream_mapping[i] = -1;
-                continue;
+                break;
         }
+    }
 
-        if (r != 0) {
-            MAW_PERROR(r, output_filepath);
-            goto cleanup;
-        }
-        stream_mapping[i] = stream_index++;
-        out_stream->codecpar->codec_tag = 0;
+    // FFmpeg gives output like this during stream copying
+    // It shows us
+    // Stream mapping:
+    //   Stream #0:1 -> #0:0 (copy)
+    //   Stream #0:0 -> #0:1 (copy)
+    for (int i = 0; i < nb_streams; i++) {
+        // We only work on one file
+        int input_file_idx = 0;
+        int output_file_idx = 0;
+        MAW_LOGF(MAW_INFO, "Stream #%d:%d -> #%d:%d (copy)\n", input_file_idx,
+                                                               i,
+                                                               output_file_idx,
+                                                               stream_mapping[i]);
     }
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
@@ -122,30 +156,31 @@ static int maw_remux(const char *input_filepath,
     }
 
     while (true) {
-        AVStream *in_stream, *out_stream;
-
         r = av_read_frame(input_fmt_ctx, pkt);
-
         if (r != 0) {
-            break;
+            break; // No more frames
         }
 
-        in_stream = input_fmt_ctx->streams[pkt->stream_index];
-
         // Bad stream index, skip
-        if (pkt->stream_index >= nb_streams || 
+        if (pkt->stream_index >= nb_streams ||
             stream_mapping[pkt->stream_index] < 0) {
+            MAW_LOG(MAW_ERROR, "BAD packet 😠");
             av_packet_unref(pkt);
             continue;
         }
 
-        // Set the stream index in the output pkt to the corresponding index
-        // from the input stream
+        // Input and output stream for the current packet
+        input_stream = input_fmt_ctx->streams[pkt->stream_index];
+        output_stream = output_fmt_ctx->streams[stream_mapping[pkt->stream_index]];
+
+        // The pkt will have the stream_index set to the stream index in the
+        // input file. Remap it to the correct stream_index in the output file.
         pkt->stream_index = stream_mapping[pkt->stream_index];
 
         // Rescale (?)
-        out_stream = output_fmt_ctx->streams[pkt->stream_index];
-        av_packet_rescale_ts(pkt, in_stream->time_base, out_stream->time_base);
+        av_packet_rescale_ts(pkt, 
+                             input_stream->time_base, 
+                             output_stream->time_base);
         pkt->pos = -1;
 
         r = av_interleaved_write_frame(output_fmt_ctx, pkt);
@@ -164,7 +199,7 @@ static int maw_remux(const char *input_filepath,
         goto cleanup;
     }
 
-    MAW_LOG(AV_LOG_INFO, "OK\n");
+    MAW_LOG(MAW_INFO, "OK\n");
 
 cleanup:
     av_packet_free(&pkt);
@@ -175,7 +210,7 @@ cleanup:
         avformat_free_context(input_fmt_ctx);
     }
     if (output_fmt_ctx != NULL) {
-        if (output_fmt_ctx->oformat != NULL && 
+        if (output_fmt_ctx->oformat != NULL &&
             !(output_fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
             avio_closep(&output_fmt_ctx->pb);
         }

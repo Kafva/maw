@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (input_file == NULL || config_file == NULL) {
-        MAW_LOG(AV_LOG_ERROR, "Missing required options\n");
+        MAW_LOG(MAW_ERROR, "Missing required options\n");
         usage();
         return EXIT_FAILURE;
     }

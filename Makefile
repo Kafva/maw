@@ -35,6 +35,7 @@ LDFLAGS           += -lyaml
 # Release/debug only flags
 ifeq ($(DEBUG),1)
 CFLAGS            += -g
+CFLAGS            += -O1
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all
 CFLAGS            += -Wno-unused

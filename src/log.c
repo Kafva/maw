@@ -7,28 +7,41 @@
 #include <string.h>
 
 static bool maw_verbose = false;
+static bool enable_color = true;
 
-static void maw_log_prefix(int level, const char *filename, int line) {
+static void maw_log_prefix(enum LogLevel level, const char *filename, int line) {
     switch (level) {
-        case AV_LOG_DEBUG:
-            fprintf(stderr, "\033[94mDEBUG\033[0m [%s:%d] ", filename, line);
+        case MAW_DEBUG:
+            if (enable_color)
+                fprintf(stderr, "\033[94mDEBUG\033[0m [%s:%d] ", filename, line);
+            else
+                fprintf(stderr, "DEBUG [%s:%d] ", filename, line);
             break;
-        case AV_LOG_INFO:
-            fprintf(stderr, "\033[92mINFO\033[0m [%s:%d] ", filename, line);
+        case MAW_INFO:
+            if (enable_color)
+                fprintf(stderr, "\033[92mINFO\033[0m [%s:%d] ", filename, line);
+            else
+                fprintf(stderr, "INFO [%s:%d] ", filename, line);
             break;
-        case AV_LOG_WARNING:
-            fprintf(stderr, "\033[93mWARN\033[0m [%s:%d] ", filename, line);
+        case MAW_WARN:
+            if (enable_color)
+                fprintf(stderr, "\033[93mWARN\033[0m [%s:%d] ", filename, line);
+            else
+                fprintf(stderr, "WARN [%s:%d] ", filename, line);
             break;
-        case AV_LOG_ERROR:
-            fprintf(stderr, "\033[91mERROR\033[0m [%s:%d] ", filename, line);
+        case MAW_ERROR:
+            if (enable_color)
+                fprintf(stderr, "\033[91mERROR\033[0m [%s:%d] ", filename, line);
+            else
+                fprintf(stderr, "ERROR [%s:%d] ", filename, line);
             break;
     }
 }
 
-void maw_logf(int level, const char *filename, int line, const char *fmt, ...) {
+void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...) {
     va_list args;
 
-    if (level == AV_LOG_DEBUG && !maw_verbose) {
+    if (level == MAW_DEBUG && !maw_verbose) {
         return;
     }
     maw_log_prefix(level, filename, line);
@@ -40,8 +53,8 @@ void maw_logf(int level, const char *filename, int line, const char *fmt, ...) {
     va_end(args);
 }
 
-void maw_log(int level, const char *filename, int line, const char *msg) {
-    if (level == AV_LOG_DEBUG && !maw_verbose) {
+void maw_log(enum LogLevel level, const char *filename, int line, const char *msg) {
+    if (level == MAW_DEBUG && !maw_verbose) {
         return;
     }
     maw_log_prefix(level, filename, line);
@@ -50,7 +63,7 @@ void maw_log(int level, const char *filename, int line, const char *msg) {
 
 int maw_log_init(bool verbose, int av_log_level) {
     maw_verbose = verbose;
+    enable_color = (bool)isatty(fileno(stdout));
     av_log_set_level(av_log_level);
     return 0;
 }
-

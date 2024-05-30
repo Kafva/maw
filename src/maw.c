@@ -31,6 +31,7 @@ int maw_dump(const char *filepath) {
     return 0;
 }
 
+
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 static int maw_remux(const char *input_filepath,
                      const char *output_filepath,
@@ -40,12 +41,14 @@ static int maw_remux(const char *input_filepath,
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     AVPacket *pkt = NULL;
+    enum AVMediaType codec_type;
     int stream_index = 0;
     // Mapping: [input stream index] -> [output stream index]
     // We could keep the exact stream indices from the input but
     // that would prevent us from e.g. dropping a subtitle stream.
     int *stream_mapping = NULL;
     int nb_streams = 0;
+    int nb_audio_streams = 0;
 
     (void)metadata;
 
@@ -92,8 +95,10 @@ static int maw_remux(const char *input_filepath,
     }
 
     for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
-        switch (input_fmt_ctx->streams[i]->codecpar->codec_type) {
+        codec_type = input_fmt_ctx->streams[i]->codecpar->codec_type;
+        switch (codec_type) {
             case AVMEDIA_TYPE_AUDIO:
+                nb_audio_streams += 1;
             case AVMEDIA_TYPE_VIDEO:
                 // Create an output stream for each OK input stream
                 output_stream = avformat_new_stream(output_fmt_ctx, NULL);
@@ -113,11 +118,6 @@ static int maw_remux(const char *input_filepath,
                 //  'Timestamps are unset in a packet for stream...'
                 output_stream->disposition = input_stream->disposition;
 
-                //output_stream->start_time = input_stream->start_time;
-                //output_stream->duration = input_stream->duration;
-                //output_stream->time_base = input_stream->time_base;
-                //output_stream->nb_frames = input_stream->nb_frames;
-
                 // Update the mapping
                 stream_mapping[i] = stream_index++;
                 break;
@@ -133,13 +133,22 @@ static int maw_remux(const char *input_filepath,
     //   Stream #0:1 -> #0:0 (copy)
     //   Stream #0:0 -> #0:1 (copy)
     for (int i = 0; i < nb_streams; i++) {
-        // We only work on one file
-        int input_file_idx = 0;
-        int output_file_idx = 0;
-        MAW_LOGF(MAW_INFO, "Stream #%d:%d -> #%d:%d (copy)\n", input_file_idx,
-                                                               i,
-                                                               output_file_idx,
-                                                               stream_mapping[i]);
+        MAW_LOGF(MAW_INFO, "Stream #0:%d -> #0:%d (copy)\n", i,
+                                                             stream_mapping[i]);
+    }
+
+    if (nb_audio_streams != 1) {
+        MAW_LOGF(MAW_ERROR, "There should only be one audio stream, found %d\n", nb_audio_streams);
+        goto cleanup;
+    }
+
+    // The metadata for artist etc. is in the AVFormatContext, streams also have
+    // a metadata field but these contain other stuff, e.g. audio streams can
+    // have 'language' and 'handler_name'
+    r = av_dict_copy(&output_fmt_ctx->metadata, input_fmt_ctx->metadata, 0);
+    if (r != 0) {
+        MAW_PERROR(r, "Failed to copy metadata");
+        goto cleanup;
     }
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
@@ -177,8 +186,8 @@ static int maw_remux(const char *input_filepath,
         pkt->stream_index = stream_mapping[pkt->stream_index];
 
         // Rescale (?)
-        av_packet_rescale_ts(pkt, 
-                             input_stream->time_base, 
+        av_packet_rescale_ts(pkt,
+                             input_stream->time_base,
                              output_stream->time_base);
         pkt->pos = -1;
 
@@ -190,6 +199,11 @@ static int maw_remux(const char *input_filepath,
             MAW_PERROR(r, "Failed to mux packet");
             break;
         }
+
+        // This warning: 'Encoder did not produce proper pts, making some up.'
+        // appears for packets in cover art streams (since they do not have a
+        // pts value set), its harmless, more info on pts:
+        // http://dranger.com/ffmpeg/tutorial05.html
     }
 
     r = av_write_trailer(output_fmt_ctx);
@@ -217,7 +231,6 @@ cleanup:
     }
 
     return r;
-
 }
 
 int maw_update(const char *filepath, const struct Metadata *metadata) {

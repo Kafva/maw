@@ -82,23 +82,17 @@ int main(int argc, char *argv[]) {
 
     maw_log_init(verbose, av_log_level);
 
-    struct Metadata metadata = {
+    const enum MetadataPolicy policy = KEEP_COVER;
+    const struct Metadata metadata = {
         .title = "New title",
         .album = "New album name",
         .artist = "New artist name",
         .cover_path = "",
-        .clear_metadata = true,
     };
 
-    // printf("*** BEFORE\n");
-    // (void)maw_dump(input_file);
-
-    if (maw_update(input_file, &metadata) != 0) {
+    if (maw_update(input_file, &metadata, policy) != 0) {
         return EXIT_FAILURE;
     }
-
-    // printf("*** AFTER\n");
-    // (void)maw_dump("new.m4a");
 
     // (void)maw_yaml_parse(config_file);
 

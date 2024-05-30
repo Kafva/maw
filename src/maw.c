@@ -31,11 +31,78 @@ int maw_dump(const char *filepath) {
     return 0;
 }
 
+static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
+                                    const struct Metadata *metadata) {
+    int r = AVERROR_UNKNOWN;
+    r = av_dict_set(&fmt_ctx->metadata, "title", metadata->title, 0);
+    if (r != 0) {
+        goto cleanup;
+    }
+
+    r = av_dict_set(&fmt_ctx->metadata, "artist", metadata->artist, 0);
+    if (r != 0) {
+        goto cleanup;
+    }
+
+    r = av_dict_set(&fmt_ctx->metadata, "album", metadata->album, 0);
+    if (r != 0) {
+        goto cleanup;
+    }
+
+    r = 0;
+cleanup:
+    return r;
+}
+
+/**
+ * @return 0 on success, negative AVERROR code on failure.
+ */
+static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
+                            AVFormatContext *output_fmt_ctx,
+                            const struct Metadata *metadata,
+                            const enum MetadataPolicy policy) {
+    int r = AVERROR_UNKNOWN;
+    const AVDictionaryEntry *entry = NULL;
+
+    if (policy & KEEP_ALL_FIELDS) {
+        // Keep the metadata as is
+        r = av_dict_copy(&output_fmt_ctx->metadata, input_fmt_ctx->metadata, 0);
+        if (r != 0) {
+            goto cleanup;
+        }
+    }
+    else if (policy & KEEP_CORE_FIELDS) {
+        // Keep some of the metadata
+        while ((entry = av_dict_iterate(input_fmt_ctx->metadata, entry))) {
+            r = av_dict_set(&output_fmt_ctx->metadata, entry->key, entry->value, 0);
+            if (r != 0) {
+                goto cleanup;
+            }
+        }
+    } else {
+        // Do not keep anything
+    }
+
+    // Set custom values
+    if (metadata != NULL) {
+        r = maw_copy_metadata_fields(output_fmt_ctx, metadata);
+        if (r != 0) {
+            goto cleanup;
+        }
+    }
+
+    r = 0;
+cleanup:
+    return r;
+}
+
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 static int maw_remux(const char *input_filepath,
                      const char *output_filepath,
-                     const struct Metadata *metadata) {
+                     const struct Metadata *metadata,
+                     const enum MetadataPolicy policy) {
+    int r = AVERROR_UNKNOWN;
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
     AVStream *output_stream = NULL;
@@ -49,10 +116,6 @@ static int maw_remux(const char *input_filepath,
     int *stream_mapping = NULL;
     int nb_streams = 0;
     int nb_audio_streams = 0;
-
-    (void)metadata;
-
-    int r = AVERROR_UNKNOWN;
 
     // Create context for input file
     r = avformat_open_input(&input_fmt_ctx, input_filepath, NULL, NULL);
@@ -145,7 +208,7 @@ static int maw_remux(const char *input_filepath,
     // The metadata for artist etc. is in the AVFormatContext, streams also have
     // a metadata field but these contain other stuff, e.g. audio streams can
     // have 'language' and 'handler_name'
-    r = av_dict_copy(&output_fmt_ctx->metadata, input_fmt_ctx->metadata, 0);
+    r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
     if (r != 0) {
         MAW_PERROR(r, "Failed to copy metadata");
         goto cleanup;
@@ -233,7 +296,13 @@ cleanup:
     return r;
 }
 
-int maw_update(const char *filepath, const struct Metadata *metadata) {
+int maw_update(const char *filepath,
+               const struct Metadata *metadata,
+               const enum MetadataPolicy policy) {
+    int r = AVERROR_UNKNOWN;
     const char *output_filepath = "new.m4a";
-    return maw_remux(filepath, output_filepath, metadata);
+    r = maw_remux(filepath, output_filepath, metadata, policy);
+
+
+    return r;
 }

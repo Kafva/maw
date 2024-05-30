@@ -81,12 +81,11 @@ static int maw_remux(const char *input_filepath,
         goto cleanup;
     }
 
-
     MAW_LOGF(MAW_DEBUG, "%s: %d stream(s)\n", input_filepath, nb_streams);
 
     // Create context for output file
     // Possible formats: `ffmpeg -formats`
-    r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, "mp4", output_filepath);
+    r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, NULL, output_filepath);
     if (r != 0) {
         MAW_PERROR(r, output_filepath);
         goto cleanup;
@@ -164,7 +163,7 @@ static int maw_remux(const char *input_filepath,
         // Bad stream index, skip
         if (pkt->stream_index >= nb_streams ||
             stream_mapping[pkt->stream_index] < 0) {
-            MAW_LOG(MAW_ERROR, "BAD packet 😠");
+            // BAD packet 😠
             av_packet_unref(pkt);
             continue;
         }

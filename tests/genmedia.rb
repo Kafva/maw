@@ -89,7 +89,42 @@ def generate_video(outputfile:,
                    artist: nil,
                    color: nil,
                    duration: 30)
-    # ffmpeg -f lavfi -i color=c=red:s=1280x720:d=5 -f lavfi -i color=c=blue:s=1280x720:d=5 -filter_complex "[0:v][1:v]concat=n=2:v=1:a=0" output.mp4
+    res = "1280x720"
+    tmpvideo = Tempfile.new ["maw", ".mp4"]
+    begin
+        # Create a video with alternating colors
+        system_run "ffmpeg", ["-y"] + 
+                             ["-f", "lavfi", "-i", "color=c=#{color}:s=#{res}:d=5"] +
+                             ["-f", "lavfi", "-i", "color=c=black:s=#{res}:d=5"] +
+                             ["-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0"] +
+                             [tmpvideo.path]
+
+        # Combine it with a silent audio stream and metadata
+        system_run "ffmpeg", ["-y"] +
+                             ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
+                             ["-i", tmpvideo.path] +
+                             # Metadata
+                             generate_metadata(title: title,
+                                               album: album,
+                                               artist: artist) +
+                             [outputfile]
+    rescue Interrupt
+        warn "Cancelled"
+    rescue CommandError => e
+        err e.out
+        die "Command failed: #{e.program}"
+    end
+ensure
+    tmpvideo&.unlink
+    
+end
+
+def time_taken
+  start_time = Time.now
+  yield
+  end_time = Time.now
+  elapsed_time = end_time - start_time
+  info "Done: #{elapsed_time.round(2)} seconds"
 end
 
 # @param outputfile [String]
@@ -190,12 +225,12 @@ def setup
         FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
         generate_cover album, "#{ART_ROOT}/#{album}.png"
 
-        # (1...2).each do |i|
-        #     generate_video outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
-        #                    color: album
-        # end
+        (1...2).each do |i|
+            generate_video outputfile: "#{MUSIC_ROOT}/#{album}/video_#{album}#{i}.mp4",
+                           color: album
+        end
         (3...5).each do |i|
-            generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
+            generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/audio_#{album}#{i}.mp4",
                            cover_color: album
         end
     end
@@ -237,8 +272,10 @@ rescue StandardError => e
     die e.message, parser.help
 end
 
-info "Setting up testdata..."
-setup
+time_taken do
+    info "Setting up testdata..."
+    setup
+end
 
 status, out = system_run "tree", ["--noreport", "#{TOP}/music"]
 puts out if status.success?

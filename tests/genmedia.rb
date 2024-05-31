@@ -45,15 +45,15 @@ end
 
 # @param program [String]
 # @param args [Array]
-# @return [Process::Status]
+# @return [Process::Status,String]
 def system_run program, args
     cmdarr = ([program] + args)
     debug cmdarr.join ' '
-    _, stderr, status = Open3.capture3(*cmdarr)
+    stdout, stderr, status = Open3.capture3(*cmdarr)
 
     raise CommandError.new(program, stderr) unless status.success?
 
-    status
+    [status, stdout]
 end
 
 # Create random unicode string
@@ -81,6 +81,21 @@ end
 # @param title [String, void]
 # @param album [String, void]
 # @param artist [String, void]
+# @param color [String, void]
+# @param duration [Integer, void]
+def generate_video(outputfile:,
+                   title: nil,
+                   album: nil,
+                   artist: nil,
+                   color: nil,
+                   duration: 30)
+    # ffmpeg -f lavfi -i color=c=red:s=1280x720:d=5 -f lavfi -i color=c=blue:s=1280x720:d=5 -filter_complex "[0:v][1:v]concat=n=2:v=1:a=0" output.mp4
+end
+
+# @param outputfile [String]
+# @param title [String, void]
+# @param album [String, void]
+# @param artist [String, void]
 # @param cover_color [String, void]
 # @param duration [Integer, void]
 def generate_audio(outputfile:,
@@ -89,8 +104,6 @@ def generate_audio(outputfile:,
                    artist: nil,
                    cover_color: nil,
                    duration: 30)
-    maxlen = 12
-    maxlen_text = 32
     tmpcover = nil
     begin
         unless cover_color.nil?
@@ -98,24 +111,19 @@ def generate_audio(outputfile:,
             generate_cover cover_color, tmpcover.path
         end
 
-        system_run "ffmpeg", ["-y", "-f", "lavfi"] +
+
+        system_run "ffmpeg", ["-y"] +
                              # Audio source
-                             ["-i", "anullsrc=duration=#{duration}"] +
+                             ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
                              # Image source and format
                              (tmpcover.nil? ? [] : ["-i", tmpcover.path, "-c:v", "copy"]) +
-                             # Audio format
+                             # Audio output
                              ["-c:a", "aac", "-shortest"] +
                              # Metadata
-                             ["-metadata", "title=\"#{title.nil? ? randstr(1, maxlen) : title}\"",
-                             "-metadata", "album=\"#{album.nil? ? randstr(1, maxlen) : album}\"",
-                             "-metadata", "artist=\"#{artist.nil? ? randstr(1, maxlen) : artist}\"",
-                             "-metadata", "comment=\"#{randstr 1, maxlen_text}\"",
-                             "-metadata", "description=\"#{randstr 1, maxlen_text}\"",
-                             "-metadata", "genre=\"#{randstr 1, maxlen}\"",
-                             "-metadata", "composer=\"#{randstr 1, maxlen}\"",
-                             "-metadata", "copyright=\"#{randstr 1, maxlen}\"",
-                             "-metadata", "synopsis=\"#{randstr 1, maxlen_text}\"",
-                             outputfile]
+                             generate_metadata(title: title,
+                                               album: album,
+                                               artist: artist) +
+                             [outputfile]
     rescue Interrupt
         warn "Cancelled"
     rescue CommandError => e
@@ -124,6 +132,25 @@ def generate_audio(outputfile:,
     end
 ensure
     tmpcover&.unlink
+end
+
+# @param title [String, void]
+# @param album [String, void]
+# @param artist [String, void]
+def generate_metadata(title: nil,
+                      album: nil,
+                      artist: nil)
+    maxlen = 12
+    maxlen_text = 32
+     ["-metadata", "title=\"#{title.nil? ? randstr(1, maxlen) : title}\"",
+     "-metadata", "album=\"#{album.nil? ? randstr(1, maxlen) : album}\"",
+     "-metadata", "artist=\"#{artist.nil? ? randstr(1, maxlen) : artist}\"",
+     "-metadata", "comment=\"#{randstr 1, maxlen_text}\"",
+     "-metadata", "description=\"#{randstr 1, maxlen_text}\"",
+     "-metadata", "genre=\"#{randstr 1, maxlen}\"",
+     "-metadata", "composer=\"#{randstr 1, maxlen}\"",
+     "-metadata", "copyright=\"#{randstr 1, maxlen}\"",
+     "-metadata", "synopsis=\"#{randstr 1, maxlen_text}\""]
 end
 
 def generate_cover color, outputfile
@@ -145,23 +172,29 @@ def setup
             red:
               album: Red album
               artist: Red artist
-              crop_cover: true
-              clear_metadata: true
+              policy: KEEP_CORE_FIELDS
             blue:
               album: Blue album
               artist: Blue artist
               cover: blue.png
-              clear_metadata: true
+              policy: KEEP_CORE_FIELDS
     HEREDOC
 
     FileUtils.mkdir_p ART_ROOT
     FileUtils.mkdir_p MUSIC_ROOT
     File.write(CFG, cfg_yaml)
 
+
+
     ALBUMS.each do |album|
-        (1...5).each do |i|
-            FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
-            generate_cover album, "#{ART_ROOT}/#{album}.png"
+        FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
+        generate_cover album, "#{ART_ROOT}/#{album}.png"
+
+        # (1...2).each do |i|
+        #     generate_video outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
+        #                    color: album
+        # end
+        (3...5).each do |i|
             generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/#{album}#{i}.mp4",
                            cover_color: album
         end
@@ -170,49 +203,27 @@ def setup
     system "tree", "--noreport", "#{TOP}/music" if FLAGS[:debug]
 end
 
-## tests #######################################################################
-
-# @return [Boolean]
-def test_update
-    # r = system_run AVBIN, ['-c', CFG, 'up']
-
-    sleep 1
-    r = (2 * rand).to_i % 2
-    r.zero?
-end
-
-################################################################################
-
 CHAR_RANGES = [
     (0x20..0x7f), # ascii
     (0x80..0x2af), # extended latin1
     (0x3040..0x309f), # hiragana
     (0x1f600..0x1f64f) # emoticons
 ].freeze
-
 FLAGS = { # rubocop:disable Style/MutableConstant
-    failfast: false,
-    debug: false,
-    pattern: nil
+    debug: false
 }
+
 DEBUG = false
 ALBUMS = ["red", "blue", "green", "pink"].freeze
 TOP = File.dirname(__FILE__).freeze
 ART_ROOT = "#{TOP}/music/art".freeze
 MUSIC_ROOT = "#{TOP}/music/albums".freeze
 CFG = "#{TOP}/music/maw.yml".freeze
-AVBIN = File.realpath "#{TOP}/../build/maw"
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename $0} [FLAGS]"
     opts.on('-d', '--debug', 'Show debug information') do |_|
         FLAGS[:debug] = true
-    end
-    opts.on('-f', '--fail-fast', 'Stop on first failure') do |_|
-        FLAGS[:failfast] = true
-    end
-    opts.on('-mPATTERN', '--match=PATTERN', 'Only run tests matching pattern') do |p|
-        FLAGS[:pattern] = p
     end
     opts.on('-h', '--help', 'Show help and exit') do |_|
         opts.display
@@ -229,35 +240,5 @@ end
 info "Setting up testdata..."
 setup
 
-TESTS = [
-    "test_update",
-    "test_update",
-    "test_update"
-].freeze
-passed = 0
-
-info "Starting tests"
-
-TESTS.each_with_index do |t, i|
-    unless FLAGS[:pattern].nil?
-        next unless t.include? FLAGS[:pattern] # rubocop:disable Style/SoleNestedConditional
-    end
-
-    if eval t # rubocop:disable Security/Eval
-        passed += 1
-        $stderr.print "\r\e[92m*\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
-    else
-        $stderr.print "\r\e[91m*\e[0m [#{t}] Completed [#{i + 1}/#{TESTS.count}]"
-        if FLAGS[:failfast]
-            $stderr.print "\n"
-            die "[#{t}] FAILED"
-        end
-    end
-end
-$stderr.print "\n"
-
-if passed == TESTS.count
-    info "OK"
-else
-    err "Passed: [#{passed}/#{TESTS.count}]"
-end
+status, out = system_run "tree", ["--noreport", "#{TOP}/music"]
+puts out if status.success?

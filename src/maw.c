@@ -5,6 +5,8 @@
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
 #include <libavutil/avassert.h>
+#include <sys/errno.h>
+#include <unistd.h>
 
 int maw_dump(const char *filepath) {
     int r;
@@ -211,6 +213,14 @@ static int maw_remux(const char *input_filepath,
     r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
     if (r != 0) {
         MAW_PERROR(r, "Failed to copy metadata");
+        goto cleanup;
+    }
+
+    // TODO set cover art
+    r = access(metadata->cover_path, F_OK);
+    if (r != 0  && errno != ENOENT) {
+        MAW_LOGF(MAW_ERROR, "access('%s'): %s\n",
+                 metadata->cover_path, strerror(errno));
         goto cleanup;
     }
 

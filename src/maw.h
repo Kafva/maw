@@ -8,6 +8,7 @@ enum MetadataPolicy {
     KEEP_CORE_FIELDS    = 0x1,
     KEEP_ALL_FIELDS     = 0x1 << 1,
     KEEP_COVER          = 0x1 << 2,
+    CROP_COVER          = 0x1 << 3,
 };
 
 struct Metadata {

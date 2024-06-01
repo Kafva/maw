@@ -7,6 +7,7 @@
 #include <libavutil/avassert.h>
 #include <sys/errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 int maw_dump(const char *filepath) {
     int r;
@@ -14,12 +15,12 @@ int maw_dump(const char *filepath) {
     const AVDictionaryEntry *tag = NULL;
 
     if ((r = avformat_open_input(&fmt_ctx, filepath, NULL, NULL))) {
-        MAW_PERROR(r, filepath);
+        MAW_AVERROR(r, filepath);
         return r;
     }
 
     if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-        MAW_PERROR(r, filepath);
+        MAW_AVERROR(r, filepath);
         return r;
     }
 
@@ -38,21 +39,21 @@ static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
     int r = AVERROR_UNKNOWN;
     r = av_dict_set(&fmt_ctx->metadata, "title", metadata->title, 0);
     if (r != 0) {
-        goto cleanup;
+        goto end;
     }
 
     r = av_dict_set(&fmt_ctx->metadata, "artist", metadata->artist, 0);
     if (r != 0) {
-        goto cleanup;
+        goto end;
     }
 
     r = av_dict_set(&fmt_ctx->metadata, "album", metadata->album, 0);
     if (r != 0) {
-        goto cleanup;
+        goto end;
     }
 
     r = 0;
-cleanup:
+end:
     return r;
 }
 
@@ -62,7 +63,7 @@ cleanup:
 static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
                             AVFormatContext *output_fmt_ctx,
                             const struct Metadata *metadata,
-                            const enum MetadataPolicy policy) {
+                            const int policy) {
     int r = AVERROR_UNKNOWN;
     const AVDictionaryEntry *entry = NULL;
 
@@ -70,7 +71,7 @@ static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
         // Keep the metadata as is
         r = av_dict_copy(&output_fmt_ctx->metadata, input_fmt_ctx->metadata, 0);
         if (r != 0) {
-            goto cleanup;
+            goto end;
         }
     }
     else if (policy & KEEP_CORE_FIELDS) {
@@ -78,7 +79,7 @@ static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
         while ((entry = av_dict_iterate(input_fmt_ctx->metadata, entry))) {
             r = av_dict_set(&output_fmt_ctx->metadata, entry->key, entry->value, 0);
             if (r != 0) {
-                goto cleanup;
+                goto end;
             }
         }
     } else {
@@ -89,12 +90,12 @@ static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
     if (metadata != NULL) {
         r = maw_copy_metadata_fields(output_fmt_ctx, metadata);
         if (r != 0) {
-            goto cleanup;
+            goto end;
         }
     }
 
     r = 0;
-cleanup:
+end:
     return r;
 }
 
@@ -103,7 +104,7 @@ cleanup:
 static int maw_remux(const char *input_filepath,
                      const char *output_filepath,
                      const struct Metadata *metadata,
-                     const enum MetadataPolicy policy) {
+                     const int policy) {
     int r = AVERROR_UNKNOWN;
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
@@ -122,14 +123,14 @@ static int maw_remux(const char *input_filepath,
     // Create context for input file
     r = avformat_open_input(&input_fmt_ctx, input_filepath, NULL, NULL);
     if (r != 0) {
-        MAW_PERROR(r, input_filepath);
-        goto cleanup;
+        MAW_AVERROR(r, input_filepath);
+        goto end;
     }
     // Read input file metadata
     r = avformat_find_stream_info(input_fmt_ctx, NULL);
     if (r != 0) {
-        MAW_PERROR(r, input_filepath);
-        goto cleanup;
+        MAW_AVERROR(r, input_filepath);
+        goto end;
     }
 
     // Setup stream mapping
@@ -139,14 +140,14 @@ static int maw_remux(const char *input_filepath,
     stream_mapping = av_calloc(nb_streams, sizeof(*stream_mapping));
     if (stream_mapping == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_PERROR(r, "Out of memory");
-        goto cleanup;
+        MAW_AVERROR(r, "Out of memory");
+        goto end;
     }
 
     pkt = av_packet_alloc();
     if (pkt == NULL) {
         MAW_LOG(MAW_ERROR, "Failed to allocate packet");
-        goto cleanup;
+        goto end;
     }
 
     MAW_LOGF(MAW_DEBUG, "%s: %d stream(s)\n", input_filepath, nb_streams);
@@ -155,8 +156,8 @@ static int maw_remux(const char *input_filepath,
     // Possible formats: `ffmpeg -formats`
     r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, NULL, output_filepath);
     if (r != 0) {
-        MAW_PERROR(r, output_filepath);
-        goto cleanup;
+        MAW_AVERROR(r, output_filepath);
+        goto end;
     }
 
     for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
@@ -173,8 +174,8 @@ static int maw_remux(const char *input_filepath,
                 r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
 
                 if (r != 0) {
-                    MAW_PERROR(r, output_filepath);
-                    goto cleanup;
+                    MAW_AVERROR(r, output_filepath);
+                    goto end;
                 }
 
                 // Set matching disposition on output stream
@@ -204,7 +205,7 @@ static int maw_remux(const char *input_filepath,
 
     if (nb_audio_streams != 1) {
         MAW_LOGF(MAW_ERROR, "There should only be one audio stream, found %d\n", nb_audio_streams);
-        goto cleanup;
+        goto end;
     }
 
     // The metadata for artist etc. is in the AVFormatContext, streams also have
@@ -212,28 +213,27 @@ static int maw_remux(const char *input_filepath,
     // have 'language' and 'handler_name'
     r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
     if (r != 0) {
-        MAW_PERROR(r, "Failed to copy metadata");
-        goto cleanup;
+        MAW_AVERROR(r, "Failed to copy metadata");
+        goto end;
     }
 
     // TODO set cover art
     r = access(metadata->cover_path, F_OK);
     if (r != 0  && errno != ENOENT) {
-        MAW_LOGF(MAW_ERROR, "access('%s'): %s\n",
-                 metadata->cover_path, strerror(errno));
-        goto cleanup;
+        MAW_PERROR(metadata->cover_path);
+        goto end;
     }
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
-        MAW_PERROR(r, output_filepath);
-        goto cleanup;
+        MAW_AVERROR(r, output_filepath);
+        goto end;
     }
 
     r = avformat_write_header(output_fmt_ctx, NULL);
     if (r != 0) {
-        MAW_PERROR(r, "Failed to write header");
-        goto cleanup;
+        MAW_AVERROR(r, "Failed to write header");
+        goto end;
     }
 
     while (true) {
@@ -269,7 +269,7 @@ static int maw_remux(const char *input_filepath,
         // its contents and resets pkt), so that no unreferencing is necessary.
         // This would be different if one used av_write_frame().
         if (r != 0) {
-            MAW_PERROR(r, "Failed to mux packet");
+            MAW_AVERROR(r, "Failed to mux packet");
             break;
         }
 
@@ -281,13 +281,13 @@ static int maw_remux(const char *input_filepath,
 
     r = av_write_trailer(output_fmt_ctx);
     if (r != 0) {
-        MAW_PERROR(r, "Failed to write trailer");
-        goto cleanup;
+        MAW_AVERROR(r, "Failed to write trailer");
+        goto end;
     }
 
     MAW_LOG(MAW_INFO, "OK\n");
 
-cleanup:
+end:
     av_packet_free(&pkt);
     av_freep(&stream_mapping);
     avformat_close_input(&input_fmt_ctx);
@@ -308,11 +308,32 @@ cleanup:
 
 int maw_update(const char *filepath,
                const struct Metadata *metadata,
-               const enum MetadataPolicy policy) {
+               const int policy) {
     int r = AVERROR_UNKNOWN;
-    const char *output_filepath = "new.m4a";
-    r = maw_remux(filepath, output_filepath, metadata, policy);
+    char tmpfile[] = "/tmp/maw.XXXXX.m4a";
+    int tmphandle = mkstemps(tmpfile, sizeof(".m4a") - 1);
 
+    if (tmphandle < 0) {
+         MAW_PERROR(tmpfile);
+         goto end;
+    }
+    (void)close(tmphandle);
 
+    MAW_LOGF(MAW_DEBUG, "%s -> %s\n", filepath, tmpfile);
+
+    r = maw_remux(filepath, tmpfile, metadata, policy);
+    if (r != 0) {
+        goto end;
+    }
+
+    r = rename(tmpfile, filepath);
+    if (r < 0) {
+         MAW_PERROR(tmpfile);
+         goto end;
+    }
+
+end:
+    (void)unlink(tmpfile);
     return r;
 }
+

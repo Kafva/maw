@@ -22,8 +22,16 @@ int maw_log_init(bool, int);
 #define MAW_LOG(level, msg) \
     maw_log(level, __FILE_NAME__, __LINE__, msg)
 
+#define MAW_PERROR(msg) do { \
+   if (msg != NULL) { \
+       MAW_LOGF(MAW_ERROR, "%s: %s\n", msg, strerror(errno)); \
+   } else { \
+       MAW_LOGF(MAW_ERROR, "%s\n", strerror(errno)); \
+   } \
+} while (0)
+
 // Log the description of an AV_ERROR
-#define MAW_PERROR(code, msg) do { \
+#define MAW_AVERROR(code, msg) do { \
     char errbuf[128] = {0}; \
     if (av_strerror(code, errbuf, sizeof errbuf) != 0) { \
         if (msg != NULL) { \

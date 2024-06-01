@@ -88,12 +88,13 @@ def generate_video(outputfile:,
                    album: nil,
                    artist: nil,
                    color: nil,
+                   suffix: ".mp4",
                    duration: 30)
     res = "1280x720"
-    tmpvideo = Tempfile.new ["maw", ".mp4"]
+    tmpvideo = Tempfile.new ["maw", suffix]
     begin
         # Create a video with alternating colors
-        system_run "ffmpeg", ["-y"] + 
+        system_run "ffmpeg", ["-y"] +
                              ["-f", "lavfi", "-i", "color=c=#{color}:s=#{res}:d=5"] +
                              ["-f", "lavfi", "-i", "color=c=black:s=#{res}:d=5"] +
                              ["-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0"] +
@@ -116,7 +117,7 @@ def generate_video(outputfile:,
     end
 ensure
     tmpvideo&.unlink
-    
+
 end
 
 def time_taken
@@ -138,6 +139,7 @@ def generate_audio(outputfile:,
                    album: nil,
                    artist: nil,
                    cover_color: nil,
+
                    duration: 30)
     tmpcover = nil
     begin
@@ -201,8 +203,8 @@ def setup
               - red/red1.mp4
               - red/red2.mp4
             second:
-              - blue/blue1.mp4
-              - blue/blue2.mp4
+              - blue/blue1.m4a
+              - blue/blue2.m4a
         metadata:
             red:
               album: Red album
@@ -227,11 +229,13 @@ def setup
 
         (1...2).each do |i|
             generate_video outputfile: "#{MUSIC_ROOT}/#{album}/video_#{album}#{i}.mp4",
-                           color: album
+                           color: album,
+                           suffix: ".mp4"
         end
         (3...5).each do |i|
-            generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/audio_#{album}#{i}.mp4",
-                           cover_color: album
+            generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/audio_#{album}#{i}.m4a",
+                           cover_color: album,
+                           suffix: ".m4a"
         end
     end
 
@@ -278,4 +282,4 @@ time_taken do
 end
 
 status, out = system_run "tree", ["--noreport", TOP]
-puts out if status.success?
+puts out if status.sccess?

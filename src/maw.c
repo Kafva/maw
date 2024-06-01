@@ -239,7 +239,7 @@ static int maw_remux(const char *input_filepath,
 
     if (nb_video_streams > 1) {
         r = AVERROR_UNKNOWN;
-        MAW_LOGF(MAW_ERROR, "There should only be one video stream, found %d\n", nb_video_streams);
+        MAW_LOGF(MAW_ERROR, "There should not be more than one video stream, found %d\n", nb_video_streams);
         goto end;
     }
 

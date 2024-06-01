@@ -47,18 +47,16 @@ end
 # @param args [Array]
 # @return [Process::Status,String]
 def system_run program, args
-    begin
-        cmdarr = ([program] + args)
-        debug cmdarr.join ' '
-        stdout, stderr, status = Open3.capture3(*cmdarr)
-        die "Command failed: #{cmdarr.join ' '}" unless status.success?
-        [status, stdout]
-    rescue Interrupt
-        die "Cancelled"
-    rescue CommandError => e
-        err e.out
-        die "Command failed: #{e.program}"
-    end
+    cmdarr = ([program] + args)
+    debug cmdarr.join ' '
+    stdout, _, status = Open3.capture3(*cmdarr)
+    die "Command failed: #{cmdarr.join ' '}" unless status.success?
+    [status, stdout]
+rescue Interrupt
+    die "Cancelled"
+rescue CommandError => e
+    err e.out
+    die "Command failed: #{e.program}"
 end
 
 # Create random unicode string
@@ -80,6 +78,14 @@ def randstr minlen, maxlen
         end
     end
     out.gsub(%r{/}, '').gsub('\\', '\\\\')
+end
+
+def time_taken
+    start_time = Time.now
+    yield
+    end_time = Time.now
+    elapsed_time = end_time - start_time
+    info "Done: #{elapsed_time.round(2)} seconds"
 end
 
 # @param outputfile [String]
@@ -115,40 +121,6 @@ def generate_video(outputfile:,
                          [outputfile]
 ensure
     tmpvideo&.unlink
-end
-
-def time_taken
-    start_time = Time.now
-    yield
-    end_time = Time.now
-    elapsed_time = end_time - start_time
-    info "Done: #{elapsed_time.round(2)} seconds"
-end
-
-def generate_dual_audio(outputfile)
-    system_run "ffmpeg", ["-y", 
-               "-f", "lavfi", "-i", "anullsrc=duration=30", 
-               "-f", "lavfi", "-i", "anullsrc=duration=30", 
-               "-map", "0", "-c:a", "aac", "-map", "1", "-c:a", "aac", outputfile]
-end
-
-def generate_dual_video(outputfile)
-    tmpcover = Tempfile.new ["maw", ".png"]
-    generate_cover "yellow", tmpcover.path
-    system_run "ffmpeg", ["-y"] +
-                         # Audio source
-                         ["-f", "lavfi", "-i", "anullsrc=duration=30"] +
-                         # Image sources
-                         ["-i", tmpcover.path] +
-                         ["-i", tmpcover.path] +
-                         # Audio output
-                         ["-map", "0", "-c:a", "aac", "-shortest"] +
-                         # Image outputs
-                         ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"] +
-                         ["-map", "2", "-c:v", "copy", "-disposition:1", "attached_pic"] +
-                         [outputfile]
-ensure
-    tmpcover&.unlink
 end
 
 # @param outputfile [String]
@@ -188,6 +160,32 @@ ensure
     tmpcover&.unlink
 end
 
+def generate_dual_audio outputfile
+    system_run "ffmpeg", ["-y",
+               "-f", "lavfi", "-i", "anullsrc=duration=30",
+               "-f", "lavfi", "-i", "anullsrc=duration=30",
+               "-map", "0", "-c:a", "aac", "-map", "1", "-c:a", "aac", outputfile]
+end
+
+def generate_dual_video outputfile
+    tmpcover = Tempfile.new ["maw", ".png"]
+    generate_cover "yellow", tmpcover.path
+    system_run "ffmpeg", ["-y"] +
+                         # Audio source
+                         ["-f", "lavfi", "-i", "anullsrc=duration=30"] +
+                         # Image sources
+                         ["-i", tmpcover.path] +
+                         ["-i", tmpcover.path] +
+                         # Audio output
+                         ["-map", "0", "-c:a", "aac", "-shortest"] +
+                         # Image outputs
+                         ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"] +
+                         ["-map", "2", "-c:v", "copy", "-disposition:1", "attached_pic"] +
+                         [outputfile]
+ensure
+    tmpcover&.unlink
+end
+
 # @param title [String, void]
 # @param album [String, void]
 # @param artist [String, void]
@@ -196,25 +194,19 @@ def generate_metadata(title: nil,
                       artist: nil)
     maxlen = 12
     maxlen_text = 32
-     ["-metadata", "title=\"#{title.nil? ? randstr(1, maxlen) : title}\"",
-     "-metadata", "album=\"#{album.nil? ? randstr(1, maxlen) : album}\"",
-     "-metadata", "artist=\"#{artist.nil? ? randstr(1, maxlen) : artist}\"",
-     "-metadata", "comment=\"#{randstr 1, maxlen_text}\"",
-     "-metadata", "description=\"#{randstr 1, maxlen_text}\"",
-     "-metadata", "genre=\"#{randstr 1, maxlen}\"",
-     "-metadata", "composer=\"#{randstr 1, maxlen}\"",
-     "-metadata", "copyright=\"#{randstr 1, maxlen}\"",
-     "-metadata", "synopsis=\"#{randstr 1, maxlen_text}\""]
+    ["-metadata", "title=\"#{title.nil? ? randstr(1, maxlen) : title}\"",
+    "-metadata", "album=\"#{album.nil? ? randstr(1, maxlen) : album}\"",
+    "-metadata", "artist=\"#{artist.nil? ? randstr(1, maxlen) : artist}\"",
+    "-metadata", "comment=\"#{randstr 1, maxlen_text}\"",
+    "-metadata", "description=\"#{randstr 1, maxlen_text}\"",
+    "-metadata", "genre=\"#{randstr 1, maxlen}\"",
+    "-metadata", "composer=\"#{randstr 1, maxlen}\"",
+    "-metadata", "copyright=\"#{randstr 1, maxlen}\"",
+    "-metadata", "synopsis=\"#{randstr 1, maxlen_text}\""]
 end
 
 def generate_cover color, outputfile
     system_run "convert", ["-size", "1280x720", "xc:#{color}", outputfile]
-end
-
-def ffprobe filepath
-    info filepath
-    _, json = system_run "ffprobe", ["-loglevel", "error", "-print_format", "json", "-show_format", filepath]
-    JSON.parse(json)["format"]
 end
 
 def setup

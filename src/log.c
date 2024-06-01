@@ -63,7 +63,7 @@ void maw_log(enum LogLevel level, const char *filename, int line, const char *ms
 
 int maw_log_init(bool verbose, int av_log_level) {
     maw_verbose = verbose;
-    enable_color = (bool)isatty(fileno(stdout));
+    enable_color = isatty(fileno(stdout)) && isatty(fileno(stderr));
     av_log_set_level(av_log_level);
     return 0;
 }

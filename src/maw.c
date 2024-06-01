@@ -119,6 +119,7 @@ static int maw_remux(const char *input_filepath,
     int *stream_mapping = NULL;
     int nb_streams = 0;
     int nb_audio_streams = 0;
+    int nb_video_streams = 0;
 
     // Create context for input file
     r = avformat_open_input(&input_fmt_ctx, input_filepath, NULL, NULL);
@@ -164,8 +165,12 @@ static int maw_remux(const char *input_filepath,
         codec_type = input_fmt_ctx->streams[i]->codecpar->codec_type;
         switch (codec_type) {
             case AVMEDIA_TYPE_AUDIO:
-                nb_audio_streams += 1;
             case AVMEDIA_TYPE_VIDEO:
+                if (codec_type == AVMEDIA_TYPE_VIDEO)
+                    nb_video_streams += 1;
+                else
+                    nb_audio_streams += 1;
+
                 // Create an output stream for each OK input stream
                 output_stream = avformat_new_stream(output_fmt_ctx, NULL);
                 input_stream = input_fmt_ctx->streams[i];
@@ -204,7 +209,14 @@ static int maw_remux(const char *input_filepath,
     }
 
     if (nb_audio_streams != 1) {
+        r = AVERROR_UNKNOWN;
         MAW_LOGF(MAW_ERROR, "There should only be one audio stream, found %d\n", nb_audio_streams);
+        goto end;
+    }
+
+    if (nb_video_streams != 1) {
+        r = AVERROR_UNKNOWN;
+        MAW_LOGF(MAW_ERROR, "There should only be one video stream, found %d\n", nb_video_streams);
         goto end;
     }
 

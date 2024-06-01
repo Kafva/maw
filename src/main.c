@@ -88,9 +88,41 @@ int main(int argc, char *argv[]) {
 
 #include "tests/maw_test.h"
 
+struct Testcase {
+    char *desc;
+    bool (*fn)(void);
+};
+
+struct Testcase testcases[] = {
+    { .desc = "Basic test",                 .fn = test_maw_update },
+    { .desc = "Dual audio streams",         .fn = test_dual_audio },
+    { .desc = "Dual video streams",         .fn = test_dual_video },
+};
+
+
 int main(void) {
     maw_log_init(false, AV_LOG_QUIET);
-    RUN_TEST("maw_update", test_maw_update);
+    int total = sizeof(testcases) / sizeof(struct Testcase);
+    int i;
+    bool enable_color = (bool)isatty(fileno(stdout));
+
+    fprintf(stdout, "0..%d\n", total - 1);
+    for (i = 0; i < total; i++) {
+        if (testcases[i].fn()) {
+            if (enable_color)
+                fprintf(stdout, "\033[92mok\033[0m %d - %s\n", i, testcases[i].desc);
+            else
+                fprintf(stdout, "ok %d - %s\n", i, testcases[i].desc);
+        } else {
+            if (enable_color)
+                fprintf(stdout, "\033[91mnot ok\033[0m %d - %s\n", i, testcases[i].desc);
+            else
+                fprintf(stdout, "not ok %d - %s\n", i, testcases[i].desc);
+            return 1; // XXX
+        }
+    }
+
+    return 0;
 }
 
 #endif

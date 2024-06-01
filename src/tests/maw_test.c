@@ -27,9 +27,7 @@ bool test_maw_update(void) {
         return r;
     }
 
-    // TODO verification
-
-    return r == 0;
+    return maw_verify(path, &metadata, policy);
 }
 
 bool test_dual_audio(void) {

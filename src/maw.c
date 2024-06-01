@@ -9,31 +9,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-int maw_dump(const char *filepath) {
-    int r;
-    AVFormatContext *fmt_ctx = NULL;
-    const AVDictionaryEntry *tag = NULL;
-
-    if ((r = avformat_open_input(&fmt_ctx, filepath, NULL, NULL))) {
-        MAW_AVERROR(r, filepath);
-        return r;
-    }
-
-    if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-        MAW_AVERROR(r, filepath);
-        return r;
-    }
-
-    MAW_LOG(MAW_INFO, filepath);
-    while ((tag = av_dict_iterate(fmt_ctx->metadata, tag))) {
-        printf("%s=%.32s\n", tag->key, tag->value);
-    }
-
-    avformat_close_input(&fmt_ctx);
-
-    return 0;
-}
-
 static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
                                     const struct Metadata *metadata) {
     int r = AVERROR_UNKNOWN;
@@ -346,4 +321,51 @@ end:
     (void)unlink(tmpfile);
     return r;
 }
+
+#ifdef MAW_TEST
+
+bool maw_verify(const char *filepath,
+                const struct Metadata *metadata,
+                const int policy) {
+    bool ok = false;
+    int r;
+    AVFormatContext *fmt_ctx = NULL;
+    const AVDictionaryEntry *entry = NULL;
+
+    if ((r = avformat_open_input(&fmt_ctx, filepath, NULL, NULL))) {
+        MAW_AVERROR(r, filepath);
+        goto end;
+    }
+
+    if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
+        MAW_AVERROR(r, filepath);
+        goto end;
+    }
+
+    while ((entry = av_dict_iterate(fmt_ctx->metadata, entry))) {
+        if (strcmp(entry->key, "title") == 0) {
+            if (strcmp(entry->value, metadata->title) != 0)
+                goto end;
+        }
+        else if (strcmp(entry->key, "artist") == 0) {
+            if (strcmp(entry->value, metadata->artist) != 0)
+                goto end;
+        }
+        else if (strcmp(entry->key, "album") == 0) {
+            if (strcmp(entry->value, metadata->album) != 0)
+                goto end;
+        }
+        else if (policy & KEEP_ALL_FIELDS) {
+            // There should be no other fields
+            goto end;
+        }
+    }
+
+    ok = true;
+end:
+    avformat_close_input(&fmt_ctx);
+    return ok;
+}
+
+#endif
 

@@ -30,6 +30,25 @@ bool test_maw_update(void) {
     return maw_verify(path, &metadata, policy);
 }
 
+bool test_set_cover(void) {
+    int r;
+    const char *path = "./.testenv/albums/blue/audio_no_cover_blue_0.m4a";
+    const enum MetadataPolicy policy = 0;
+    const struct Metadata metadata = {
+        .title = "audio_no_cover_blue_0",
+        .album = "Blue album",
+        .artist = "Blue artist",
+        .cover_path = "./.testenv/art/blue.png",
+    };
+
+    r = maw_update(path, &metadata, policy);
+    if (r != 0) {
+        return r;
+    }
+
+    return maw_verify(path, &metadata, policy);
+}
+
 bool test_dual_audio(void) {
     int r;
     const char *path = "./.testenv/bad/dual_audio.mp4";

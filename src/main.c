@@ -88,26 +88,33 @@ int main(int argc, char *argv[]) {
 
 #include "tests/maw_test.h"
 
-struct Testcase {
-    char *desc;
-    bool (*fn)(void);
-};
-
-struct Testcase testcases[] = {
-    { .desc = "Basic test",                 .fn = test_maw_update },
-    { .desc = "Dual audio streams",         .fn = test_dual_audio },
-    { .desc = "Dual video streams",         .fn = test_dual_video },
-};
-
-
-int main(void) {
+int main(int argc, char *argv[]) {
     maw_log_init(false, AV_LOG_QUIET);
+
+    DEFINE_TESTCASES;
     int total = sizeof(testcases) / sizeof(struct Testcase);
     int i;
-    bool enable_color = (bool)isatty(fileno(stdout));
+    int r;
+    const char *match_testcase = NULL; 
+
+    if (argc > 1)
+        match_testcase = argv[1];
+    bool enable_color = isatty(fileno(stdout)) && isatty(fileno(stderr));
 
     fprintf(stdout, "0..%d\n", total - 1);
     for (i = 0; i < total; i++) {
+
+        if (match_testcase != NULL) {
+            r = strncmp(match_testcase, testcases[i].desc, strlen(match_testcase));
+            if (r != 0) {
+                if (enable_color)
+                    fprintf(stdout, "\033[38;5;246mok\033[0m %d - %s # skip\n", i, testcases[i].desc);
+                else
+                    fprintf(stdout, "ok %d - %s # skip\n", i, testcases[i].desc);
+                continue;
+            }
+        }
+
         if (testcases[i].fn()) {
             if (enable_color)
                 fprintf(stdout, "\033[92mok\033[0m %d - %s\n", i, testcases[i].desc);

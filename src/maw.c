@@ -74,6 +74,33 @@ end:
     return r;
 }
 
+static int readfile(const char *filepath, char *out, size_t outsize) {
+    FILE *fp;
+    size_t read_bytes;
+    int r = 1;
+
+    fp = fopen(filepath, "r");
+    if (fp == NULL) {
+        MAW_PERROR(filepath);
+        return 1;
+    }
+    
+    read_bytes = fread(out, 1, outsize, fp);
+    if (read_bytes <= 0) {
+        MAW_LOGF(MAW_ERROR, "%s: empty", filepath);
+        goto end;
+    }
+    else if (read_bytes == outsize) {
+        MAW_LOGF(MAW_ERROR, "%s: too large", filepath);
+        goto end;
+    }
+
+    r = 0;
+end:
+    fclose(fp);
+    return r;
+}
+
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 static int maw_remux(const char *input_filepath,
@@ -95,6 +122,7 @@ static int maw_remux(const char *input_filepath,
     int nb_streams = 0;
     int nb_audio_streams = 0;
     int nb_video_streams = 0;
+    char cover_data[BUFSIZ];
 
     // Create context for input file
     r = avformat_open_input(&input_fmt_ctx, input_filepath, NULL, NULL);
@@ -173,6 +201,26 @@ static int maw_remux(const char *input_filepath,
         }
     }
 
+    // The metadata for artist etc. is in the AVFormatContext, streams also have
+    // a metadata field but these contain other stuff, e.g. audio streams can
+    // have 'language' and 'handler_name'
+    r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to copy metadata");
+        goto end;
+    }
+
+    if (metadata->cover_path != NULL) {
+        r = readfile(metadata->cover_path, cover_data, sizeof(cover_data));
+        if (r != 0) {
+            goto end;
+        }
+
+        if (nb_video_streams == 0) {
+            // TODO Add a new stream
+        }
+    }
+
     // FFmpeg gives output like this during stream copying
     // It shows us
     // Stream mapping:
@@ -185,29 +233,13 @@ static int maw_remux(const char *input_filepath,
 
     if (nb_audio_streams != 1) {
         r = AVERROR_UNKNOWN;
-        MAW_LOGF(MAW_ERROR, "There should only be one audio stream, found %d\n", nb_audio_streams);
+        MAW_LOGF(MAW_ERROR, "There should be exactly one audio stream, found %d\n", nb_audio_streams);
         goto end;
     }
 
-    if (nb_video_streams != 1) {
+    if (nb_video_streams > 1) {
         r = AVERROR_UNKNOWN;
         MAW_LOGF(MAW_ERROR, "There should only be one video stream, found %d\n", nb_video_streams);
-        goto end;
-    }
-
-    // The metadata for artist etc. is in the AVFormatContext, streams also have
-    // a metadata field but these contain other stuff, e.g. audio streams can
-    // have 'language' and 'handler_name'
-    r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
-    if (r != 0) {
-        MAW_AVERROR(r, "Failed to copy metadata");
-        goto end;
-    }
-
-    // TODO set cover art
-    r = access(metadata->cover_path, F_OK);
-    if (r != 0  && errno != ENOENT) {
-        MAW_PERROR(metadata->cover_path);
         goto end;
     }
 

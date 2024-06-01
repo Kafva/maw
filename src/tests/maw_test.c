@@ -15,9 +15,9 @@ int test_keep_cover(void) {
     const char *path = ".testenv/albums/blue/audio_blue_0.m4a";
     const enum MetadataPolicy policy = KEEP_COVER;
     const struct Metadata metadata = {
-        .title = "New title",
-        .album = "New album name",
-        .artist = "New artist name",
+        .title = "audio_blue_0",
+        .album = "Blue album",
+        .artist = "Blue artist",
         .cover_path = "",
     };
 
@@ -25,8 +25,6 @@ int test_keep_cover(void) {
     if (r != 0) {
         return r;
     }
-
-    // .. Verify ..
 
     return r;
 }

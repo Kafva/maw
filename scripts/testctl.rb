@@ -151,7 +151,6 @@ ensure
     tmpcover&.unlink
 end
 
-
 # @param outputfile [String]
 # @param title [String, void]
 # @param album [String, void]
@@ -212,6 +211,12 @@ def generate_cover color, outputfile
     system_run "convert", ["-size", "1280x720", "xc:#{color}", outputfile]
 end
 
+def ffprobe filepath
+    info filepath
+    _, json = system_run "ffprobe", ["-loglevel", "error", "-print_format", "json", "-show_format", filepath]
+    JSON.parse(json)["format"]
+end
+
 def setup
     cfg_yaml = <<~HEREDOC
         art_dir: #{ART_ROOT}
@@ -270,6 +275,20 @@ def setup
     system "tree", "--noreport", "#{TOP}/music" if FLAGS[:debug]
 end
 
+def verify
+    filepath = ".testenv/albums/blue/audio_blue_0.m4a"
+    name =  File.basename(filepath, File.extname(filepath))
+    json = ffprobe filepath
+
+    puts json if FLAGS[:debug]
+
+    # src/tests/maw_test.c
+    die "Wrong number of streams" unless json["nb_streams"] == 2
+    die "Incorrect title"         unless json["tags"]["title"] == name
+    die "Incorrect artist"        unless json["tags"]["artist"] == "Blue artist"
+    die "Incorrect album"         unless json["tags"]["album"] == "Blue album"
+end
+
 CHAR_RANGES = [
     (0x20..0x7f), # ascii
     (0x80..0x2af), # extended latin1
@@ -277,11 +296,12 @@ CHAR_RANGES = [
     (0x1f600..0x1f64f) # emoticons
 ].freeze
 FLAGS = { # rubocop:disable Style/MutableConstant
-    debug: false
+    debug: false,
+    verify: false,
+    generate: false
 }
 
-DEBUG = false
-ALBUMS = ["red", "blue", "green", "pink"].freeze
+ALBUMS = ["blue"].freeze
 TOP = "#{File.dirname(__FILE__)}/../.testenv".freeze
 ART_ROOT = "#{TOP}/art".freeze
 MUSIC_ROOT = "#{TOP}/albums".freeze
@@ -291,6 +311,12 @@ parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename $0} [FLAGS]"
     opts.on('-d', '--debug', 'Show debug information') do |_|
         FLAGS[:debug] = true
+    end
+    opts.on('-V', '--verify', 'Verify test results') do |_|
+        FLAGS[:verify] = true
+    end
+    opts.on('-g', '--generate', 'Generate test data') do |_|
+        FLAGS[:generate] = true
     end
     opts.on('-h', '--help', 'Show help and exit') do |_|
         opts.display
@@ -304,10 +330,16 @@ rescue StandardError => e
     die e.message, parser.help
 end
 
-time_taken do
-    info "Setting up testdata..."
-    setup
-end
 
-status, out = system_run "tree", ["--noreport", TOP]
-puts out if status.success?
+if FLAGS[:verify]
+    verify
+elsif FLAGS[:generate]
+    time_taken do
+        info "Setting up testdata..."
+        setup
+        status, out = system_run "tree", ["--noreport", TOP]
+        puts out if status.success?
+    end
+else
+    puts parser.help
+end

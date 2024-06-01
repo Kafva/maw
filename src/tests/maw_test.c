@@ -10,14 +10,14 @@
 // KEEP_COVER          = 0x1 << 2,
 // CROP_COVER          = 0x1 << 3,
 
-int test_keep_cover(void) {
+int test_maw_update(void) {
     int r;
-    const char *path = ".testenv/albums/blue/audio_blue_0.m4a";
+    const char *path = "./nov.m4a";
     const enum MetadataPolicy policy = KEEP_COVER;
     const struct Metadata metadata = {
-        .title = "audio_blue_0",
-        .album = "Blue album",
-        .artist = "Blue artist",
+        .title = "nov",
+        .album = "New album",
+        .artist = "New artist",
         .cover_path = "",
     };
 
@@ -25,6 +25,8 @@ int test_keep_cover(void) {
     if (r != 0) {
         return r;
     }
+
+    // No automatic verification 🙈
 
     return r;
 }

@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 
 int main(void) {
     maw_log_init(false, AV_LOG_QUIET);
-    RUN_TEST("KEEP_COVER policy", test_keep_cover);
+    RUN_TEST("maw_update", test_maw_update);
 }
 
 #endif

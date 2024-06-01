@@ -2,7 +2,7 @@
 #define MAW_TEST_H
 
 #ifdef MAW_TEST
-int test_keep_cover(void);
+int test_maw_update(void);
 
 #define RUN_TEST(desc, fn) do { \
     if (fn() == 0) { \

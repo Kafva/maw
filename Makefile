@@ -2,6 +2,7 @@ CC                := clang
 UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 SRCS              = $(wildcard src/*.c)
+TEST_SRCS         = $(wildcard tests/*.c)
 HEADERS           = $(wildcard src/*.h)
 OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
@@ -47,6 +48,7 @@ endif
 
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
+test: $(BUILD)/$(PROGRAM)_test
 
 $(BUILD)/%.o: $(CURDIR)/src/%.c
 	@mkdir -p $(dir $@)
@@ -62,8 +64,12 @@ compile_commands.json: $(BUILD)/$(PROGRAM)
 	@cat $(BUILD)/.*.json >> $@
 	@echo ] >> $@
 
-test:
-	$(CURDIR)/tests/run
+$(BUILD)/$(PROGRAM)_test: $(TEST_SRCS) $(CURDIR)/.testenv
+	$(CC) $(CFLAGS) $(LDFLAGS) -lcriterion $(TEST_SRCS) -o $@
+	$@
+
+$(CURDIR)/.testenv:
+	tests/genmedia.rb
 
 clean:
 	rm -rf $(BUILD) $(CURDIR)/tests/music

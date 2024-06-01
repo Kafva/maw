@@ -250,10 +250,10 @@ FLAGS = { # rubocop:disable Style/MutableConstant
 
 DEBUG = false
 ALBUMS = ["red", "blue", "green", "pink"].freeze
-TOP = File.dirname(__FILE__).freeze
-ART_ROOT = "#{TOP}/music/art".freeze
-MUSIC_ROOT = "#{TOP}/music/albums".freeze
-CFG = "#{TOP}/music/maw.yml".freeze
+TOP = "#{File.dirname(__FILE__)}/../.testenv".freeze
+ART_ROOT = "#{TOP}/art".freeze
+MUSIC_ROOT = "#{TOP}/albums".freeze
+CFG = "#{TOP}/maw.yml".freeze
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename $0} [FLAGS]"
@@ -277,5 +277,5 @@ time_taken do
     setup
 end
 
-status, out = system_run "tree", ["--noreport", "#{TOP}/music"]
+status, out = system_run "tree", ["--noreport", TOP]
 puts out if status.success?

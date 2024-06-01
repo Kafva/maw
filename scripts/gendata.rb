@@ -237,6 +237,9 @@ def setup
     FileUtils.mkdir_p "#{TOP}/bad"
     File.write(CFG, cfg_yaml)
 
+    # More covers
+    generate_cover '#00d7d7', "#{ART_ROOT}/blue-1.png"
+
     # Bad data examples
     generate_dual_audio "#{TOP}/bad/dual_audio.mp4"
     generate_dual_video "#{TOP}/bad/dual_video.mp4"

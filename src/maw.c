@@ -9,6 +9,33 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+static int readfile(const char *filepath, char *out, size_t outsize) {
+    FILE *fp;
+    size_t read_bytes;
+    int r = 1;
+
+    fp = fopen(filepath, "r");
+    if (fp == NULL) {
+        MAW_PERROR(filepath);
+        return 1;
+    }
+    
+    read_bytes = fread(out, 1, outsize, fp);
+    if (read_bytes <= 0) {
+        MAW_LOGF(MAW_ERROR, "%s: empty", filepath);
+        goto end;
+    }
+    else if (read_bytes == outsize) {
+        MAW_LOGF(MAW_ERROR, "%s: too large", filepath);
+        goto end;
+    }
+
+    r = 0;
+end:
+    fclose(fp);
+    return r;
+}
+
 static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
                                     const struct Metadata *metadata) {
     int r = AVERROR_UNKNOWN;
@@ -73,34 +100,6 @@ static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
 end:
     return r;
 }
-
-static int readfile(const char *filepath, char *out, size_t outsize) {
-    FILE *fp;
-    size_t read_bytes;
-    int r = 1;
-
-    fp = fopen(filepath, "r");
-    if (fp == NULL) {
-        MAW_PERROR(filepath);
-        return 1;
-    }
-    
-    read_bytes = fread(out, 1, outsize, fp);
-    if (read_bytes <= 0) {
-        MAW_LOGF(MAW_ERROR, "%s: empty", filepath);
-        goto end;
-    }
-    else if (read_bytes == outsize) {
-        MAW_LOGF(MAW_ERROR, "%s: too large", filepath);
-        goto end;
-    }
-
-    r = 0;
-end:
-    fclose(fp);
-    return r;
-}
-
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 static int maw_remux(const char *input_filepath,
@@ -211,13 +210,14 @@ static int maw_remux(const char *input_filepath,
     }
 
     if (metadata->cover_path != NULL) {
-        r = readfile(metadata->cover_path, cover_data, sizeof(cover_data));
-        if (r != 0) {
-            goto end;
-        }
+        //r = readfile(metadata->cover_path, cover_data, sizeof(cover_data));
+        //if (r != 0) {
+        //    goto end;
+        //}
 
         if (nb_video_streams == 0) {
             // TODO Add a new stream
+            // read with avformat_open_input(&formatContext, "cover.jpg", NULL, NULL)
         }
     }
 
@@ -356,6 +356,7 @@ end:
 
 #ifdef MAW_TEST
 
+// TODO verify cover
 bool maw_verify(const char *filepath,
                 const struct Metadata *metadata,
                 const int policy) {

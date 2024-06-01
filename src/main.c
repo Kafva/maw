@@ -12,7 +12,10 @@
 
 #define PROGRAM "maw"
 
-#ifndef MAW_TEST
+#ifdef MAW_TEST
+#include "tests/maw_test.h"
+static int run_tests(const char *);
+#endif
 
 static void usage(void);
 
@@ -27,23 +30,33 @@ int main(int argc, char *argv[]) {
     int opt;
     int av_log_level = AV_LOG_QUIET;
     bool verbose = false;
-    char *input_file = NULL;
     char *config_file = NULL;
+#ifdef MAW_TEST
+    const char *getopt_flags = "m:c:l:hv";
+    const char *match_testcase = NULL; 
+#else
+    const char *getopt_flags = "c:l:hv";
+#endif
 
     static struct option long_options[] = {
         {"log", optional_argument, NULL, 'l'},
         {"verbose", no_argument, NULL, 'v'},
+#ifdef MAW_TEST
+        {"match", optional_argument, NULL, 'm'},
+#endif
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}};
 
-    while ((opt = getopt_long(argc, argv, "c:l:hv", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, getopt_flags, long_options, NULL)) != -1) {
         switch (opt) {
-        case 'i':
-            input_file = optarg;
-            break;
         case 'c':
             config_file = optarg;
             break;
+#ifdef MAW_TEST
+        case 'm':
+            match_testcase = optarg;
+            break;
+#endif
         case 'v':
             verbose = true;
             break;
@@ -71,34 +84,28 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (input_file == NULL || config_file == NULL) {
+    maw_log_init(verbose, av_log_level);
+
+#ifdef MAW_TEST
+    return run_tests(match_testcase);
+#else
+    if (config_file == NULL) {
         MAW_LOG(MAW_ERROR, "Missing required options\n");
         usage();
         return EXIT_FAILURE;
     }
 
-    maw_log_init(verbose, av_log_level);
-
     (void)maw_yaml_parse(config_file);
-
     return EXIT_SUCCESS;
+
+#endif
 }
 
-#else
-
-#include "tests/maw_test.h"
-
-int main(int argc, char *argv[]) {
-    maw_log_init(false, AV_LOG_QUIET);
-
+static int run_tests(const char *match_testcase) {
     DEFINE_TESTCASES;
     int total = sizeof(testcases) / sizeof(struct Testcase);
     int i;
     int r;
-    const char *match_testcase = NULL; 
-
-    if (argc > 1)
-        match_testcase = argv[1];
     bool enable_color = isatty(fileno(stdout)) && isatty(fileno(stderr));
 
     fprintf(stdout, "0..%d\n", total - 1);
@@ -125,12 +132,9 @@ int main(int argc, char *argv[]) {
                 fprintf(stdout, "\033[91mnot ok\033[0m %d - %s\n", i, testcases[i].desc);
             else
                 fprintf(stdout, "not ok %d - %s\n", i, testcases[i].desc);
-            return 1; // XXX
+            return EXIT_FAILURE; // XXX
         }
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
-
-#endif
-

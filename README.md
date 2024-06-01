@@ -5,5 +5,6 @@ Music library manager
 brew install libyaml
 make
 
-TESTS=1 make && ./scripts/testctl.rb -g && ./build/maw && ./scripts/testctl.rb -V
+# Tests
+./scripts/gendata.rb && DEBUG=1 TESTS=1 make && ./build/maw
 ```

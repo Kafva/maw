@@ -47,13 +47,18 @@ end
 # @param args [Array]
 # @return [Process::Status,String]
 def system_run program, args
-    cmdarr = ([program] + args)
-    debug cmdarr.join ' '
-    stdout, stderr, status = Open3.capture3(*cmdarr)
-
-    raise CommandError.new(program, stderr) unless status.success?
-
-    [status, stdout]
+    begin
+        cmdarr = ([program] + args)
+        debug cmdarr.join ' '
+        stdout, stderr, status = Open3.capture3(*cmdarr)
+        die "Command failed: #{cmdarr.join ' '}" unless status.success?
+        [status, stdout]
+    rescue Interrupt
+        die "Cancelled"
+    rescue CommandError => e
+        err e.out
+        die "Command failed: #{e.program}"
+    end
 end
 
 # Create random unicode string
@@ -92,29 +97,22 @@ def generate_video(outputfile:,
     res = "1280x720"
     suffix = File.extname outputfile
     tmpvideo = Tempfile.new ["maw", suffix]
-    begin
-        # Create a video with alternating colors
-        system_run "ffmpeg", ["-y"] +
-                             ["-f", "lavfi", "-i", "color=c=#{color}:s=#{res}:d=5"] +
-                             ["-f", "lavfi", "-i", "color=c=black:s=#{res}:d=5"] +
-                             ["-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0"] +
-                             [tmpvideo.path]
+    # Create a video with alternating colors
+    system_run "ffmpeg", ["-y"] +
+                         ["-f", "lavfi", "-i", "color=c=#{color}:s=#{res}:d=5"] +
+                         ["-f", "lavfi", "-i", "color=c=black:s=#{res}:d=5"] +
+                         ["-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0"] +
+                         [tmpvideo.path]
 
-        # Combine it with a silent audio stream and metadata
-        system_run "ffmpeg", ["-y"] +
-                             ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
-                             ["-i", tmpvideo.path] +
-                             # Metadata
-                             generate_metadata(title: title,
-                                               album: album,
-                                               artist: artist) +
-                             [outputfile]
-    rescue Interrupt
-        warn "Cancelled"
-    rescue CommandError => e
-        err e.out
-        die "Command failed: #{e.program}"
-    end
+    # Combine it with a silent audio stream and metadata
+    system_run "ffmpeg", ["-y"] +
+                         ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
+                         ["-i", tmpvideo.path] +
+                         # Metadata
+                         generate_metadata(title: title,
+                                           album: album,
+                                           artist: artist) +
+                         [outputfile]
 ensure
     tmpvideo&.unlink
 end
@@ -128,32 +126,27 @@ def time_taken
 end
 
 def generate_dual_audio(outputfile)
-    `ffmpeg -y -f lavfi -i "anullsrc=duration=30" -f lavfi -i "anullsrc=duration=30" -map 0 -c:a aac -map 1 -c:a aac #{outputfile}`
+    system_run "ffmpeg", ["-y", 
+               "-f", "lavfi", "-i", "anullsrc=duration=30", 
+               "-f", "lavfi", "-i", "anullsrc=duration=30", 
+               "-map", "0", "-c:a", "aac", "-map", "1", "-c:a", "aac", outputfile]
 end
 
 def generate_dual_video(outputfile)
-    tmpcover = nil
-    begin
-        tmpcover = Tempfile.new ["maw", ".png"]
-        generate_cover "yellow", tmpcover.path
-        system_run "ffmpeg", ["-y"] +
-                             # Audio source
-                             ["-f", "lavfi", "-i", "anullsrc=duration=30"] +
-                             # Image sources
-                             ["-i", tmpcover.path] +
-                             ["-i", tmpcover.path] +
-                             # Audio output
-                             ["-map", "0", "-c:a", "aac", "-shortest"] +
-                             # Image outputs
-                             ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"] +
-                             ["-map", "2", "-c:v", "copy", "-disposition:1", "attached_pic"] +
-                             [outputfile]
-    rescue Interrupt
-        warn "Cancelled"
-    rescue CommandError => e
-        err e.out
-        die "Command failed: #{e.program}"
-    end
+    tmpcover = Tempfile.new ["maw", ".png"]
+    generate_cover "yellow", tmpcover.path
+    system_run "ffmpeg", ["-y"] +
+                         # Audio source
+                         ["-f", "lavfi", "-i", "anullsrc=duration=30"] +
+                         # Image sources
+                         ["-i", tmpcover.path] +
+                         ["-i", tmpcover.path] +
+                         # Audio output
+                         ["-map", "0", "-c:a", "aac", "-shortest"] +
+                         # Image outputs
+                         ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"] +
+                         ["-map", "2", "-c:v", "copy", "-disposition:1", "attached_pic"] +
+                         [outputfile]
 ensure
     tmpcover&.unlink
 end
@@ -172,33 +165,26 @@ def generate_audio(outputfile:,
                    cover_color: nil,
                    duration: 30)
     tmpcover = nil
-    begin
-        unless cover_color.nil?
-            tmpcover = Tempfile.new ["maw", ".png"]
-            generate_cover cover_color, tmpcover.path
-        end
-
-        system_run "ffmpeg", ["-y"] +
-                             # Audio source
-                             ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
-                             # Image source
-                             (tmpcover.nil? ? [] : ["-i", tmpcover.path]) +
-                             # Audio output
-                             ["-map", "0", "-c:a", "aac", "-shortest"] +
-                             # Image output
-                             (tmpcover.nil? ? [] :
-                               ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"]) +
-                             # Metadata
-                             generate_metadata(title: title,
-                                               album: album,
-                                               artist: artist) +
-                             [outputfile]
-    rescue Interrupt
-        warn "Cancelled"
-    rescue CommandError => e
-        err e.out
-        die "Command failed: #{e.program}"
+    unless cover_color.nil?
+        tmpcover = Tempfile.new ["maw", ".png"]
+        generate_cover cover_color, tmpcover.path
     end
+
+    system_run "ffmpeg", ["-y"] +
+                         # Audio source
+                         ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
+                         # Image source
+                         (tmpcover.nil? ? [] : ["-i", tmpcover.path]) +
+                         # Audio output
+                         ["-map", "0", "-c:a", "aac", "-shortest"] +
+                         # Image output
+                         (tmpcover.nil? ? [] :
+                           ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"]) +
+                         # Metadata
+                         generate_metadata(title: title,
+                                           album: album,
+                                           artist: artist) +
+                         [outputfile]
 ensure
     tmpcover&.unlink
 end

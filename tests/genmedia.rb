@@ -88,9 +88,9 @@ def generate_video(outputfile:,
                    album: nil,
                    artist: nil,
                    color: nil,
-                   suffix: ".mp4",
                    duration: 30)
     res = "1280x720"
+    suffix = File.extname outputfile
     tmpvideo = Tempfile.new ["maw", suffix]
     begin
         # Create a video with alternating colors
@@ -117,16 +117,47 @@ def generate_video(outputfile:,
     end
 ensure
     tmpvideo&.unlink
-
 end
 
 def time_taken
-  start_time = Time.now
-  yield
-  end_time = Time.now
-  elapsed_time = end_time - start_time
-  info "Done: #{elapsed_time.round(2)} seconds"
+    start_time = Time.now
+    yield
+    end_time = Time.now
+    elapsed_time = end_time - start_time
+    info "Done: #{elapsed_time.round(2)} seconds"
 end
+
+def generate_dual_audio(outputfile)
+    `ffmpeg -y -f lavfi -i "anullsrc=duration=30" -f lavfi -i "anullsrc=duration=30" -map 0 -c:a aac -map 1 -c:a aac #{outputfile}`
+end
+
+def generate_dual_video(outputfile)
+    tmpcover = nil
+    begin
+        tmpcover = Tempfile.new ["maw", ".png"]
+        generate_cover "yellow", tmpcover.path
+        system_run "ffmpeg", ["-y"] +
+                             # Audio source
+                             ["-f", "lavfi", "-i", "anullsrc=duration=30"] +
+                             # Image sources
+                             ["-i", tmpcover.path] +
+                             ["-i", tmpcover.path] +
+                             # Audio output
+                             ["-map", "0", "-c:a", "aac", "-shortest"] +
+                             # Image outputs
+                             ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"] +
+                             ["-map", "2", "-c:v", "copy", "-disposition:1", "attached_pic"] +
+                             [outputfile]
+    rescue Interrupt
+        warn "Cancelled"
+    rescue CommandError => e
+        err e.out
+        die "Command failed: #{e.program}"
+    end
+ensure
+    tmpcover&.unlink
+end
+
 
 # @param outputfile [String]
 # @param title [String, void]
@@ -139,7 +170,6 @@ def generate_audio(outputfile:,
                    album: nil,
                    artist: nil,
                    cover_color: nil,
-
                    duration: 30)
     tmpcover = nil
     begin
@@ -148,14 +178,16 @@ def generate_audio(outputfile:,
             generate_cover cover_color, tmpcover.path
         end
 
-
         system_run "ffmpeg", ["-y"] +
                              # Audio source
                              ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
-                             # Image source and format
-                             (tmpcover.nil? ? [] : ["-i", tmpcover.path, "-c:v", "copy"]) +
+                             # Image source
+                             (tmpcover.nil? ? [] : ["-i", tmpcover.path]) +
                              # Audio output
-                             ["-c:a", "aac", "-shortest"] +
+                             ["-map", "0", "-c:a", "aac", "-shortest"] +
+                             # Image output
+                             (tmpcover.nil? ? [] :
+                               ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"]) +
                              # Metadata
                              generate_metadata(title: title,
                                                album: album,
@@ -219,23 +251,33 @@ def setup
 
     FileUtils.mkdir_p ART_ROOT
     FileUtils.mkdir_p MUSIC_ROOT
+    FileUtils.mkdir_p "#{TOP}/bad"
     File.write(CFG, cfg_yaml)
 
-
+    # Bad data examples
+    generate_dual_audio "#{TOP}/bad/dual_audio.mp4"
+    generate_dual_video "#{TOP}/bad/dual_video.mp4"
 
     ALBUMS.each do |album|
         FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
         generate_cover album, "#{ART_ROOT}/#{album}.png"
+        basepath = "#{MUSIC_ROOT}/#{album}"
 
-        (1...2).each do |i|
-            generate_video outputfile: "#{MUSIC_ROOT}/#{album}/video_#{album}#{i}.mp4",
-                           color: album,
-                           suffix: ".mp4"
-        end
-        (3...5).each do |i|
-            generate_audio outputfile: "#{MUSIC_ROOT}/#{album}/audio_#{album}#{i}.m4a",
-                           cover_color: album,
-                           suffix: ".m4a"
+        (0...1).each do |i|
+            # Video
+            generate_video outputfile: "#{basepath}/video_#{album}_#{i}.mp4",
+                           color: album
+
+            # Audio stream with cover (mp4 extension)
+            generate_audio outputfile: "#{basepath}/audio_#{album}_#{i}.mp4",
+                           cover_color: album
+
+            # Audio stream with cover (m4a extension)
+            generate_audio outputfile: "#{basepath}/audio_#{album}_#{i}.m4a",
+                           cover_color: album
+
+            # Audio stream without cover (m4a extension)
+            generate_audio outputfile: "#{basepath}/audio_no_cover_#{album}_#{i}.m4a"
         end
     end
 
@@ -282,4 +324,4 @@ time_taken do
 end
 
 status, out = system_run "tree", ["--noreport", TOP]
-puts out if status.sccess?
+puts out if status.success?

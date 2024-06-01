@@ -48,7 +48,6 @@ endif
 
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
-test: $(BUILD)/$(PROGRAM)_test
 
 $(BUILD)/%.o: $(CURDIR)/src/%.c
 	@mkdir -p $(dir $@)
@@ -63,13 +62,6 @@ compile_commands.json: $(BUILD)/$(PROGRAM)
 	@echo [ > $@
 	@cat $(BUILD)/.*.json >> $@
 	@echo ] >> $@
-
-$(BUILD)/$(PROGRAM)_test: $(TEST_SRCS) $(CURDIR)/.testenv
-	$(CC) $(CFLAGS) $(LDFLAGS) -lcriterion $(TEST_SRCS) -o $@
-	$@
-
-$(CURDIR)/.testenv:
-	tests/genmedia.rb
 
 clean:
 	rm -rf $(BUILD) $(CURDIR)/tests/music

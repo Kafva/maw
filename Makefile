@@ -2,7 +2,6 @@ CC                := clang
 UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 SRCS              = $(wildcard src/*.c)
-TEST_SRCS         = $(wildcard tests/*.c)
 HEADERS           = $(wildcard src/*.h)
 OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
@@ -46,6 +45,10 @@ CFLAGS            += -Wunreachable-code
 CFLAGS            += -Wunused
 endif
 
+ifeq ($(TESTS),1)
+CFLAGS            += -DMAW_TEST
+SRCS              += $(wildcard src/tests/*.c)
+endif
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
 
@@ -64,4 +67,4 @@ compile_commands.json: $(BUILD)/$(PROGRAM)
 	@echo ] >> $@
 
 clean:
-	rm -rf $(BUILD) $(CURDIR)/tests/music
+	rm -rf $(BUILD)

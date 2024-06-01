@@ -199,7 +199,7 @@ static int maw_remux(const char *input_filepath,
     //   Stream #0:1 -> #0:0 (copy)
     //   Stream #0:0 -> #0:1 (copy)
     for (int i = 0; i < nb_streams; i++) {
-        MAW_LOGF(MAW_INFO, "Stream #0:%d -> #0:%d (copy)\n", i,
+        MAW_LOGF(MAW_DEBUG, "Stream #0:%d -> #0:%d (copy)\n", i,
                                                              stream_mapping[i]);
     }
 
@@ -284,8 +284,6 @@ static int maw_remux(const char *input_filepath,
         MAW_AVERROR(r, "Failed to write trailer");
         goto end;
     }
-
-    MAW_LOG(MAW_INFO, "OK\n");
 
 end:
     av_packet_free(&pkt);

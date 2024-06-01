@@ -12,11 +12,12 @@
 
 #define PROGRAM "maw"
 
+#ifndef MAW_TEST
+
 static void usage(void);
 
 static void usage(void) {
     fprintf(stderr, "usage: " PROGRAM " [flags]\n");
-    fprintf(stderr, "   --input <file>\n");
     fprintf(stderr, "   --verbose        Verbose logging\n");
     fprintf(stderr, "   --log <level>    Log level for libav backend\n");
     fprintf(stderr, "   --help           Show this help message\n");
@@ -30,13 +31,12 @@ int main(int argc, char *argv[]) {
     char *config_file = NULL;
 
     static struct option long_options[] = {
-        {"input", required_argument, NULL, 'i'},
         {"log", optional_argument, NULL, 'l'},
         {"verbose", no_argument, NULL, 'v'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}};
 
-    while ((opt = getopt_long(argc, argv, "i:c:l:hv", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:l:hv", long_options, NULL)) != -1) {
         switch (opt) {
         case 'i':
             input_file = optarg;
@@ -50,9 +50,6 @@ int main(int argc, char *argv[]) {
         case 'l':
             if (strncasecmp("debug", optarg, sizeof("debug") - 1) == 0) {
                 av_log_level = AV_LOG_DEBUG;
-            }
-            else if (strncasecmp("info", optarg, sizeof("info") - 1) == 0) {
-                av_log_level = AV_LOG_INFO;
             }
             else if (strncasecmp("warning", optarg, sizeof("warning") - 1) == 0) {
                 av_log_level = AV_LOG_WARNING;
@@ -82,19 +79,19 @@ int main(int argc, char *argv[]) {
 
     maw_log_init(verbose, av_log_level);
 
-    const enum MetadataPolicy policy = KEEP_COVER;
-    const struct Metadata metadata = {
-        .title = "New title",
-        .album = "New album name",
-        .artist = "New artist name",
-        .cover_path = "",
-    };
-
-    if (maw_update(input_file, &metadata, policy) != 0) {
-        return EXIT_FAILURE;
-    }
-
-    // (void)maw_yaml_parse(config_file);
+    (void)maw_yaml_parse(config_file);
 
     return EXIT_SUCCESS;
 }
+
+#else
+
+#include "tests/maw_test.h"
+
+int main(void) {
+    maw_log_init(false, AV_LOG_QUIET);
+    RUN_TEST("KEEP_COVER policy", test_keep_cover);
+}
+
+#endif
+

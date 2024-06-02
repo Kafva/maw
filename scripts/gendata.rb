@@ -94,7 +94,7 @@ end
 # @param artist [String, void]
 # @param color [String, void]
 # @param duration [Integer, void]
-def generate_video(outputfile:,
+def generate_video(outputfile,
                    title: nil,
                    album: nil,
                    artist: nil,
@@ -129,7 +129,7 @@ end
 # @param artist [String, void]
 # @param cover_color [String, void]
 # @param duration [Integer, void]
-def generate_audio(outputfile:,
+def generate_audio(outputfile,
                    title: nil,
                    album: nil,
                    artist: nil,
@@ -232,41 +232,47 @@ def setup
               policy: KEEP_CORE_FIELDS
     HEREDOC
 
+    FileUtils.rm_rf TOP
     FileUtils.mkdir_p ART_ROOT
     FileUtils.mkdir_p MUSIC_ROOT
-    FileUtils.mkdir_p "#{TOP}/bad"
+    FileUtils.mkdir_p "#{TOP}/unit"
     File.write(CFG, cfg_yaml)
 
-    # More covers
+    # Unit test data
     generate_cover '#00d7d7', "#{ART_ROOT}/blue-1.png"
+    generate_dual_audio "#{TOP}/unit/dual_audio.mp4"
+    generate_dual_video "#{TOP}/unit/dual_video.mp4"
+    generate_audio "#{TOP}/unit/only_audio.m4a"
+    generate_audio "#{TOP}/unit/add_cover.m4a"
+    generate_audio "#{TOP}/unit/keep_cover.m4a",
+                   cover_color: "#5f9ea0"
+    generate_audio "#{TOP}/unit/replace_cover.m4a",
+                   cover_color: "#00ff00"
 
-    # Bad data examples
-    generate_dual_audio "#{TOP}/bad/dual_audio.mp4"
-    generate_dual_video "#{TOP}/bad/dual_video.mp4"
-    generate_audio outputfile: "#{TOP}/bad/only_audio.m4a"
+    # E2E testing data
+    #
+    # ALBUMS.each do |album|
+    #     FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
+    #     generate_cover album, "#{ART_ROOT}/#{album}.png"
+    #     basepath = "#{MUSIC_ROOT}/#{album}"
 
-    ALBUMS.each do |album|
-        FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
-        generate_cover album, "#{ART_ROOT}/#{album}.png"
-        basepath = "#{MUSIC_ROOT}/#{album}"
+    #     (0...1).each do |i|
+    #         # Video
+    #         generate_video "#{basepath}/video_#{album}_#{i}.mp4",
+    #                        color: album
 
-        (0...1).each do |i|
-            # Video
-            generate_video outputfile: "#{basepath}/video_#{album}_#{i}.mp4",
-                           color: album
+    #         # Audio stream with cover (mp4 extension)
+    #         generate_audio "#{basepath}/audio_#{album}_#{i}.mp4",
+    #                        cover_color: album
 
-            # Audio stream with cover (mp4 extension)
-            generate_audio outputfile: "#{basepath}/audio_#{album}_#{i}.mp4",
-                           cover_color: album
+    #         # Audio stream with cover (m4a extension)
+    #         generate_audio "#{basepath}/audio_#{album}_#{i}.m4a",
+    #                        cover_color: album
 
-            # Audio stream with cover (m4a extension)
-            generate_audio outputfile: "#{basepath}/audio_#{album}_#{i}.m4a",
-                           cover_color: album
-
-            # Audio stream without cover (m4a extension)
-            generate_audio outputfile: "#{basepath}/audio_no_cover_#{album}_#{i}.m4a"
-        end
-    end
+    #         # Audio stream without cover (m4a extension)
+    #         generate_audio "#{basepath}/audio_no_cover_#{album}_#{i}.m4a"
+    #     end
+    # end
 
     system "tree", "--noreport", "#{TOP}/music" if FLAGS[:debug]
 end

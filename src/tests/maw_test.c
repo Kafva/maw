@@ -15,7 +15,7 @@
 
 bool test_dual_audio(void) {
     int r;
-    const char *path = "./.testenv/bad/dual_audio.mp4";
+    const char *path = "./.testenv/unit/dual_audio.mp4";
     const enum MetadataPolicy policy = 0;
     const struct Metadata metadata = {0};
 
@@ -25,7 +25,7 @@ bool test_dual_audio(void) {
 
 bool test_dual_video(void) {
     int r;
-    const char *path = "./.testenv/bad/dual_video.mp4";
+    const char *path = "./.testenv/unit/dual_video.mp4";
     const enum MetadataPolicy policy = 0;
     const struct Metadata metadata = {0};
 
@@ -35,11 +35,11 @@ bool test_dual_video(void) {
 
 bool test_bad_covers(void) {
     int r;
-    const char *path = "./.testenv/albums/blue/audio_blue_0.m4a";
+    const char *path = "./.testenv/unit/keep_cover.m4a";
     const enum MetadataPolicy policy = 0;
     const struct Metadata bad_metadata[] = {
-        { .cover_path = "./.testenv/bad/dual_audio.mp4" },
-        { .cover_path = "./.testenv/bad/only_audio.m4a" },
+        { .cover_path = "./.testenv/unit/dual_audio.mp4" },
+        { .cover_path = "./.testenv/unit/only_audio.m4a" },
         { .cover_path = "./does_not_exist" },
         { .cover_path = "./README.md" },
     };
@@ -62,12 +62,10 @@ bool test_bad_covers(void) {
 
 bool test_keep_cover(void) {
     int r;
-    const char *path = "./.testenv/albums/blue/audio_blue_0.m4a";
+    const char *path = "./.testenv/unit/keep_cover.m4a";
     const enum MetadataPolicy policy = KEEP_COVER;
     const struct Metadata metadata = {
-        .title = "audio_blue_0",
-        .album = "Blue album",
-        .artist = "Blue artist",
+        .title = "keep_cover",
         .cover_path = "",
     };
 
@@ -81,12 +79,10 @@ bool test_keep_cover(void) {
 
 bool test_add_cover(void) {
     int r;
-    const char *path = "./.testenv/albums/blue/audio_no_cover_blue_0.m4a";
+    const char *path = "./.testenv/unit/add_cover.m4a";
     const enum MetadataPolicy policy = 0;
     const struct Metadata metadata = {
-        .title = "audio_blue_0",
-        .album = "Blue album",
-        .artist = "Blue artist",
+        .title = "add_cover",
         .cover_path = "./.testenv/art/blue-1.png",
     };
 
@@ -100,12 +96,10 @@ bool test_add_cover(void) {
 
 bool test_replace_cover(void) {
     int r;
-    const char *path = "./.testenv/albums/blue/audio_blue_0.m4a";
+    const char *path = "./.testenv/unit/replace_cover.m4a";
     const enum MetadataPolicy policy = 0;
     const struct Metadata metadata = {
-        .title = "audio_no_blue_0",
-        .album = "Blue album",
-        .artist = "Blue artist",
+        .title = "replace_cover",
         .cover_path = "./.testenv/art/blue-1.png",
     };
 

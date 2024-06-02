@@ -39,6 +39,7 @@ CFLAGS            += -O0
 CFLAGS            += -fsanitize=address
 CFLAGS            += -fstack-protector-all
 CFLAGS            += -Wno-unused
+CFLAGS            += -Wno-unused-parameter
 else
 CFLAGS            += -O3
 CFLAGS            += -Wunreachable-code

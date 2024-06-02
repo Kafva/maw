@@ -67,6 +67,9 @@ int main(int argc, char *argv[]) {
             else if (strncasecmp("warning", optarg, sizeof("warning") - 1) == 0) {
                 av_log_level = AV_LOG_WARNING;
             }
+            else if (strncasecmp("info", optarg, sizeof("info") - 1) == 0) {
+                av_log_level = AV_LOG_INFO;
+            }
             else if (strncasecmp("error", optarg, sizeof("error") - 1) == 0) {
                 av_log_level = AV_LOG_ERROR;
             }

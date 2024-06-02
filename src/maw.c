@@ -36,6 +36,35 @@ end:
     return r;
 }
 
+static int maw_demux_cover(AVFormatContext *output_fmt_ctx, 
+                           const struct Metadata *metadata, 
+                           int policy,
+                           int nb_video_streams,
+                           char *cover_data,
+                           size_t cover_size) {
+    AVStream *video_stream = NULL;
+    int r;
+    r = readfile(metadata->cover_path, cover_data, cover_size);
+    if (r != 0) {
+        goto end;
+    }
+
+    if (nb_video_streams == 0) {
+        // Create a new video stream
+        video_stream = avformat_new_stream(output_fmt_ctx, NULL);
+        // video_stream->codecpar->codec_id = AVCODEC_ID_PNG;
+        // video_stream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+        // video_stream->codecpar->width = codecContext->width;  // Set the video width
+        // video_stream->codecpar->height = codecContext->height; // Set the video height
+
+    }
+
+
+    r = 0;
+end:
+    return r;
+}
+
 static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
                                     const struct Metadata *metadata) {
     int r = AVERROR_UNKNOWN;
@@ -101,70 +130,56 @@ end:
     return r;
 }
 
-// See "Stream copy" section of ffmpeg(1), that is what we are doing
-static int maw_remux(const char *input_filepath,
+static int maw_demux(const char *input_filepath,
                      const char *output_filepath,
-                     const struct Metadata *metadata,
-                     const int policy) {
+                     AVFormatContext **input_fmt_ctx,
+                     AVFormatContext **output_fmt_ctx,
+                     int **stream_mapping,
+                     int *nb_streams) {
     int r = AVERROR_UNKNOWN;
-    AVFormatContext *input_fmt_ctx = NULL;
-    AVFormatContext *output_fmt_ctx = NULL;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
-    AVPacket *pkt = NULL;
     enum AVMediaType codec_type;
     int stream_index = 0;
-    // Mapping: [input stream index] -> [output stream index]
-    // We could keep the exact stream indices from the input but
-    // that would prevent us from e.g. dropping a subtitle stream.
-    int *stream_mapping = NULL;
-    int nb_streams = 0;
     int nb_audio_streams = 0;
     int nb_video_streams = 0;
-    char cover_data[BUFSIZ];
 
     // Create context for input file
-    r = avformat_open_input(&input_fmt_ctx, input_filepath, NULL, NULL);
+    r = avformat_open_input(input_fmt_ctx, input_filepath, NULL, NULL);
     if (r != 0) {
         MAW_AVERROR(r, input_filepath);
         goto end;
     }
     // Read input file metadata
-    r = avformat_find_stream_info(input_fmt_ctx, NULL);
+    r = avformat_find_stream_info(*input_fmt_ctx, NULL);
     if (r != 0) {
         MAW_AVERROR(r, input_filepath);
         goto end;
     }
 
     // Setup stream mapping
-    av_assert0(input_fmt_ctx->nb_streams < INT_MAX);
-    nb_streams = input_fmt_ctx->nb_streams;
+    av_assert0((*input_fmt_ctx)->nb_streams < INT_MAX);
+    *nb_streams = (*input_fmt_ctx)->nb_streams;
 
-    stream_mapping = av_calloc(nb_streams, sizeof(*stream_mapping));
-    if (stream_mapping == NULL) {
+    *stream_mapping = av_calloc(*nb_streams, sizeof(**stream_mapping));
+    if (*stream_mapping == NULL) {
         r = AVERROR(ENOMEM);
         MAW_AVERROR(r, "Out of memory");
         goto end;
     }
 
-    pkt = av_packet_alloc();
-    if (pkt == NULL) {
-        MAW_LOG(MAW_ERROR, "Failed to allocate packet");
-        goto end;
-    }
-
-    MAW_LOGF(MAW_DEBUG, "%s: %d stream(s)\n", input_filepath, nb_streams);
+    MAW_LOGF(MAW_DEBUG, "%s: %d stream(s)\n", input_filepath, *nb_streams);
 
     // Create context for output file
     // Possible formats: `ffmpeg -formats`
-    r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, NULL, output_filepath);
+    r = avformat_alloc_output_context2(output_fmt_ctx, NULL, NULL, output_filepath);
     if (r != 0) {
         MAW_AVERROR(r, output_filepath);
         goto end;
     }
 
-    for (unsigned int i = 0; i < input_fmt_ctx->nb_streams; i++) {
-        codec_type = input_fmt_ctx->streams[i]->codecpar->codec_type;
+    for (unsigned int i = 0; i < (*input_fmt_ctx)->nb_streams; i++) {
+        codec_type = (*input_fmt_ctx)->streams[i]->codecpar->codec_type;
         switch (codec_type) {
             case AVMEDIA_TYPE_AUDIO:
             case AVMEDIA_TYPE_VIDEO:
@@ -174,8 +189,8 @@ static int maw_remux(const char *input_filepath,
                     nb_audio_streams += 1;
 
                 // Create an output stream for each OK input stream
-                output_stream = avformat_new_stream(output_fmt_ctx, NULL);
-                input_stream = input_fmt_ctx->streams[i];
+                output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
+                input_stream = (*input_fmt_ctx)->streams[i];
 
                 // Stream copy from the input stream onto the output
                 r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
@@ -192,43 +207,12 @@ static int maw_remux(const char *input_filepath,
                 output_stream->disposition = input_stream->disposition;
 
                 // Update the mapping
-                stream_mapping[i] = stream_index++;
+                (*stream_mapping)[i] = stream_index++;
                 break;
             default:
-                stream_mapping[i] = -1;
+                (*stream_mapping)[i] = -1;
                 break;
         }
-    }
-
-    // The metadata for artist etc. is in the AVFormatContext, streams also have
-    // a metadata field but these contain other stuff, e.g. audio streams can
-    // have 'language' and 'handler_name'
-    r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
-    if (r != 0) {
-        MAW_AVERROR(r, "Failed to copy metadata");
-        goto end;
-    }
-
-    if (metadata->cover_path != NULL) {
-        //r = readfile(metadata->cover_path, cover_data, sizeof(cover_data));
-        //if (r != 0) {
-        //    goto end;
-        //}
-
-        if (nb_video_streams == 0) {
-            // TODO Add a new stream
-            // read with avformat_open_input(&formatContext, "cover.jpg", NULL, NULL)
-        }
-    }
-
-    // FFmpeg gives output like this during stream copying
-    // It shows us
-    // Stream mapping:
-    //   Stream #0:1 -> #0:0 (copy)
-    //   Stream #0:0 -> #0:1 (copy)
-    for (int i = 0; i < nb_streams; i++) {
-        MAW_LOGF(MAW_DEBUG, "Stream #0:%d -> #0:%d (copy)\n", i,
-                                                             stream_mapping[i]);
     }
 
     if (nb_audio_streams != 1) {
@@ -243,6 +227,21 @@ static int maw_remux(const char *input_filepath,
         goto end;
     }
 
+end:
+    // Cleanup by caller
+    return r;
+}
+
+static int maw_mux(const char *output_filepath,
+                   AVFormatContext *input_fmt_ctx,
+                   AVFormatContext *output_fmt_ctx,
+                   int *stream_mapping,
+                   int nb_streams) {
+    int r = AVERROR_UNKNOWN;
+    AVStream *output_stream = NULL;
+    AVStream *input_stream = NULL;
+    AVPacket *pkt = NULL;
+
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
         MAW_AVERROR(r, output_filepath);
@@ -252,6 +251,12 @@ static int maw_remux(const char *input_filepath,
     r = avformat_write_header(output_fmt_ctx, NULL);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to write header");
+        goto end;
+    }
+
+    pkt = av_packet_alloc();
+    if (pkt == NULL) {
+        MAW_LOG(MAW_ERROR, "Failed to allocate packet");
         goto end;
     }
 
@@ -306,6 +311,72 @@ static int maw_remux(const char *input_filepath,
 
 end:
     av_packet_free(&pkt);
+    return r;
+}
+
+
+// See "Stream copy" section of ffmpeg(1), that is what we are doing
+static int maw_remux(const char *input_filepath,
+                     const char *output_filepath,
+                     const struct Metadata *metadata,
+                     const int policy) {
+    int r;
+    AVStream *output_stream = NULL;
+    AVStream *input_stream = NULL;
+    AVFormatContext *input_fmt_ctx = NULL;
+    AVFormatContext *output_fmt_ctx = NULL;
+    // Mapping: [input stream index] -> [output stream index]
+    // We could keep the exact stream indices from the input but
+    // that would prevent us from e.g. dropping a subtitle stream.
+    int *stream_mapping = NULL;
+    // The output should always have either:
+    // 1 audio stream + 1 video stream
+    // 1 audio stream + 0 video streams
+    int nb_streams = 0;
+    char cover_data[BUFSIZ];
+
+    r = maw_demux(input_filepath, output_filepath, 
+                  &input_fmt_ctx, &output_fmt_ctx, 
+                  &stream_mapping, &nb_streams);
+    if (r != 0)
+        goto end;
+
+    if (metadata->cover_path != NULL && strlen(metadata->cover_path) > 0) {
+        r = maw_demux_cover(output_fmt_ctx, 
+                            metadata, 
+                            policy,
+                            nb_streams,
+                            cover_data, 
+                            sizeof cover_data);
+        if (r != 0)
+            goto end;
+    }
+
+    // FFmpeg gives output like this during stream copying
+    // It shows us
+    // Stream mapping:
+    //   Stream #0:1 -> #0:0 (copy)
+    //   Stream #0:0 -> #0:1 (copy)
+    for (int i = 0; i < nb_streams; i++) {
+        MAW_LOGF(MAW_DEBUG, 
+                "Stream #0:%d -> #0:%d (copy)\n", i, stream_mapping[i]);
+    }
+
+    // The metadata for artist etc. is in the AVFormatContext, streams also have
+    // a metadata field but these contain other stuff, e.g. audio streams can
+    // have 'language' and 'handler_name'
+    r = maw_set_metadata(input_fmt_ctx, output_fmt_ctx, metadata, policy);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to copy metadata");
+        goto end;
+    }
+
+    r = maw_mux(output_filepath, input_fmt_ctx, output_fmt_ctx, 
+                stream_mapping, nb_streams);
+    if (r != 0)
+        goto end;
+
+end:
     av_freep(&stream_mapping);
     avformat_close_input(&input_fmt_ctx);
 

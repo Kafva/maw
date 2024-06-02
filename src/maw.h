@@ -11,6 +11,8 @@ enum MetadataPolicy {
     CROP_COVER          = 0x1 << 3,
 };
 
+#define POLICY_NEEDS_ORIGINAL_COVER(policy) (policy & (KEEP_COVER | CROP_COVER))
+
 struct Metadata {
     char *title;
     char *album;
@@ -23,7 +25,13 @@ int maw_yaml_parse(const char *);
 int maw_update(const char *, const struct Metadata *, const int);
 
 #ifdef MAW_TEST
+#include <libavformat/avformat.h>
+
 bool maw_verify(const char *, const struct Metadata *, const int);
+bool maw_verify_cover(const AVFormatContext *,
+                      const char *,
+                      const struct Metadata *,
+                      const int);
 #endif
 
 #endif // MAW_H

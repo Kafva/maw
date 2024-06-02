@@ -23,6 +23,16 @@ bool test_dual_audio(void) {
     return r == AVERROR_UNKNOWN;
 }
 
+bool test_no_audio(void) {
+    int r;
+    const char *path = "./.testenv/art/blue-1.png";
+    const enum MetadataPolicy policy = 0;
+    const struct Metadata metadata = {0};
+
+    r = maw_update(path, &metadata, policy);
+    return r == AVERROR_UNKNOWN;
+}
+
 bool test_dual_video(void) {
     int r;
     const char *path = "./.testenv/unit/dual_video.mp4";
@@ -56,7 +66,7 @@ bool test_bad_covers(void) {
         if (r != errors[i])
             return false;
     }
-    
+
     return true;
 }
 
@@ -66,12 +76,14 @@ bool test_keep_cover(void) {
     const enum MetadataPolicy policy = KEEP_COVER;
     const struct Metadata metadata = {
         .title = "keep_cover",
-        .cover_path = "",
+        .album = NULL,
+        .artist = NULL,
+        .cover_path = NULL,
     };
 
     r = maw_update(path, &metadata, policy);
     if (r != 0) {
-        return r;
+        return false;
     }
 
     return maw_verify(path, &metadata, policy);
@@ -80,15 +92,17 @@ bool test_keep_cover(void) {
 bool test_add_cover(void) {
     int r;
     const char *path = "./.testenv/unit/add_cover.m4a";
-    const enum MetadataPolicy policy = 0;
+    const enum MetadataPolicy policy = KEEP_CORE_FIELDS;
     const struct Metadata metadata = {
         .title = "add_cover",
+        .album = NULL,
+        .artist = NULL,
         .cover_path = "./.testenv/art/blue-1.png",
     };
 
     r = maw_update(path, &metadata, policy);
     if (r != 0) {
-        return r;
+        return false;
     }
 
     return maw_verify(path, &metadata, policy);
@@ -97,15 +111,17 @@ bool test_add_cover(void) {
 bool test_replace_cover(void) {
     int r;
     const char *path = "./.testenv/unit/replace_cover.m4a";
-    const enum MetadataPolicy policy = 0;
+    const enum MetadataPolicy policy = KEEP_CORE_FIELDS;
     const struct Metadata metadata = {
         .title = "replace_cover",
+        .album = NULL,
+        .artist = NULL,
         .cover_path = "./.testenv/art/blue-1.png",
     };
 
     r = maw_update(path, &metadata, policy);
     if (r != 0) {
-        return r;
+        return false;
     }
 
     return maw_verify(path, &metadata, policy);

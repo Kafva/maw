@@ -1,56 +1,20 @@
 #include "maw.h"
 #include "log.h"
+#include "util.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
 #include <libavutil/avassert.h>
-#include <sys/errno.h>
 #include <unistd.h>
-#include <fcntl.h>
 
-static int readfile(const char *filepath, char *out, size_t outsize) {
-    FILE *fp;
-    size_t read_bytes;
-    int r = 1;
 
-    fp = fopen(filepath, "r");
-    if (fp == NULL) {
-        MAW_PERROR(filepath);
-        return 1;
-    }
-    
-    read_bytes = fread(out, 1, outsize, fp);
-    if (read_bytes <= 0) {
-        MAW_LOGF(MAW_ERROR, "%s: empty", filepath);
-        goto end;
-    }
-    else if (read_bytes == outsize) {
-        MAW_LOGF(MAW_ERROR, "%s: too large", filepath);
-        goto end;
-    }
-
-    r = 0;
-end:
-    fclose(fp);
-    return r;
-}
-
-static int maw_demux_cover(AVFormatContext **cover_fmt_ctx, 
-                           AVFormatContext *output_fmt_ctx, 
-                           const struct Metadata *metadata, 
-                           int policy,
-                           int video_input_stream_index) {
+static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
+                           AVFormatContext *output_fmt_ctx,
+                           const struct Metadata *metadata) {
     int r = AVERROR_UNKNOWN;
-    AVStream *cover_stream = NULL;
     AVStream *output_stream = NULL;
     enum AVMediaType codec_type;
-
-    if (metadata->cover_path == NULL || strlen(metadata->cover_path) == 0) {
-        // No new cover configured in metadata
-        r = 0;
-        goto end;
-    }
 
     // Demux the input file
     r = avformat_open_input(cover_fmt_ctx, metadata->cover_path, NULL, NULL);
@@ -76,30 +40,24 @@ static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
     }
     codec_type = (*cover_fmt_ctx)->streams[0]->codecpar->codec_type;
     if (codec_type != AVMEDIA_TYPE_VIDEO) {
-        MAW_LOGF(MAW_ERROR, "%s: cover does not contain a video stream (found %s)\n", 
+        MAW_LOGF(MAW_ERROR, "%s: cover does not contain a video stream (found %s)\n",
                  metadata->cover_path,
                  av_get_media_type_string(codec_type));
         r = AVERROR_UNKNOWN;
         goto end;
     }
 
-    cover_stream = avformat_new_stream(*cover_fmt_ctx, NULL);
+    // Always create a new video stream for the output
+    output_stream = avformat_new_stream(output_fmt_ctx, NULL);
 
-    if (video_input_stream_index == -1) {
-        // Create a new video stream
-        output_stream = avformat_new_stream(output_fmt_ctx, NULL);
-    }
-    else {
-        // Reuse existing video stream
-        output_stream = output_fmt_ctx->streams[1];
-    }
-
-    cover_stream->disposition = AV_DISPOSITION_ATTACHED_PIC;
-    r = avcodec_parameters_copy(output_stream->codecpar, cover_stream->codecpar);
+    r = avcodec_parameters_copy(output_stream->codecpar,
+                                (*cover_fmt_ctx)->streams[0]->codecpar);
     if (r != 0) {
         MAW_AVERROR(r, metadata->cover_path);
         goto end;
     }
+
+    output_stream->disposition = AV_DISPOSITION_ATTACHED_PIC;
 
     r = 0;
 end:
@@ -149,6 +107,11 @@ static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
     else if (policy & KEEP_CORE_FIELDS) {
         // Keep some of the metadata
         while ((entry = av_dict_iterate(input_fmt_ctx->metadata, entry))) {
+            if (strcmp(entry->key, "title") != 0 &&
+                strcmp(entry->key, "artist") != 0 &&
+                strcmp(entry->key, "album") != 0) {
+                continue;
+            }
             r = av_dict_set(&output_fmt_ctx->metadata, entry->key, entry->value, 0);
             if (r != 0) {
                 goto end;
@@ -171,8 +134,10 @@ end:
     return r;
 }
 
+// Video streams will only be demuxed if they are needed by the current policy
 static int maw_demux_media(const char *input_filepath,
                      const char *output_filepath,
+                     const int policy,
                      AVFormatContext **input_fmt_ctx,
                      AVFormatContext **output_fmt_ctx,
                      int *audio_input_stream_index,
@@ -182,6 +147,7 @@ static int maw_demux_media(const char *input_filepath,
     AVStream *input_stream = NULL;
     enum AVMediaType codec_type;
     int stream_index = 0;
+    int nb_video_streams = 0;
 
     // Create context for input file
     r = avformat_open_input(input_fmt_ctx, input_filepath, NULL, NULL);
@@ -196,7 +162,7 @@ static int maw_demux_media(const char *input_filepath,
         goto end;
     }
 
-    MAW_LOGF(MAW_DEBUG, "%s: %u input stream(s)\n", input_filepath, 
+    MAW_LOGF(MAW_DEBUG, "%s: %u input stream(s)\n", input_filepath,
                                                     (*input_fmt_ctx)->nb_streams);
 
     // Create context for output file
@@ -242,13 +208,20 @@ static int maw_demux_media(const char *input_filepath,
             continue;
         }
 
-        if (*video_input_stream_index != -1) {
+        if (nb_video_streams != 0) {
             r = AVERROR_UNKNOWN;
             MAW_LOG(MAW_ERROR, "Found more than one video stream\n");
             goto end;
         }
-        *video_input_stream_index = i;
+        nb_video_streams += 1;
 
+        // Do not demux the video stream if the policy does not require the
+        // original image stream.
+        if (!POLICY_NEEDS_ORIGINAL_COVER(policy)) {
+            continue;
+        }
+
+        *video_input_stream_index = i;
         output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
         input_stream = (*input_fmt_ctx)->streams[i];
         r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
@@ -265,11 +238,11 @@ static int maw_demux_media(const char *input_filepath,
     }
 
 end:
-    // Cleanup by caller
     return r;
 }
 
 static int maw_mux(const char *output_filepath,
+                   const int policy,
                    AVFormatContext *input_fmt_ctx,
                    AVFormatContext *cover_fmt_ctx,
                    AVFormatContext *output_fmt_ctx,
@@ -306,24 +279,25 @@ static int maw_mux(const char *output_filepath,
             break; // No more frames
         }
 
-        // Skip everything except the audio and video stream from the input
-        if (pkt->stream_index != audio_input_stream_index &&
-            pkt->stream_index != video_input_stream_index) {
-            av_packet_unref(pkt);
-            continue;
+        if (pkt->stream_index == audio_input_stream_index) {
+            // Audio stream
+            output_stream_index = 0;
         }
-        // Skip original cover data if a cover context was provided
-        if (pkt->stream_index == video_input_stream_index && cover_fmt_ctx != NULL) {
-            MAW_LOGF(MAW_DEBUG, "Skipping existing video stream #%d in input\n", pkt->stream_index);
-            
-            av_packet_unref(pkt);
-            continue;
+        else if (pkt->stream_index == video_input_stream_index &&
+                 POLICY_NEEDS_ORIGINAL_COVER(policy)) {
+            // Video stream to keep
+            output_stream_index = 1;
+
+        }
+        else {
+            // We should not have demuxed any video streams if the policy did
+            // not require it.
+            r = AVERROR_UNKNOWN;
+            MAW_LOGF(MAW_ERROR, "Unexpected packet from input stream #%d\n",
+                     pkt->stream_index);
+            goto end;
         }
 
-        // Audio stream is always the first stream (for our demuxer)
-        output_stream_index = pkt->stream_index == audio_input_stream_index ? 0 : 1;
-
-        // Input and output stream for the current packet
         input_stream = input_fmt_ctx->streams[pkt->stream_index];
         output_stream = output_fmt_ctx->streams[output_stream_index];
 
@@ -331,16 +305,14 @@ static int maw_mux(const char *output_filepath,
         // input file. Remap it to the correct stream_index in the output file.
         pkt->stream_index = output_stream_index;
 
-        // Rescale (?)
-        av_packet_rescale_ts(pkt,
-                             input_stream->time_base,
-                             output_stream->time_base);
-        pkt->pos = -1;
+        if (pkt->stream_index == audio_input_stream_index) {
+            av_packet_rescale_ts(pkt, input_stream->time_base,
+                                      output_stream->time_base);
+            pkt->pos = -1;
+        }
 
+        // The pkt passed to this function is automatically freed
         r = av_interleaved_write_frame(output_fmt_ctx, pkt);
-        // pkt is now blank (av_interleaved_write_frame() takes ownership of
-        // its contents and resets pkt), so that no unreferencing is necessary.
-        // This would be different if one used av_write_frame().
         if (r != 0) {
             MAW_AVERROR(r, "Failed to mux packet");
             break;
@@ -360,9 +332,10 @@ static int maw_mux(const char *output_filepath,
         }
 
         if (pkt->stream_index != 0) {
-            // BAD packet 😠
-            av_packet_unref(pkt);
-            continue;
+            r = AVERROR_UNKNOWN;
+            MAW_LOGF(MAW_ERROR, "Unexpected packet from cover stream #%d\n",
+                     pkt->stream_index);
+            goto end;
         }
 
         output_stream_index = 1;
@@ -372,7 +345,7 @@ static int maw_mux(const char *output_filepath,
         output_stream = output_fmt_ctx->streams[output_stream_index];
 
         pkt->stream_index = output_stream_index;
-        //pkt->pos = -1;
+        pkt->pos = -1;
 
         r = av_interleaved_write_frame(output_fmt_ctx, pkt);
         if (r != 0) {
@@ -410,21 +383,21 @@ static int maw_remux(const char *input_filepath,
     // 1 audio stream + 1 video stream
     // 1 audio stream + 0 video streams
 
-    r = maw_demux_media(input_filepath, output_filepath, 
-                  &input_fmt_ctx, &output_fmt_ctx, 
-                  &audio_input_stream_index,
-                  &video_input_stream_index);
-    if (r != 0)
-        goto end;
-
-    r = maw_demux_cover(&cover_fmt_ctx, 
-                        output_fmt_ctx, 
-                        metadata, 
+    r = maw_demux_media(input_filepath,
+                        output_filepath,
                         policy,
-                        video_input_stream_index);
+                        &input_fmt_ctx,
+                        &output_fmt_ctx,
+                        &audio_input_stream_index,
+                        &video_input_stream_index);
     if (r != 0)
         goto end;
 
+    if (metadata->cover_path != NULL && strlen(metadata->cover_path) > 0) {
+        r = maw_demux_cover(&cover_fmt_ctx, output_fmt_ctx, metadata);
+        if (r != 0)
+            goto end;
+    }
 
     // The metadata for artist etc. is in the AVFormatContext, streams also have
     // a metadata field but these contain other stuff, e.g. audio streams can
@@ -435,10 +408,11 @@ static int maw_remux(const char *input_filepath,
         goto end;
     }
 
-    r = maw_mux(output_filepath, 
-                input_fmt_ctx, 
+    r = maw_mux(output_filepath,
+                policy,
+                input_fmt_ctx,
                 cover_fmt_ctx,
-                output_fmt_ctx, 
+                output_fmt_ctx,
                 audio_input_stream_index,
                 video_input_stream_index);
     if (r != 0)
@@ -487,7 +461,7 @@ int maw_update(const char *filepath,
     }
 
     r = rename(tmpfile, filepath);
-    if (r < 0) {
+    if (r != 0) {
          MAW_PERROR(tmpfile);
          goto end;
     }
@@ -499,11 +473,14 @@ end:
 
 #ifdef MAW_TEST
 
-// TODO verify cover
+#define LHS_EMPTY_OR_EQ(lhs, rhs) \
+    (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
+
 bool maw_verify(const char *filepath,
                 const struct Metadata *metadata,
                 const int policy) {
     bool ok = false;
+    bool expect_cover = false;
     int r;
     AVFormatContext *fmt_ctx = NULL;
     const AVDictionaryEntry *entry = NULL;
@@ -518,28 +495,93 @@ bool maw_verify(const char *filepath,
         goto end;
     }
 
+    // Verify metadata
     while ((entry = av_dict_iterate(fmt_ctx->metadata, entry))) {
         if (strcmp(entry->key, "title") == 0) {
-            if (strcmp(entry->value, metadata->title) != 0)
+            if (!LHS_EMPTY_OR_EQ(metadata->title, entry->value))
                 goto end;
         }
         else if (strcmp(entry->key, "artist") == 0) {
-            if (strcmp(entry->value, metadata->artist) != 0)
+            if (!LHS_EMPTY_OR_EQ(metadata->artist, entry->value))
                 goto end;
         }
         else if (strcmp(entry->key, "album") == 0) {
-            if (strcmp(entry->value, metadata->album) != 0)
+            if (!LHS_EMPTY_OR_EQ(metadata->album, entry->value))
                 goto end;
         }
-        else if (policy & KEEP_ALL_FIELDS) {
+        else if (strcmp(entry->key, "major_brand") != 0 &&
+                 strcmp(entry->key, "minor_version") != 0 &&
+                 strcmp(entry->key, "compatible_brands") != 0 &&
+                 strcmp(entry->key, "encoder") != 0 &&
+                 !(policy & KEEP_ALL_FIELDS)) {
             // There should be no other fields
             goto end;
         }
     }
 
-    ok = true;
+    expect_cover = metadata->cover_path != NULL ||
+                   POLICY_NEEDS_ORIGINAL_COVER(policy);
+
+    if (expect_cover) {
+        ok = maw_verify_cover(fmt_ctx, filepath, metadata, policy);
+
+    } else {
+        if (fmt_ctx->nb_streams != 1) {
+            MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u\n",
+                     filepath, fmt_ctx->nb_streams);
+            goto end;
+        }
+        ok = true;
+    }
+
 end:
     avformat_close_input(&fmt_ctx);
+    return ok;
+}
+
+bool maw_verify_cover(const AVFormatContext *fmt_ctx,
+                      const char *filepath,
+                      const struct Metadata *metadata,
+                      const int policy) {
+    int r;
+    char cover_data[BUFSIZ];
+    AVStream *stream = NULL;
+    int read_bytes;
+    bool ok = false;
+
+    read_bytes = (int)readfile(metadata->cover_path,
+                               cover_data,
+                               sizeof cover_data);
+    if (read_bytes == 0) {
+        goto end;
+    }
+
+    if (fmt_ctx->nb_streams != 2) {
+        MAW_LOGF(MAW_ERROR, "%s: Expected two streams: found %u\n",
+                 filepath, fmt_ctx->nb_streams);
+        goto end;
+    }
+
+    stream = fmt_ctx->streams[1];
+    if (stream->attached_pic.data == NULL) {
+        MAW_LOGF(MAW_ERROR, "%s: video stream is empty\n", filepath);
+        goto end;
+    }
+    if (stream->attached_pic.size != read_bytes) {
+        MAW_LOGF(MAW_ERROR, "%s: incorrect cover size: %d != %d\n",
+                 metadata->cover_path, stream->attached_pic.size, read_bytes);
+        goto end;
+    }
+
+    r = memcmp(stream->attached_pic.data, cover_data, (size_t)read_bytes);
+    if (r != 0) {
+        MAW_LOGF(MAW_ERROR, "%s: cover data does not match\n",
+                 metadata->cover_path);
+        goto end;
+    }
+
+    ok = true;
+end:
     return ok;
 }
 

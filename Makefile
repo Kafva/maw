@@ -3,10 +3,20 @@ UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 SRCS              = $(wildcard src/*.c)
 HEADERS           = $(wildcard src/*.h)
+
+ifeq ($(TESTS),1)
+CFLAGS            += -DMAW_TEST
+SRCS              += $(wildcard src/tests/*.c)
+HEADERS           += $(wildcard src/tests/*.h)
+PROGRAM           = maw_test
+else
+PROGRAM           = maw
+endif
+
 OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = build
-PROGRAM           = maw
 
+CFLAGS            += -DMAW_PROGRAM=\"$(PROGRAM)\"
 CFLAGS            += -std=c99
 # Includes
 CFLAGS            += -I$(CURDIR)/src
@@ -44,11 +54,6 @@ else
 CFLAGS            += -O3
 CFLAGS            += -Wunreachable-code
 CFLAGS            += -Wunused
-endif
-
-ifeq ($(TESTS),1)
-CFLAGS            += -DMAW_TEST
-SRCS              += $(wildcard src/tests/*.c)
 endif
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json

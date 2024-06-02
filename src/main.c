@@ -10,7 +10,9 @@
 #include <libavutil/log.h>
 #include <libavutil/error.h>
 
-#define PROGRAM "maw"
+#ifndef MAW_PROGRAM
+#define MAW_PROGRAM "maw"
+#endif
 
 #ifdef MAW_TEST
 #include "tests/maw_test.h"
@@ -20,7 +22,7 @@ static int run_tests(const char *);
 static void usage(void);
 
 static void usage(void) {
-    fprintf(stderr, "usage: " PROGRAM " [flags]\n");
+    fprintf(stderr, "usage: " MAW_PROGRAM " [flags]\n");
     fprintf(stderr, "   --verbose        Verbose logging\n");
     fprintf(stderr, "   --log <level>    Log level for libav backend\n");
     fprintf(stderr, "   --help           Show this help message\n");

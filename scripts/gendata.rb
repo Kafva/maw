@@ -243,6 +243,7 @@ def setup
     # Bad data examples
     generate_dual_audio "#{TOP}/bad/dual_audio.mp4"
     generate_dual_video "#{TOP}/bad/dual_video.mp4"
+    generate_audio outputfile: "#{TOP}/bad/only_audio.m4a"
 
     ALBUMS.each do |album|
         FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"

@@ -3,6 +3,8 @@
 #include "tests/maw_test.h"
 #include "maw.h"
 
+#include <string.h>
+
 // file with video stream has the video stream stripped
 // More than one video/audio stream is rejected
 //
@@ -31,7 +33,34 @@ bool test_dual_video(void) {
     return r == AVERROR_UNKNOWN;
 }
 
-bool test_maw_update(void) {
+bool test_bad_covers(void) {
+    int r;
+    const char *path = "./.testenv/albums/blue/audio_blue_0.m4a";
+    const enum MetadataPolicy policy = 0;
+    const struct Metadata bad_metadata[] = {
+        { .cover_path = "./.testenv/bad/dual_audio.mp4" },
+        { .cover_path = "./.testenv/bad/only_audio.m4a" },
+        { .cover_path = "./does_not_exist" },
+        { .cover_path = "./README.md" },
+    };
+
+    int errors[] = {
+        AVERROR_UNKNOWN,
+        AVERROR_UNKNOWN,
+        AVERROR(ENOENT),
+        AVERROR_INVALIDDATA,
+    };
+
+    for (size_t i = 0; i < sizeof(bad_metadata)/sizeof(struct Metadata); i++) {
+        r = maw_update(path, &(bad_metadata[i]), policy);
+        if (r != errors[i])
+            return false;
+    }
+    
+    return true;
+}
+
+bool test_keep_cover(void) {
     int r;
     const char *path = "./.testenv/albums/blue/audio_blue_0.m4a";
     const enum MetadataPolicy policy = KEEP_COVER;
@@ -87,5 +116,3 @@ bool test_replace_cover(void) {
 
     return maw_verify(path, &metadata, policy);
 }
-
-

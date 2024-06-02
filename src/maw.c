@@ -56,6 +56,9 @@ static int maw_demux_cover(AVFormatContext *output_fmt_ctx,
         // video_stream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
         // video_stream->codecpar->width = codecContext->width;  // Set the video width
         // video_stream->codecpar->height = codecContext->height; // Set the video height
+    }
+    else {
+        // Overwrite existing stream
 
     }
 
@@ -134,15 +137,14 @@ static int maw_demux(const char *input_filepath,
                      const char *output_filepath,
                      AVFormatContext **input_fmt_ctx,
                      AVFormatContext **output_fmt_ctx,
-                     int **stream_mapping,
+                     int *audio_input_stream_index,
+                     int *video_input_stream_index,
                      int *nb_streams) {
     int r = AVERROR_UNKNOWN;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     enum AVMediaType codec_type;
     int stream_index = 0;
-    int nb_audio_streams = 0;
-    int nb_video_streams = 0;
 
     // Create context for input file
     r = avformat_open_input(input_fmt_ctx, input_filepath, NULL, NULL);
@@ -161,14 +163,7 @@ static int maw_demux(const char *input_filepath,
     av_assert0((*input_fmt_ctx)->nb_streams < INT_MAX);
     *nb_streams = (*input_fmt_ctx)->nb_streams;
 
-    *stream_mapping = av_calloc(*nb_streams, sizeof(**stream_mapping));
-    if (*stream_mapping == NULL) {
-        r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Out of memory");
-        goto end;
-    }
-
-    MAW_LOGF(MAW_DEBUG, "%s: %d stream(s)\n", input_filepath, *nb_streams);
+    MAW_LOGF(MAW_DEBUG, "%s: %d input stream(s)\n", input_filepath, *nb_streams);
 
     // Create context for output file
     // Possible formats: `ffmpeg -formats`
@@ -178,53 +173,61 @@ static int maw_demux(const char *input_filepath,
         goto end;
     }
 
+    // Always add the audio stream first, i.e. output stream 0 will always be the
+    // audio stream!
     for (unsigned int i = 0; i < (*input_fmt_ctx)->nb_streams; i++) {
         codec_type = (*input_fmt_ctx)->streams[i]->codecpar->codec_type;
-        switch (codec_type) {
-            case AVMEDIA_TYPE_AUDIO:
-            case AVMEDIA_TYPE_VIDEO:
-                if (codec_type == AVMEDIA_TYPE_VIDEO)
-                    nb_video_streams += 1;
-                else
-                    nb_audio_streams += 1;
+        if (codec_type != AVMEDIA_TYPE_AUDIO) {
+            continue;
+        }
+        if (*audio_input_stream_index != -1) {
+            r = AVERROR_UNKNOWN;
+            MAW_LOG(MAW_ERROR, "Found more than one audio stream\n");
+            goto end;
+        }
+        *audio_input_stream_index = i;
 
-                // Create an output stream for each OK input stream
-                output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
-                input_stream = (*input_fmt_ctx)->streams[i];
+        // Create an output stream for each OK input stream
+        output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
+        input_stream = (*input_fmt_ctx)->streams[i];
 
-                // Stream copy from the input stream onto the output
-                r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
+        // Stream copy from the input stream onto the output
+        r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
 
-                if (r != 0) {
-                    MAW_AVERROR(r, output_filepath);
-                    goto end;
-                }
-
-                // Set matching disposition on output stream
-                // We get a deprecation warning if we do not do this since video
-                // streams with an attached_pic do not have timestamps
-                //  'Timestamps are unset in a packet for stream...'
-                output_stream->disposition = input_stream->disposition;
-
-                // Update the mapping
-                (*stream_mapping)[i] = stream_index++;
-                break;
-            default:
-                (*stream_mapping)[i] = -1;
-                break;
+        if (r != 0) {
+            MAW_AVERROR(r, output_filepath);
+            goto end;
         }
     }
 
-    if (nb_audio_streams != 1) {
-        r = AVERROR_UNKNOWN;
-        MAW_LOGF(MAW_ERROR, "There should be exactly one audio stream, found %d\n", nb_audio_streams);
-        goto end;
-    }
+    for (unsigned int i = 0; i < (*input_fmt_ctx)->nb_streams; i++) {
+        codec_type = (*input_fmt_ctx)->streams[i]->codecpar->codec_type;
+        if (codec_type != AVMEDIA_TYPE_VIDEO) {
+            if (codec_type != AVMEDIA_TYPE_AUDIO)
+                MAW_LOGF(MAW_DEBUG, "Skipping input stream #%d\n", i);
+            continue;
+        }
 
-    if (nb_video_streams > 1) {
-        r = AVERROR_UNKNOWN;
-        MAW_LOGF(MAW_ERROR, "There should not be more than one video stream, found %d\n", nb_video_streams);
-        goto end;
+        if (*video_input_stream_index != -1) {
+            r = AVERROR_UNKNOWN;
+            MAW_LOG(MAW_ERROR, "Found more than one video stream\n");
+            goto end;
+        }
+        *video_input_stream_index = i;
+
+        output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
+        input_stream = (*input_fmt_ctx)->streams[i];
+        r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
+        if (r != 0) {
+            MAW_AVERROR(r, output_filepath);
+            goto end;
+        }
+
+        // Set matching disposition on output stream
+        // We get a deprecation warning if we do not do this since video
+        // streams with an attached_pic do not have timestamps
+        //  'Timestamps are unset in a packet for stream...'
+        output_stream->disposition = input_stream->disposition;
     }
 
 end:
@@ -235,9 +238,11 @@ end:
 static int maw_mux(const char *output_filepath,
                    AVFormatContext *input_fmt_ctx,
                    AVFormatContext *output_fmt_ctx,
-                   int *stream_mapping,
+                   int audio_input_stream_index,
+                   int video_input_stream_index,
                    int nb_streams) {
     int r = AVERROR_UNKNOWN;
+    int output_stream_index = -1;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     AVPacket *pkt = NULL;
@@ -260,27 +265,31 @@ static int maw_mux(const char *output_filepath,
         goto end;
     }
 
+    // Mux stream from cover
+
+    // Mux streams from input file
     while (true) {
         r = av_read_frame(input_fmt_ctx, pkt);
         if (r != 0) {
             break; // No more frames
         }
 
-        // Bad stream index, skip
-        if (pkt->stream_index >= nb_streams ||
-            stream_mapping[pkt->stream_index] < 0) {
-            // BAD packet 😠
+        // Skip everything except the audio and video stream from the input
+        if (pkt->stream_index != audio_input_stream_index &&
+            pkt->stream_index != video_input_stream_index) {
             av_packet_unref(pkt);
             continue;
         }
+        // Audio stream is always the first stream (for our demuxer)
+        output_stream_index = pkt->stream_index == audio_input_stream_index ? 0 : 1;
 
         // Input and output stream for the current packet
         input_stream = input_fmt_ctx->streams[pkt->stream_index];
-        output_stream = output_fmt_ctx->streams[stream_mapping[pkt->stream_index]];
+        output_stream = output_fmt_ctx->streams[output_stream_index];
 
         // The pkt will have the stream_index set to the stream index in the
         // input file. Remap it to the correct stream_index in the output file.
-        pkt->stream_index = stream_mapping[pkt->stream_index];
+        pkt->stream_index = output_stream_index;
 
         // Rescale (?)
         av_packet_rescale_ts(pkt,
@@ -325,10 +334,8 @@ static int maw_remux(const char *input_filepath,
     AVStream *input_stream = NULL;
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
-    // Mapping: [input stream index] -> [output stream index]
-    // We could keep the exact stream indices from the input but
-    // that would prevent us from e.g. dropping a subtitle stream.
-    int *stream_mapping = NULL;
+    int audio_input_stream_index = -1;
+    int video_input_stream_index = -1;
     // The output should always have either:
     // 1 audio stream + 1 video stream
     // 1 audio stream + 0 video streams
@@ -337,7 +344,9 @@ static int maw_remux(const char *input_filepath,
 
     r = maw_demux(input_filepath, output_filepath, 
                   &input_fmt_ctx, &output_fmt_ctx, 
-                  &stream_mapping, &nb_streams);
+                  &audio_input_stream_index,
+                  &video_input_stream_index,
+                  &nb_streams);
     if (r != 0)
         goto end;
 
@@ -352,16 +361,6 @@ static int maw_remux(const char *input_filepath,
             goto end;
     }
 
-    // FFmpeg gives output like this during stream copying
-    // It shows us
-    // Stream mapping:
-    //   Stream #0:1 -> #0:0 (copy)
-    //   Stream #0:0 -> #0:1 (copy)
-    for (int i = 0; i < nb_streams; i++) {
-        MAW_LOGF(MAW_DEBUG, 
-                "Stream #0:%d -> #0:%d (copy)\n", i, stream_mapping[i]);
-    }
-
     // The metadata for artist etc. is in the AVFormatContext, streams also have
     // a metadata field but these contain other stuff, e.g. audio streams can
     // have 'language' and 'handler_name'
@@ -371,13 +370,15 @@ static int maw_remux(const char *input_filepath,
         goto end;
     }
 
-    r = maw_mux(output_filepath, input_fmt_ctx, output_fmt_ctx, 
-                stream_mapping, nb_streams);
+    r = maw_mux(output_filepath, 
+                input_fmt_ctx, output_fmt_ctx, 
+                audio_input_stream_index,
+                video_input_stream_index,
+                nb_streams);
     if (r != 0)
         goto end;
 
 end:
-    av_freep(&stream_mapping);
     avformat_close_input(&input_fmt_ctx);
 
     if (input_fmt_ctx != NULL) {

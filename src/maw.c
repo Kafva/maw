@@ -30,7 +30,7 @@ static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
 
     if ((*cover_fmt_ctx)->nb_streams == 0) {
         MAW_LOGF(MAW_ERROR, "%s: cover has no input streams\n", metadata->cover_path);
-        r = AVERROR_UNKNOWN;
+        r = AVERROR_INVALIDDATA;
         goto end;
     }
     if ((*cover_fmt_ctx)->nb_streams > 1) {
@@ -146,7 +146,6 @@ static int maw_demux_media(const char *input_filepath,
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     enum AVMediaType codec_type;
-    int stream_index = 0;
 
     // Create context for input file
     r = avformat_open_input(input_fmt_ctx, input_filepath, NULL, NULL);
@@ -310,7 +309,7 @@ static int maw_mux(const char *output_filepath,
         }
         else {
             MAW_LOGF(MAW_DEBUG, "%s input stream #%d: packet ignored\n",
-                     av_get_media_type_string(input_stream->codecpar->codec_type), 
+                     av_get_media_type_string(input_stream->codecpar->codec_type),
                      pkt->stream_index);
             continue;
         }
@@ -391,8 +390,6 @@ static int maw_remux(const char *input_filepath,
                      const struct Metadata *metadata,
                      const int policy) {
     int r;
-    AVStream *output_stream = NULL;
-    AVStream *input_stream = NULL;
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
     AVFormatContext *cover_fmt_ctx = NULL;
@@ -493,7 +490,6 @@ bool maw_verify(const char *filepath,
                 const struct Metadata *metadata,
                 const int policy) {
     bool ok = false;
-    bool expect_cover = false;
     int r;
     AVFormatContext *fmt_ctx = NULL;
     const AVDictionaryEntry *entry = NULL;
@@ -532,13 +528,24 @@ bool maw_verify(const char *filepath,
         }
     }
 
-    expect_cover = metadata->cover_path != NULL ||
-                   POLICY_NEEDS_ORIGINAL_COVER(policy);
 
-    if (expect_cover) {
-        ok = maw_verify_cover(fmt_ctx, filepath, metadata, policy);
 
-    } else {
+    if (metadata->cover_path != NULL) {
+        // Configured cover should be present
+        ok = maw_verify_cover(fmt_ctx, filepath, metadata);
+    }
+    else if (POLICY_NEEDS_ORIGINAL_COVER(policy)) {
+        // Original cover should still be present, we only check that there
+        // are two streams, we do not know what the original data looked like
+        if (fmt_ctx->nb_streams != 2) {
+            MAW_LOGF(MAW_ERROR, "%s: Expected two streams: found %u\n",
+                     filepath, fmt_ctx->nb_streams);
+            goto end;
+        }
+        ok = true;
+    }
+    else {
+        // No cover should be present
         if (fmt_ctx->nb_streams != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u\n",
                      filepath, fmt_ctx->nb_streams);
@@ -554,8 +561,7 @@ end:
 
 bool maw_verify_cover(const AVFormatContext *fmt_ctx,
                       const char *filepath,
-                      const struct Metadata *metadata,
-                      const int policy) {
+                      const struct Metadata *metadata) {
     int r;
     char cover_data[BUFSIZ];
     AVStream *stream = NULL;

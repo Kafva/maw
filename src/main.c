@@ -20,14 +20,8 @@
 static int run_tests(const char *);
 #endif
 
+static int run_program(const char *);
 static void usage(void);
-
-static void usage(void) {
-    fprintf(stderr, "usage: " MAW_PROGRAM " [flags]\n");
-    fprintf(stderr, "   --verbose        Verbose logging\n");
-    fprintf(stderr, "   --log <level>    Log level for libav backend\n");
-    fprintf(stderr, "   --help           Show this help message\n");
-}
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -93,8 +87,24 @@ int main(int argc, char *argv[]) {
     maw_log_init(verbose, av_log_level);
 
 #ifdef MAW_TEST
+    (void)config_file;
     return run_tests(match_testcase);
 #else
+    return run_program(config_file);
+#endif
+}
+
+static void usage(void) {
+    fprintf(stderr, "usage: " MAW_PROGRAM " [flags]\n");
+    fprintf(stderr, "   --verbose         Verbose logging\n");
+    fprintf(stderr, "   --log <level>     Log level for libav backend\n");
+#ifdef MAW_TEST
+    fprintf(stderr, "   --match <pattern> Testcase to run\n");
+#endif
+    fprintf(stderr, "   --help            Show this help message\n");
+}
+
+static int run_program(const char *config_file) {
     if (config_file == NULL) {
         MAW_LOG(MAW_ERROR, "Missing required options\n");
         usage();
@@ -103,10 +113,9 @@ int main(int argc, char *argv[]) {
 
     (void)maw_cfg_parse(config_file);
     return EXIT_SUCCESS;
-
-#endif
 }
 
+#ifdef MAW_TEST
 static int run_tests(const char *match_testcase) {
     DEFINE_TESTCASES;
     int total = sizeof(testcases) / sizeof(struct Testcase);
@@ -144,3 +153,4 @@ static int run_tests(const char *match_testcase) {
 
     return EXIT_SUCCESS;
 }
+#endif

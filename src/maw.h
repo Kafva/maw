@@ -31,8 +31,7 @@ int maw_update(const char *, const struct Metadata *, const int);
 bool maw_verify(const char *, const struct Metadata *, const int);
 bool maw_verify_cover(const AVFormatContext *,
                       const char *,
-                      const struct Metadata *,
-                      const int);
+                      const struct Metadata *);
 #endif
 
 #endif // MAW_H

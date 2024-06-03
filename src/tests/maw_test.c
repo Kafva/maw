@@ -30,17 +30,24 @@ bool test_no_audio(void) {
     const struct Metadata metadata = {0};
 
     r = maw_update(path, &metadata, policy);
-    return r == AVERROR_UNKNOWN;
+    return r == AVERROR(EINVAL);
 }
 
 bool test_dual_video(void) {
     int r;
     const char *path = "./.testenv/unit/dual_video.mp4";
-    const enum MetadataPolicy policy = 0;
-    const struct Metadata metadata = {0};
+    const enum MetadataPolicy policy = KEEP_COVER;
+    const struct Metadata metadata = {
+        .title = "dual_video"
+    };
 
+    // Second video stream should be ignored
     r = maw_update(path, &metadata, policy);
-    return r == AVERROR_UNKNOWN;
+    if (r != 0) {
+        return false;
+    }
+
+    return maw_verify(path, &metadata, policy);
 }
 
 bool test_bad_covers(void) {

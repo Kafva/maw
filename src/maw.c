@@ -136,18 +136,17 @@ end:
 
 // Video streams will only be demuxed if they are needed by the current policy
 static int maw_demux_media(const char *input_filepath,
-                     const char *output_filepath,
-                     const int policy,
-                     AVFormatContext **input_fmt_ctx,
-                     AVFormatContext **output_fmt_ctx,
-                     int *audio_input_stream_index,
-                     int *video_input_stream_index) {
+                           const char *output_filepath,
+                           const int policy,
+                           AVFormatContext **input_fmt_ctx,
+                           AVFormatContext **output_fmt_ctx,
+                           int *audio_input_stream_index,
+                           int *video_input_stream_index) {
     int r = AVERROR_UNKNOWN;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     enum AVMediaType codec_type;
     int stream_index = 0;
-    int nb_video_streams = 0;
 
     // Create context for input file
     r = avformat_open_input(input_fmt_ctx, input_filepath, NULL, NULL);
@@ -161,9 +160,6 @@ static int maw_demux_media(const char *input_filepath,
         MAW_AVERROR(r, input_filepath);
         goto end;
     }
-
-    MAW_LOGF(MAW_DEBUG, "%s: %u input stream(s)\n", input_filepath,
-                                                    (*input_fmt_ctx)->nb_streams);
 
     // Create context for output file
     // Possible formats: `ffmpeg -formats`
@@ -208,12 +204,11 @@ static int maw_demux_media(const char *input_filepath,
             continue;
         }
 
-        if (nb_video_streams != 0) {
-            r = AVERROR_UNKNOWN;
-            MAW_LOG(MAW_ERROR, "Found more than one video stream\n");
-            goto end;
+        if (*video_input_stream_index != -1) {
+            MAW_LOGF(MAW_WARN, "%s: Video input stream #%u (ignored)\n", input_filepath, i);
+            continue;
         }
-        nb_video_streams += 1;
+        *video_input_stream_index = i;
 
         // Do not demux the video stream if the policy does not require the
         // original image stream.
@@ -221,7 +216,6 @@ static int maw_demux_media(const char *input_filepath,
             continue;
         }
 
-        *video_input_stream_index = i;
         output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
         input_stream = (*input_fmt_ctx)->streams[i];
         r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
@@ -235,6 +229,23 @@ static int maw_demux_media(const char *input_filepath,
         // streams with an attached_pic do not have timestamps
         //  'Timestamps are unset in a packet for stream...'
         output_stream->disposition = input_stream->disposition;
+    }
+
+    MAW_LOGF(MAW_DEBUG, "%s: Audio input stream #%d\n", input_filepath,
+                                                        *audio_input_stream_index);
+
+    if (*video_input_stream_index != -1) {
+        if (POLICY_NEEDS_ORIGINAL_COVER(policy)) {
+            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d\n", input_filepath,
+                                                                *video_input_stream_index);
+        }
+        else {
+            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d (ignored)\n", input_filepath,
+                                                                          *video_input_stream_index);
+        }
+    }
+    else {
+        MAW_LOGF(MAW_DEBUG, "%s: Video input stream (none)\n", input_filepath);
     }
 
 end:
@@ -278,27 +289,32 @@ static int maw_mux(const char *output_filepath,
         if (r != 0) {
             break; // No more frames
         }
+        if (pkt->stream_index < 0 || pkt->stream_index >= (int)input_fmt_ctx->nb_streams) {
+            MAW_LOGF(MAW_ERROR, "Invalid stream index: #%d\n", pkt->stream_index);
+            goto end;
+        }
+
+        input_stream = input_fmt_ctx->streams[pkt->stream_index];
 
         if (pkt->stream_index == audio_input_stream_index) {
             // Audio stream
             output_stream_index = 0;
         }
-        else if (pkt->stream_index == video_input_stream_index &&
-                 POLICY_NEEDS_ORIGINAL_COVER(policy)) {
+        else if (pkt->stream_index == video_input_stream_index) {
+            if (!POLICY_NEEDS_ORIGINAL_COVER(policy)) {
+                // Skip original video stream
+                continue;
+            }
             // Video stream to keep
             output_stream_index = 1;
-
         }
         else {
-            // We should not have demuxed any video streams if the policy did
-            // not require it.
-            r = AVERROR_UNKNOWN;
-            MAW_LOGF(MAW_ERROR, "Unexpected packet from input stream #%d\n",
+            MAW_LOGF(MAW_DEBUG, "%s input stream #%d: packet ignored\n",
+                     av_get_media_type_string(input_stream->codecpar->codec_type), 
                      pkt->stream_index);
-            goto end;
+            continue;
         }
 
-        input_stream = input_fmt_ctx->streams[pkt->stream_index];
         output_stream = output_fmt_ctx->streams[output_stream_index];
 
         // The pkt will have the stream_index set to the stream index in the
@@ -367,6 +383,9 @@ end:
 
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
+// The output should always have either:
+// 1 audio stream + 1 video stream
+// 1 audio stream + 0 video streams
 static int maw_remux(const char *input_filepath,
                      const char *output_filepath,
                      const struct Metadata *metadata,
@@ -379,9 +398,6 @@ static int maw_remux(const char *input_filepath,
     AVFormatContext *cover_fmt_ctx = NULL;
     int audio_input_stream_index = -1;
     int video_input_stream_index = -1;
-    // The output should always have either:
-    // 1 audio stream + 1 video stream
-    // 1 audio stream + 0 video streams
 
     r = maw_demux_media(input_filepath,
                         output_filepath,
@@ -472,9 +488,6 @@ end:
 }
 
 #ifdef MAW_TEST
-
-#define LHS_EMPTY_OR_EQ(lhs, rhs) \
-    (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
 
 bool maw_verify(const char *filepath,
                 const struct Metadata *metadata,

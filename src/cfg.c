@@ -1,7 +1,8 @@
-#include "maw.h"
+#include "cfg.h"
+
 #include <yaml.h>
 
-int maw_yaml_parse(const char *filepath) {
+int maw_cfg_parse(const char *filepath) {
     FILE *file = fopen(filepath, "rb");
     if (!file) {
         fprintf(stderr, "Failed to open yaml file: %s\n", filepath);

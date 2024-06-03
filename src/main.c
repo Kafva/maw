@@ -1,5 +1,6 @@
 #include "maw.h"
 #include "log.h"
+#include "cfg.h"
 
 #include <getopt.h>
 #include <stdlib.h>
@@ -100,7 +101,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    (void)maw_yaml_parse(config_file);
+    (void)maw_cfg_parse(config_file);
     return EXIT_SUCCESS;
 
 #endif

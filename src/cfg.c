@@ -3,22 +3,18 @@
 #include <yaml.h>
 
 int maw_cfg_parse(const char *filepath) {
+    yaml_event_t event;
+    yaml_parser_t parser;
+    int done = 0;
     FILE *file = fopen(filepath, "rb");
     if (!file) {
         fprintf(stderr, "Failed to open yaml file: %s\n", filepath);
         return 1;
     }
 
-    // Initialize YAML parser
-    yaml_parser_t parser;
     yaml_parser_initialize(&parser);
 
-    // Set input file for the parser
     yaml_parser_set_input_file(&parser, file);
-
-    // Start parsing YAML
-    yaml_event_t event;
-    int done = 0;
 
     do {
         // Get the next event

@@ -11,6 +11,13 @@ enum MetadataPolicy {
     CROP_COVER          = 0x1 << 3,
 };
 
+enum MediaError {
+    // Fallback error code for maw functions
+    INTERNAL_ERROR = 50,
+    // Input file has an unsupported set of streams
+    UNSUPPORTED_INPUT_STREAMS = 51,
+};
+
 #define POLICY_NEEDS_ORIGINAL_COVER(policy) (policy & (KEEP_COVER | CROP_COVER))
 
 struct Metadata {

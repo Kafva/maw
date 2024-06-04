@@ -16,11 +16,15 @@
 #endif
 
 #ifdef MAW_TEST
+
 #include "tests/maw_test.h"
 static int run_tests(const char *);
+
+#else
+static int run_program(const char *);
+
 #endif
 
-static int run_program(const char *);
 static void usage(void);
 
 int main(int argc, char *argv[]) {
@@ -30,7 +34,7 @@ int main(int argc, char *argv[]) {
     char *config_file = NULL;
 #ifdef MAW_TEST
     const char *getopt_flags = "m:c:l:hv";
-    const char *match_testcase = NULL; 
+    const char *match_testcase = NULL;
 #else
     const char *getopt_flags = "c:l:hv";
 #endif
@@ -104,18 +108,8 @@ static void usage(void) {
     fprintf(stderr, "   --help            Show this help message\n");
 }
 
-static int run_program(const char *config_file) {
-    if (config_file == NULL) {
-        MAW_LOG(MAW_ERROR, "Missing required options\n");
-        usage();
-        return EXIT_FAILURE;
-    }
-
-    (void)maw_cfg_parse(config_file);
-    return EXIT_SUCCESS;
-}
-
 #ifdef MAW_TEST
+
 static int run_tests(const char *match_testcase) {
     DEFINE_TESTCASES;
     int total = sizeof(testcases) / sizeof(struct Testcase);
@@ -137,7 +131,7 @@ static int run_tests(const char *match_testcase) {
             }
         }
 
-        if (testcases[i].fn()) {
+        if (testcases[i].fn(testcases[i].desc)) {
             if (enable_color)
                 fprintf(stdout, "\033[92mok\033[0m %d - %s\n", i, testcases[i].desc);
             else
@@ -153,4 +147,18 @@ static int run_tests(const char *match_testcase) {
 
     return EXIT_SUCCESS;
 }
+
+#else
+
+static int run_program(const char *config_file) {
+    if (config_file == NULL) {
+        MAW_LOG(MAW_ERROR, "Missing required options\n");
+        usage();
+        return EXIT_FAILURE;
+    }
+
+    (void)maw_cfg_parse(config_file);
+    return EXIT_SUCCESS;
+}
+
 #endif

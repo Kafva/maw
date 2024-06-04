@@ -4,19 +4,20 @@
 #ifdef MAW_TEST
 
 #include <stdbool.h>
+#include "log.h"
 
 struct Testcase {
     char *desc;
-    bool (*fn)(void);
+    bool (*fn)(const char *);
 };
 
-bool test_keep_cover(void);
-bool test_add_cover(void);
-bool test_replace_cover(void);
-bool test_bad_covers(void);
-bool test_no_audio(void);
-bool test_dual_audio(void);
-bool test_dual_video(void);
+bool test_keep_cover(const char *);
+bool test_add_cover(const char *);
+bool test_replace_cover(const char *);
+bool test_bad_covers(const char *);
+bool test_no_audio(const char *);
+bool test_dual_audio(const char *);
+bool test_dual_video(const char *);
 
 #define DEFINE_TESTCASES \
     struct Testcase testcases[] = { \
@@ -30,5 +31,13 @@ bool test_dual_video(void);
     }
 
 #endif
+
+
+#define MAW_ASSERT_EQ(lhs, rhs, msg) do {\
+   if (lhs != rhs) { \
+        MAW_LOGF(MAW_ERROR, "%s: got %d, expected %d\n", msg, lhs, rhs); \
+        return false; \
+   } \
+} while (0)
 
 #endif // MAW_TEST_H

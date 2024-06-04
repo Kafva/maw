@@ -12,7 +12,7 @@
 static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
                            AVFormatContext *output_fmt_ctx,
                            const struct Metadata *metadata) {
-    int r = AVERROR_UNKNOWN;
+    int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     enum AVMediaType codec_type;
 
@@ -30,12 +30,12 @@ static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
 
     if ((*cover_fmt_ctx)->nb_streams == 0) {
         MAW_LOGF(MAW_ERROR, "%s: cover has no input streams\n", metadata->cover_path);
-        r = AVERROR_INVALIDDATA;
+        r = UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
     if ((*cover_fmt_ctx)->nb_streams > 1) {
         MAW_LOGF(MAW_ERROR, "%s: cover has more than one input stream\n", metadata->cover_path);
-        r = AVERROR_UNKNOWN;
+        r = UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
     codec_type = (*cover_fmt_ctx)->streams[0]->codecpar->codec_type;
@@ -43,7 +43,7 @@ static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
         MAW_LOGF(MAW_ERROR, "%s: cover does not contain a video stream (found %s)\n",
                  metadata->cover_path,
                  av_get_media_type_string(codec_type));
-        r = AVERROR_UNKNOWN;
+        r = UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
 
@@ -66,7 +66,7 @@ end:
 
 static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
                                     const struct Metadata *metadata) {
-    int r = AVERROR_UNKNOWN;
+    int r = INTERNAL_ERROR;
     r = av_dict_set(&fmt_ctx->metadata, "title", metadata->title, 0);
     if (r != 0) {
         goto end;
@@ -94,7 +94,7 @@ static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
                             AVFormatContext *output_fmt_ctx,
                             const struct Metadata *metadata,
                             const int policy) {
-    int r = AVERROR_UNKNOWN;
+    int r = INTERNAL_ERROR;
     const AVDictionaryEntry *entry = NULL;
 
     if (policy & KEEP_ALL_FIELDS) {
@@ -142,10 +142,11 @@ static int maw_demux_media(const char *input_filepath,
                            AVFormatContext **output_fmt_ctx,
                            int *audio_input_stream_index,
                            int *video_input_stream_index) {
-    int r = AVERROR_UNKNOWN;
+    int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     enum AVMediaType codec_type;
+    bool is_attached_pic;
 
     // Create context for input file
     r = avformat_open_input(input_fmt_ctx, input_filepath, NULL, NULL);
@@ -176,10 +177,10 @@ static int maw_demux_media(const char *input_filepath,
             continue;
         }
         if (*audio_input_stream_index != -1) {
-            r = AVERROR_UNKNOWN;
-            MAW_LOG(MAW_ERROR, "Found more than one audio stream\n");
-            goto end;
+            MAW_LOGF(MAW_WARN, "%s: Audio input stream #%u (ignored)\n", input_filepath, i);
+            continue;
         }
+
         *audio_input_stream_index = i;
 
         // Create an output stream for each OK input stream
@@ -195,18 +196,25 @@ static int maw_demux_media(const char *input_filepath,
         }
     }
 
+    if (*audio_input_stream_index == -1) {
+        r = UNSUPPORTED_INPUT_STREAMS;
+        MAW_LOGF(MAW_ERROR, "%s: No audio streams\n", input_filepath);
+        goto end;
+    }
+
     for (unsigned int i = 0; i < (*input_fmt_ctx)->nb_streams; i++) {
-        codec_type = (*input_fmt_ctx)->streams[i]->codecpar->codec_type;
-        if (codec_type != AVMEDIA_TYPE_VIDEO) {
-            if (codec_type != AVMEDIA_TYPE_AUDIO)
-                MAW_LOGF(MAW_DEBUG, "Skipping input stream #%d\n", i);
+        input_stream = (*input_fmt_ctx)->streams[i];
+        codec_type = input_stream->codecpar->codec_type;
+        is_attached_pic = codec_type == AVMEDIA_TYPE_VIDEO && 
+                          input_stream->disposition == AV_DISPOSITION_ATTACHED_PIC;
+        // Skip all streams except video streams with an attached_pic disposition
+        if (!is_attached_pic || *video_input_stream_index != -1) {
+            if ((int)i != *audio_input_stream_index)
+                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%d\n", 
+                                    input_filepath, av_get_media_type_string(codec_type), i);
             continue;
         }
 
-        if (*video_input_stream_index != -1) {
-            MAW_LOGF(MAW_WARN, "%s: Video input stream #%u (ignored)\n", input_filepath, i);
-            continue;
-        }
         *video_input_stream_index = i;
 
         // Do not demux the video stream if the policy does not require the
@@ -216,7 +224,6 @@ static int maw_demux_media(const char *input_filepath,
         }
 
         output_stream = avformat_new_stream(*output_fmt_ctx, NULL);
-        input_stream = (*input_fmt_ctx)->streams[i];
         r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
         if (r != 0) {
             MAW_AVERROR(r, output_filepath);
@@ -247,18 +254,21 @@ static int maw_demux_media(const char *input_filepath,
         MAW_LOGF(MAW_DEBUG, "%s: Video input stream (none)\n", input_filepath);
     }
 
+    r = 0;
 end:
     return r;
 }
 
-static int maw_mux(const char *output_filepath,
+static int maw_mux(const char *input_filepath,
+                   const char *output_filepath,
                    const int policy,
                    AVFormatContext *input_fmt_ctx,
                    AVFormatContext *cover_fmt_ctx,
                    AVFormatContext *output_fmt_ctx,
                    int audio_input_stream_index,
                    int video_input_stream_index) {
-    int r = AVERROR_UNKNOWN;
+    int r = INTERNAL_ERROR;
+    int prev_stream_index = -1;
     int output_stream_index = -1;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
@@ -278,7 +288,7 @@ static int maw_mux(const char *output_filepath,
 
     pkt = av_packet_alloc();
     if (pkt == NULL) {
-        MAW_LOG(MAW_ERROR, "Failed to allocate packet");
+        MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet", output_filepath);
         goto end;
     }
 
@@ -289,7 +299,7 @@ static int maw_mux(const char *output_filepath,
             break; // No more frames
         }
         if (pkt->stream_index < 0 || pkt->stream_index >= (int)input_fmt_ctx->nb_streams) {
-            MAW_LOGF(MAW_ERROR, "Invalid stream index: #%d\n", pkt->stream_index);
+            MAW_LOGF(MAW_ERROR, "%s: Invalid stream index: #%d\n", input_filepath, pkt->stream_index);
             goto end;
         }
 
@@ -308,9 +318,13 @@ static int maw_mux(const char *output_filepath,
             output_stream_index = 1;
         }
         else {
-            MAW_LOGF(MAW_DEBUG, "%s input stream #%d: packet ignored\n",
-                     av_get_media_type_string(input_stream->codecpar->codec_type),
-                     pkt->stream_index);
+            // Rate limit repeated log messages
+            if (prev_stream_index != pkt->stream_index)
+                MAW_LOGF(MAW_DEBUG, "%s: Ignoring packets from %s input stream #%d\n",
+                         input_filepath,
+                         av_get_media_type_string(input_stream->codecpar->codec_type),
+                         pkt->stream_index);
+            prev_stream_index = pkt->stream_index;
             continue;
         }
 
@@ -347,7 +361,7 @@ static int maw_mux(const char *output_filepath,
         }
 
         if (pkt->stream_index != 0) {
-            r = AVERROR_UNKNOWN;
+            r = INTERNAL_ERROR;
             MAW_LOGF(MAW_ERROR, "Unexpected packet from cover stream #%d\n",
                      pkt->stream_index);
             goto end;
@@ -421,7 +435,8 @@ static int maw_remux(const char *input_filepath,
         goto end;
     }
 
-    r = maw_mux(output_filepath,
+    r = maw_mux(input_filepath,
+                output_filepath,
                 policy,
                 input_fmt_ctx,
                 cover_fmt_ctx,
@@ -456,7 +471,7 @@ end:
 int maw_update(const char *filepath,
                const struct Metadata *metadata,
                const int policy) {
-    int r = AVERROR_UNKNOWN;
+    int r = INTERNAL_ERROR;
     char tmpfile[] = "/tmp/maw.XXXXX.m4a";
     int tmphandle = mkstemps(tmpfile, sizeof(".m4a") - 1);
 

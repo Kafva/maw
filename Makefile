@@ -35,6 +35,7 @@ CFLAGS            += -Wpointer-arith
 CFLAGS            += -Wcast-qual
 CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
+CFLAGS            += -Wdeclaration-after-statement
 CFLAGS            += -pedantic
 # Libraries
 LDFLAGS           += -lavcodec
@@ -63,6 +64,13 @@ $(BUILD)/%.o: $(CURDIR)/src/%.c
 	@# A compilation database for each TU is created with `-MJ`
 	$(CC) $(CFLAGS) -MJ $(dir $@)/.$(notdir $@).json $< -c -o $@
 
+ifeq ($(TESTS),1)
+$(BUILD)/%.o: $(CURDIR)/src/tests/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -MJ $(dir $@)/.$(notdir $@).json $< -c -o $@
+endif
+
+# TODO make header changes affect the correct object files
 $(BUILD)/$(PROGRAM): $(OBJS) $(HEADERS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
 

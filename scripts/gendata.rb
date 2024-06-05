@@ -99,7 +99,8 @@ def generate_video(outputfile,
                    album: nil,
                    artist: nil,
                    color: nil,
-                   duration: 30)
+                   duration: 30,
+                   random_metadata: true)
     res = "1280x720"
     suffix = File.extname outputfile
     tmpvideo = Tempfile.new ["maw", suffix]
@@ -117,7 +118,8 @@ def generate_video(outputfile,
                          # Metadata
                          generate_metadata(title: title,
                                            album: album,
-                                           artist: artist) +
+                                           artist: artist,
+                                           random: random_metadata) +
                          [outputfile]
 ensure
     tmpvideo&.unlink
@@ -128,36 +130,32 @@ end
 # @param album [String, void]
 # @param artist [String, void]
 # @param cover_color [String, void]
+# @param cover_res [String, void]
 # @param duration [Integer, void]
 def generate_audio(outputfile,
                    title: nil,
                    album: nil,
                    artist: nil,
                    cover_color: nil,
-                   duration: 30)
-    tmpcover = nil
-    unless cover_color.nil?
-        tmpcover = Tempfile.new ["maw", ".png"]
-        generate_cover cover_color, tmpcover.path
-    end
-
+                   cover_res: "1280x720",
+                   duration: 30,
+                   random_metadata: true)
     system_run "ffmpeg", ["-y"] +
                          # Audio source
                          ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
                          # Image source
-                         (tmpcover.nil? ? [] : ["-i", tmpcover.path]) +
+                         (cover_color.nil? ? [] : ["-f", "lavfi",  "-i", "color=c=#{cover_color}:s=#{cover_res}"]) +
                          # Audio output
                          ["-map", "0", "-c:a", "aac", "-shortest"] +
                          # Image output
-                         (tmpcover.nil? ? [] :
-                           ["-map", "1", "-c:v", "copy", "-disposition:1", "attached_pic"]) +
+                         (cover_color.nil? ? [] :
+                           ["-map", "1", "-frames:v", "1", "-c:v", "png", "-disposition:1", "attached_pic"]) +
                          # Metadata
                          generate_metadata(title: title,
                                            album: album,
-                                           artist: artist) +
+                                           artist: artist,
+                                           random: random_metadata) +
                          [outputfile]
-ensure
-    tmpcover&.unlink
 end
 
 def generate_dual_audio outputfile
@@ -191,18 +189,19 @@ end
 # @param artist [String, void]
 def generate_metadata(title: nil,
                       album: nil,
-                      artist: nil)
+                      artist: nil,
+                      random: true)
     maxlen = 12
     maxlen_text = 32
-    ["-metadata", "title=\"#{title.nil? ? randstr(1, maxlen) : title}\"",
-    "-metadata", "album=\"#{album.nil? ? randstr(1, maxlen) : album}\"",
-    "-metadata", "artist=\"#{artist.nil? ? randstr(1, maxlen) : artist}\"",
-    "-metadata", "comment=\"#{randstr 1, maxlen_text}\"",
-    "-metadata", "description=\"#{randstr 1, maxlen_text}\"",
-    "-metadata", "genre=\"#{randstr 1, maxlen}\"",
-    "-metadata", "composer=\"#{randstr 1, maxlen}\"",
-    "-metadata", "copyright=\"#{randstr 1, maxlen}\"",
-    "-metadata", "synopsis=\"#{randstr 1, maxlen_text}\""]
+    ["-metadata", "title=#{title.nil? ? randstr(1, maxlen) : title}",
+    "-metadata", "album=#{album.nil? ? randstr(1, maxlen) : album}",
+    "-metadata", "artist=#{artist.nil? ? randstr(1, maxlen) : artist}",
+    "-metadata", "comment=#{random ? randstr(1, maxlen_text) : "comment"}",
+    "-metadata", "description=#{random ? randstr(1, maxlen_text) : "description"}",
+    "-metadata", "genre=#{random ? randstr(1, maxlen) : "genre"}",
+    "-metadata", "composer=#{random ? randstr(1, maxlen) : "composer"}",
+    "-metadata", "copyright=#{random ? randstr(1, maxlen) : "copyright"}",
+    "-metadata", "synopsis=#{random ? randstr(1, maxlen_text) : "synopsis"}"]
 end
 
 def generate_cover color, outputfile
@@ -238,6 +237,7 @@ def setup
     FileUtils.mkdir_p "#{TOP}/unit"
     File.write(CFG, cfg_yaml)
 
+
     # Unit test data
     generate_cover '#00d7d7', "#{ART_ROOT}/blue-1.png"
     generate_dual_audio "#{TOP}/unit/dual_audio.mp4"
@@ -247,11 +247,20 @@ def setup
     generate_audio "#{TOP}/unit/keep_cover.m4a",
                    cover_color: "#5f9ea0"
     generate_audio "#{TOP}/unit/crop_cover.m4a",
-                   cover_color: "#98fb98"
+                   cover_color: "#98fb98",
+                   cover_res: "2650x1440"
     generate_audio "#{TOP}/unit/replace_cover.m4a",
                    cover_color: "#00ff00"
-    generate_audio "#{TOP}/unit/keep_core_fields.m4a"
-    generate_audio "#{TOP}/unit/keep_all_fields.m4a"
+    generate_audio "#{TOP}/unit/keep_core_fields.m4a",
+                   title: "keep_core_fields", 
+                   artist: "Artist",
+                   album: "Album"
+    generate_audio "#{TOP}/unit/keep_all_fields.m4a",  
+                   title: "keep_all_fields", 
+                   artist: "Artist",
+                   album: "Album",
+                   cover_color: "white",
+                   random_metadata: false
 
     # E2E testing data
     #

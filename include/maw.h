@@ -5,9 +5,13 @@
 
 // Decides what to keep from the input file when no custom values are provided.
 enum MetadataPolicy {
+    // Only keep a subset of metadata fields
     KEEP_CORE_FIELDS    = 0x1,
+    // Keep all metadata fields
     KEEP_ALL_FIELDS     = 0x1 << 1,
+    // Keep the cover art (removed or replaced by default)
     KEEP_COVER          = 0x1 << 2,
+    // Crop 1280x720 covers to 720x720
     CROP_COVER          = 0x1 << 3,
 };
 

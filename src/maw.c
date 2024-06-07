@@ -6,6 +6,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
 #include <libavutil/avassert.h>
+#include <libavfilter/avfilter.h>
 #include <unistd.h>
 
 
@@ -52,6 +53,48 @@ static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
 
     r = avcodec_parameters_copy(output_stream->codecpar,
                                 (*cover_fmt_ctx)->streams[0]->codecpar);
+    if (r != 0) {
+        MAW_AVERROR(r, metadata->cover_path);
+        goto end;
+    }
+
+    output_stream->disposition = AV_DISPOSITION_ATTACHED_PIC;
+
+    r = 0;
+end:
+    return r;
+}
+
+static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
+                                 AVFormatContext *output_fmt_ctx,
+                                 const struct Metadata *metadata,
+                                 int video_input_stream_index) {
+    int r = INTERNAL_ERROR;
+    AVStream *output_stream = NULL;
+    AVStream *input_stream = NULL;
+    AVFilterGraph *filter_graph = NULL;
+    const AVFilter *filter = NULL;
+    AVFilterContext *filter_ctx;
+    enum AVMediaType codec_type;
+
+    if (video_input_stream_index == -1) {
+        // The validity should already have been checked during demux
+        goto end;
+    }
+
+    input_stream = input_fmt_ctx->streams[video_input_stream_index];
+
+    filter = avfilter_get_by_name("crop");
+    if (filter == NULL) {
+        MAW_LOG(MAW_ERROR, "Filter not found: crop\n");
+        goto end;
+    }
+
+
+    // Always create a new video stream for the output
+    output_stream = avformat_new_stream(output_fmt_ctx, NULL);
+
+    r = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
     if (r != 0) {
         MAW_AVERROR(r, metadata->cover_path);
         goto end;
@@ -422,6 +465,11 @@ static int maw_remux(const char *input_filepath,
 
     if (metadata->cover_path != NULL && strlen(metadata->cover_path) > 0) {
         r = maw_demux_cover(&cover_fmt_ctx, output_fmt_ctx, metadata);
+        if (r != 0)
+            goto end;
+    }
+    else if (policy & CROP_COVER) {
+        r = maw_filter_crop_cover(input_fmt_ctx, output_fmt_ctx, metadata, video_input_stream_index);
         if (r != 0)
             goto end;
     }

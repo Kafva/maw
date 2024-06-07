@@ -44,6 +44,7 @@ CFLAGS            += -pedantic
 LDFLAGS           += -lavcodec
 LDFLAGS           += -lavformat
 LDFLAGS           += -lavutil
+LDFLAGS           += -lavfilter
 LDFLAGS           += -lyaml
 
 # Release/debug only flags

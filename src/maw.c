@@ -73,7 +73,8 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
                                  int video_input_stream_index,
                                  AVFilterGraph *filter_graph,
                                  AVFilterContext *filtersrc_ctx,
-                                 AVFilterContext *filtersink_ctx) {
+                                 AVFilterContext *filtersink_ctx,
+                                 AVCodecContext *dec_codec_ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
@@ -84,6 +85,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     AVFilterInOut *outputs = NULL;
     AVFilterInOut *inputs  = NULL;
     const char *crop_filter_args = NULL;
+    char args[512];
 
     if (video_input_stream_index == -1) {
         // The validity should already have been checked during demux
@@ -112,11 +114,21 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
 
     // TODO: check current dims of frame and skip if already 720x720
 
+
     // buffer video source: the decoded frames from the decoder will be inserted here.
-    crop_filter_args = "crop=w=720:h=720:x=280:y=0,format=rgb24";
-    // XXX NOT PASSING args to this filter
+    r = snprintf(args, sizeof(args),
+                 "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+                 dec_codec_ctx->width, dec_codec_ctx->height, dec_codec_ctx->pix_fmt,
+                 input_stream->time_base.num, input_stream->time_base.den,
+                 dec_codec_ctx->sample_aspect_ratio.num, dec_codec_ctx->sample_aspect_ratio.den);
+
+    if (r < 0 || r >= (int)sizeof(args)) {
+        MAW_LOG(MAW_ERROR, "snprintf error/truncation");
+        goto end;
+    }
+
     r = avfilter_graph_create_filter(&filtersrc_ctx, buffersrc_filter, "in",
-                                     NULL, NULL, filter_graph);
+                                     args, NULL, filter_graph);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to create input buffer filter");
         goto end;
@@ -133,24 +145,25 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
      * filter input label is not specified, it is set to "in" by
      * default.
      */
-    outputs->name       = av_strdup("in");
-    outputs->filter_ctx = filtersrc_ctx;
-    outputs->pad_idx    = 0;
-    outputs->next       = NULL;
+    // outputs->name       = av_strdup("in");
+    // outputs->filter_ctx = filtersrc_ctx;
+    // outputs->pad_idx    = 0;
+    // outputs->next       = NULL;
 
-    /*
-     * The buffer sink input must be connected to the output pad of
-     * the last filter described by filters_descr; since the last
-     * filter output label is not specified, it is set to "out" by
-     * default.
-     */
-    inputs->name       = av_strdup("out");
-    inputs->filter_ctx = filtersink_ctx;
-    inputs->pad_idx    = 0;
-    inputs->next       = NULL;
+    // /*
+    //  * The buffer sink input must be connected to the output pad of
+    //  * the last filter described by filters_descr; since the last
+    //  * filter output label is not specified, it is set to "out" by
+    //  * default.
+    //  */
+    // inputs->name       = av_strdup("out");
+    // inputs->filter_ctx = filtersink_ctx;
+    // inputs->pad_idx    = 0;
+    // inputs->next       = NULL;
 
+    crop_filter_args = "crop=w=720:h=720:x=280:y=0,format=rgb24";
     r = avfilter_graph_parse_ptr(filter_graph, crop_filter_args,
-                                 &inputs, &outputs, NULL);
+                                 NULL, NULL, NULL);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to parse filter arguments");
         goto end;
@@ -332,6 +345,7 @@ static int maw_demux_media(const char *input_filepath,
         }
 
         *video_input_stream_index = i;
+        
 
         // Do not demux the video stream if the policy does not require the
         // original image stream.
@@ -384,7 +398,8 @@ static int maw_mux(const char *input_filepath,
                    int audio_input_stream_index,
                    int video_input_stream_index,
                    AVFilterContext *filtersrc_ctx,
-                   AVFilterContext *filtersink_ctx) {
+                   AVFilterContext *filtersink_ctx,
+                   AVCodecContext *dec_codec_ctx) {
     int r = INTERNAL_ERROR;
     int prev_stream_index = -1;
     int output_stream_index = -1;
@@ -396,8 +411,6 @@ static int maw_mux(const char *input_filepath,
     AVPacket *pkt = NULL;
     AVFrame *frame = NULL;
     AVFrame *filtered_frame = NULL;
-    AVCodecContext *dec_codec_ctx = NULL;
-    const AVCodec *dec_codec = NULL;
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
@@ -413,7 +426,7 @@ static int maw_mux(const char *input_filepath,
 
     pkt = av_packet_alloc();
     if (pkt == NULL) {
-        MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet", output_filepath);
+        MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet\n", output_filepath);
         goto end;
     }
 
@@ -423,35 +436,6 @@ static int maw_mux(const char *input_filepath,
         if (frame == NULL || filtered_frame == NULL) {
             r = AVERROR(ENOMEM);
             MAW_AVERROR(r, "Failed to initialize frames");
-            goto end;
-        }
-
-        r = av_find_best_stream(input_fmt_ctx, 
-                                AVMEDIA_TYPE_VIDEO, 
-                                video_input_stream_index, 
-                                -1, &dec_codec, 0);
-        if (r != 0) {
-            MAW_AVERROR(r, "Failed to find decoder");
-            goto end;
-        }
-
-        dec_codec_ctx = avcodec_alloc_context3(NULL);
-        if (dec_codec_ctx == NULL) {
-            r = AVERROR(ENOMEM);
-            MAW_AVERROR(r, "Failed to allocate decoder context");
-            goto end;
-        }
-
-        input_stream = input_fmt_ctx->streams[video_input_stream_index];
-        r = avcodec_parameters_to_context(dec_codec_ctx, input_stream->codecpar);
-        if (r != 0) {
-            MAW_AVERROR(r, "Failed to copy codec parameters");
-            goto end;
-        }
-
-        r = avcodec_open2(dec_codec_ctx, dec_codec, NULL);
-        if (r != 0) {
-            MAW_AVERROR(r, "Failed to open decoder context");
             goto end;
         }
     }
@@ -514,7 +498,7 @@ static int maw_mux(const char *input_filepath,
                     MAW_LOG(MAW_DEBUG, "!!!: there may be more frames to read");
                     break;
                 default:
-                    MAW_AVERROR(r, "Failed decode packet");
+                    MAW_AVERROR(r, "Failed to decode packet");
                     goto end;
             }
 
@@ -629,7 +613,6 @@ static int maw_mux(const char *input_filepath,
     }
 
 end:
-    avcodec_free_context(&dec_codec_ctx);
     av_packet_free(&pkt);
     av_frame_free(&frame);
     av_frame_free(&filtered_frame);
@@ -654,6 +637,10 @@ static int maw_remux(const char *input_filepath,
     AVFilterContext *filtersink_ctx = NULL;
     int audio_input_stream_index = -1;
     int video_input_stream_index = -1;
+    AVCodecContext *dec_codec_ctx = NULL;
+    AVStream *stream = NULL;
+    const AVCodec *dec_codec = NULL;
+    enum AVCodecID codec_id;
 
     r = maw_demux_media(input_filepath,
                         output_filepath,
@@ -671,15 +658,60 @@ static int maw_remux(const char *input_filepath,
             goto end;
     }
     else if (policy & CROP_COVER) {
-        r = maw_filter_crop_cover(input_fmt_ctx,
-                                  output_fmt_ctx,
-                                  metadata,
-                                  video_input_stream_index,
-                                  filter_graph,
-                                  filtersrc_ctx,
-                                  filtersink_ctx);
-        if (r != 0)
+        codec_id = input_fmt_ctx->streams[video_input_stream_index]->codecpar->codec_id;
+        dec_codec = avcodec_find_decoder(codec_id);
+        if (dec_codec == NULL) {
+            MAW_LOG(MAW_ERROR, "Failed to find decoder");
             goto end;
+        }
+
+        dec_codec_ctx = avcodec_alloc_context3(NULL);
+        if (dec_codec_ctx == NULL) {
+            r = AVERROR(ENOMEM);
+            MAW_AVERROR(r, "Failed to allocate decoder context");
+            goto end;
+        }
+
+        stream = input_fmt_ctx->streams[video_input_stream_index];
+        r = avcodec_parameters_to_context(dec_codec_ctx, stream->codecpar);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to copy codec parameters");
+            goto end;
+        }
+
+        r = avcodec_open2(dec_codec_ctx, dec_codec, NULL);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to open decoder context");
+            goto end;
+        }
+
+        MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pixel_aspect=%d/%d\n", 
+             input_filepath, video_input_stream_index,   
+             dec_codec_ctx->width, dec_codec_ctx->height,
+             dec_codec_ctx->sample_aspect_ratio.num, dec_codec_ctx->sample_aspect_ratio.den);
+
+        if (dec_codec_ctx->width == 720 && dec_codec_ctx->height == 720) {
+            // OK: already cropped
+        }
+        else if (dec_codec_ctx->width != 1280 || dec_codec_ctx->height != 720) {
+            MAW_LOGF(MAW_WARN, "%s: Cropping filter not applied: unsupported cover dimensions: %dx%d\n", 
+                               input_filepath, dec_codec_ctx->width, dec_codec_ctx->height);
+
+        }
+        else {
+            MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter\n", input_filepath);
+            
+            r = maw_filter_crop_cover(input_fmt_ctx,
+                                      output_fmt_ctx,
+                                      metadata,
+                                      video_input_stream_index,
+                                      filter_graph,
+                                      filtersrc_ctx,
+                                      filtersink_ctx,
+                                      dec_codec_ctx);
+            if (r != 0)
+                goto end;
+        }
     }
 
     // The metadata for artist etc. is in the AVFormatContext, streams also have
@@ -700,7 +732,8 @@ static int maw_remux(const char *input_filepath,
                 audio_input_stream_index,
                 video_input_stream_index,
                 filtersrc_ctx,
-                filtersink_ctx);
+                filtersink_ctx,
+                dec_codec_ctx);
     if (r != 0)
         goto end;
 
@@ -723,6 +756,7 @@ end:
         avformat_free_context(output_fmt_ctx);
     }
 
+    avcodec_free_context(&dec_codec_ctx);
     avfilter_graph_free(&filter_graph);
     avfilter_free(filtersrc_ctx);
     avfilter_free(filtersink_ctx);

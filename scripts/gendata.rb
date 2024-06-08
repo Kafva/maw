@@ -248,7 +248,7 @@ def setup
                    cover_color: "#5f9ea0"
     generate_audio "#{TOP}/unit/crop_cover.m4a",
                    cover_color: "#98fb98",
-                   cover_res: "2650x1440"
+                   cover_res: "1280x720"
     generate_audio "#{TOP}/unit/replace_cover.m4a",
                    cover_color: "#00ff00"
     generate_audio "#{TOP}/unit/keep_core_fields.m4a",

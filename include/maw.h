@@ -13,14 +13,14 @@ enum MetadataPolicy {
     KEEP_COVER          = 0x1 << 2,
     // Crop 1280x720 covers to 720x720
     CROP_COVER          = 0x1 << 3,
-};
+} typedef MetadataPolicy;
 
 enum MediaError {
     // Fallback error code for maw functions
     INTERNAL_ERROR = 50,
     // Input file has an unsupported set of streams
     UNSUPPORTED_INPUT_STREAMS = 51,
-};
+} typedef MediaError;
 
 #define POLICY_NEEDS_ORIGINAL_COVER(policy) (policy & (KEEP_COVER | CROP_COVER))
 
@@ -29,7 +29,7 @@ struct Metadata {
     char *album;
     char *artist;
     char *cover_path;
-};
+} typedef Metadata;
 
 int maw_update(const char *, const struct Metadata *, const int);
 

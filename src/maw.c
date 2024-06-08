@@ -7,6 +7,8 @@
 #include <libavutil/dict.h>
 #include <libavutil/avassert.h>
 #include <libavfilter/avfilter.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
 #include <unistd.h>
 
 
@@ -68,14 +70,20 @@ end:
 static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
                                  AVFormatContext *output_fmt_ctx,
                                  const struct Metadata *metadata,
-                                 int video_input_stream_index) {
+                                 int video_input_stream_index,
+                                 AVFilterGraph *filter_graph,
+                                 AVFilterContext *filtersrc_ctx,
+                                 AVFilterContext *filtersink_ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
-    AVFilterGraph *filter_graph = NULL;
-    const AVFilter *filter = NULL;
-    AVFilterContext *filter_ctx;
     enum AVMediaType codec_type;
+    const AVFilter *crop_filter = NULL;
+    const AVFilter *buffersrc_filter  = NULL;
+    const AVFilter *buffersink_filter = NULL;
+    AVFilterInOut *outputs = NULL;
+    AVFilterInOut *inputs  = NULL;
+    const char *crop_filter_args = NULL;
 
     if (video_input_stream_index == -1) {
         // The validity should already have been checked during demux
@@ -84,12 +92,75 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
 
     input_stream = input_fmt_ctx->streams[video_input_stream_index];
 
-    filter = avfilter_get_by_name("crop");
-    if (filter == NULL) {
-        MAW_LOG(MAW_ERROR, "Filter not found: crop\n");
+    filter_graph = avfilter_graph_alloc();
+    buffersrc_filter  = avfilter_get_by_name("buffer");
+    buffersink_filter = avfilter_get_by_name("buffersink");
+    crop_filter = avfilter_get_by_name("crop");
+    outputs = avfilter_inout_alloc();
+    inputs  = avfilter_inout_alloc();
+
+    if (filter_graph == NULL ||
+        buffersrc_filter == NULL ||
+        buffersink_filter == NULL ||
+        crop_filter == NULL ||
+        outputs == NULL ||
+        inputs == NULL) {
+        r = AVERROR(ENOMEM);
+        MAW_AVERROR(r, "Failed to initialize crop filter");
         goto end;
     }
 
+    // TODO: check current dims of frame and skip if already 720x720
+
+    // buffer video source: the decoded frames from the decoder will be inserted here.
+    crop_filter_args = "crop=w=720:h=720:x=280:y=0,format=rgb24";
+    // XXX NOT PASSING args to this filter
+    r = avfilter_graph_create_filter(&filtersrc_ctx, buffersrc_filter, "in",
+                                     NULL, NULL, filter_graph);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to create input buffer filter");
+        goto end;
+    }
+
+    /*
+     * Set the endpoints for the filter graph. The filter_graph will
+     * be linked to the graph described by filters_descr.
+     */
+
+    /*
+     * The buffer source output must be connected to the input pad of
+     * the first filter described by filters_descr; since the first
+     * filter input label is not specified, it is set to "in" by
+     * default.
+     */
+    outputs->name       = av_strdup("in");
+    outputs->filter_ctx = filtersrc_ctx;
+    outputs->pad_idx    = 0;
+    outputs->next       = NULL;
+
+    /*
+     * The buffer sink input must be connected to the output pad of
+     * the last filter described by filters_descr; since the last
+     * filter output label is not specified, it is set to "out" by
+     * default.
+     */
+    inputs->name       = av_strdup("out");
+    inputs->filter_ctx = filtersink_ctx;
+    inputs->pad_idx    = 0;
+    inputs->next       = NULL;
+
+    r = avfilter_graph_parse_ptr(filter_graph, crop_filter_args,
+                                 &inputs, &outputs, NULL);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to parse filter arguments");
+        goto end;
+    }
+
+    r = avfilter_graph_config(filter_graph, NULL);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to configure filter graph");
+        goto end;
+    }
 
     // Always create a new video stream for the output
     output_stream = avformat_new_stream(output_fmt_ctx, NULL);
@@ -104,6 +175,8 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
 
     r = 0;
 end:
+    avfilter_inout_free(&inputs);
+    avfilter_inout_free(&outputs);
     return r;
 }
 
@@ -248,12 +321,12 @@ static int maw_demux_media(const char *input_filepath,
     for (unsigned int i = 0; i < (*input_fmt_ctx)->nb_streams; i++) {
         input_stream = (*input_fmt_ctx)->streams[i];
         codec_type = input_stream->codecpar->codec_type;
-        is_attached_pic = codec_type == AVMEDIA_TYPE_VIDEO && 
+        is_attached_pic = codec_type == AVMEDIA_TYPE_VIDEO &&
                           input_stream->disposition == AV_DISPOSITION_ATTACHED_PIC;
         // Skip all streams except video streams with an attached_pic disposition
         if (!is_attached_pic || *video_input_stream_index != -1) {
             if ((int)i != *audio_input_stream_index)
-                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%d\n", 
+                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%d\n",
                                     input_filepath, av_get_media_type_string(codec_type), i);
             continue;
         }
@@ -309,13 +382,22 @@ static int maw_mux(const char *input_filepath,
                    AVFormatContext *cover_fmt_ctx,
                    AVFormatContext *output_fmt_ctx,
                    int audio_input_stream_index,
-                   int video_input_stream_index) {
+                   int video_input_stream_index,
+                   AVFilterContext *filtersrc_ctx,
+                   AVFilterContext *filtersink_ctx) {
     int r = INTERNAL_ERROR;
     int prev_stream_index = -1;
     int output_stream_index = -1;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
+    // Packets contain compressed data from a stream, frames contain the
+    // actual raw data. Filters can not be applied directly on packets, we
+    // need to decode them into frames and re-encode them back into packets.
     AVPacket *pkt = NULL;
+    AVFrame *frame = NULL;
+    AVFrame *filtered_frame = NULL;
+    AVCodecContext *dec_codec_ctx = NULL;
+    const AVCodec *dec_codec = NULL;
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
@@ -335,14 +417,51 @@ static int maw_mux(const char *input_filepath,
         goto end;
     }
 
-    // Mux streams from input file
-    while (true) {
-        r = av_read_frame(input_fmt_ctx, pkt);
-        if (r != 0) {
-            break; // No more frames
+    if (policy & CROP_COVER) {
+        frame = av_frame_alloc();
+        filtered_frame = av_frame_alloc();
+        if (frame == NULL || filtered_frame == NULL) {
+            r = AVERROR(ENOMEM);
+            MAW_AVERROR(r, "Failed to initialize frames");
+            goto end;
         }
-        if (pkt->stream_index < 0 || pkt->stream_index >= (int)input_fmt_ctx->nb_streams) {
-            MAW_LOGF(MAW_ERROR, "%s: Invalid stream index: #%d\n", input_filepath, pkt->stream_index);
+
+        r = av_find_best_stream(input_fmt_ctx, 
+                                AVMEDIA_TYPE_VIDEO, 
+                                video_input_stream_index, 
+                                -1, &dec_codec, 0);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to find decoder");
+            goto end;
+        }
+
+        dec_codec_ctx = avcodec_alloc_context3(NULL);
+        if (dec_codec_ctx == NULL) {
+            r = AVERROR(ENOMEM);
+            MAW_AVERROR(r, "Failed to allocate decoder context");
+            goto end;
+        }
+
+        input_stream = input_fmt_ctx->streams[video_input_stream_index];
+        r = avcodec_parameters_to_context(dec_codec_ctx, input_stream->codecpar);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to copy codec parameters");
+            goto end;
+        }
+
+        r = avcodec_open2(dec_codec_ctx, dec_codec, NULL);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to open decoder context");
+            goto end;
+        }
+    }
+
+    // Mux streams from input file
+    while (av_read_frame(input_fmt_ctx, pkt) == 0) {
+        if (pkt->stream_index < 0 ||
+            pkt->stream_index >= (int)input_fmt_ctx->nb_streams) {
+            MAW_LOGF(MAW_ERROR, "%s: Invalid stream index: #%d\n", input_filepath,
+                                                                   pkt->stream_index);
             goto end;
         }
 
@@ -377,23 +496,100 @@ static int maw_mux(const char *input_filepath,
         // input file. Remap it to the correct stream_index in the output file.
         pkt->stream_index = output_stream_index;
 
-        if (pkt->stream_index == audio_input_stream_index) {
-            av_packet_rescale_ts(pkt, input_stream->time_base,
-                                      output_stream->time_base);
-            pkt->pos = -1;
-        }
+        if (pkt->stream_index == video_input_stream_index &&
+            (policy & CROP_COVER)) {
+            // Send the packet to the decoder
+            r = avcodec_send_packet(dec_codec_ctx, pkt);
+            if (r != 0) {
+                MAW_AVERROR(r, "Failed to send packet to decoder");
+                goto end;
+            }
+            // Read the decoded frame 
+            r = avcodec_receive_frame(dec_codec_ctx, frame);
+            switch (r) {
+                case AVERROR_EOF:
+                    MAW_LOG(MAW_DEBUG, "OK: all frames read");
+                    break;
+                case AVERROR(EAGAIN):
+                    MAW_LOG(MAW_DEBUG, "!!!: there may be more frames to read");
+                    break;
+                default:
+                    MAW_AVERROR(r, "Failed decode packet");
+                    goto end;
+            }
 
-        // The pkt passed to this function is automatically freed
-        r = av_interleaved_write_frame(output_fmt_ctx, pkt);
-        if (r != 0) {
-            MAW_AVERROR(r, "Failed to mux packet");
-            break;
-        }
+            // Push the frame into the filter graph
+            r = av_buffersrc_add_frame_flags(filtersrc_ctx, 
+                                             frame, 
+                                             AV_BUFFERSRC_FLAG_KEEP_REF);
+            if (r != 0) {
+                MAW_AVERROR(r, "Error feeding the filtergraph");
+                goto end;
+            }
+            av_frame_unref(frame);
 
-        // This warning: 'Encoder did not produce proper pts, making some up.'
-        // appears for packets in cover art streams (since they do not have a
-        // pts value set), its harmless, more info on pts:
-        // http://dranger.com/ffmpeg/tutorial05.html
+            // Pull filtered frames from the filtergraph
+            while (true) {
+                r = av_buffersink_get_frame(filtersink_ctx, filtered_frame);
+                switch (r) {
+                    case AVERROR_EOF:
+                        MAW_LOG(MAW_DEBUG, "OK: all frames read");
+                        break;
+                    case AVERROR(EAGAIN):
+                        MAW_LOG(MAW_DEBUG, "!!!: there may be more frames to read");
+                        break;
+                    default:
+                        MAW_AVERROR(r, "Failed filter packet");
+                        goto end;
+                }
+
+                // Encode the frame into a packet 
+                // (using the same codec decoder/encoder) 
+                r = avcodec_send_frame(dec_codec_ctx, filtered_frame);
+                if (r != 0) {
+                    MAW_AVERROR(r, "Error sending frame to encoder");
+                    goto end;
+                }
+                av_frame_unref(filtered_frame);
+
+                // Read back the encoded packet
+                r = avcodec_receive_packet(dec_codec_ctx, pkt);
+                switch (r) {
+                    case AVERROR_EOF:
+                        MAW_LOG(MAW_DEBUG, "OK: all packets read");
+                        break;
+                    case AVERROR(EAGAIN):
+                        MAW_LOG(MAW_DEBUG, "!!!: there may be more packets to read");
+                        break;
+                    default:
+                        MAW_AVERROR(r, "Failed read encoded packet");
+                        goto end;
+                }
+
+                // Write the encoded packet to the output stream
+                r = av_interleaved_write_frame(output_fmt_ctx, pkt);
+                if (r != 0) {
+                    MAW_AVERROR(r, "Failed to mux packet");
+                    goto end;
+                }
+            }
+        } else {
+            if (pkt->stream_index == audio_input_stream_index) {
+                av_packet_rescale_ts(pkt, input_stream->time_base,
+                                          output_stream->time_base);
+                pkt->pos = -1;
+            }
+            // The pkt passed to this function is automatically freed
+            r = av_interleaved_write_frame(output_fmt_ctx, pkt);
+            if (r != 0) {
+                MAW_AVERROR(r, "Failed to mux packet");
+                goto end;
+            }
+            // This warning: 'Encoder did not produce proper pts, making some up.'
+            // appears for packets in cover art streams (since they do not have a
+            // pts value set), its harmless, more info on pts:
+            // http://dranger.com/ffmpeg/tutorial05.html
+        }
     }
 
     // Mux streams from cover
@@ -433,7 +629,10 @@ static int maw_mux(const char *input_filepath,
     }
 
 end:
+    avcodec_free_context(&dec_codec_ctx);
     av_packet_free(&pkt);
+    av_frame_free(&frame);
+    av_frame_free(&filtered_frame);
     return r;
 }
 
@@ -450,6 +649,9 @@ static int maw_remux(const char *input_filepath,
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
     AVFormatContext *cover_fmt_ctx = NULL;
+    AVFilterGraph *filter_graph = NULL;
+    AVFilterContext *filtersrc_ctx = NULL;
+    AVFilterContext *filtersink_ctx = NULL;
     int audio_input_stream_index = -1;
     int video_input_stream_index = -1;
 
@@ -469,7 +671,13 @@ static int maw_remux(const char *input_filepath,
             goto end;
     }
     else if (policy & CROP_COVER) {
-        r = maw_filter_crop_cover(input_fmt_ctx, output_fmt_ctx, metadata, video_input_stream_index);
+        r = maw_filter_crop_cover(input_fmt_ctx,
+                                  output_fmt_ctx,
+                                  metadata,
+                                  video_input_stream_index,
+                                  filter_graph,
+                                  filtersrc_ctx,
+                                  filtersink_ctx);
         if (r != 0)
             goto end;
     }
@@ -490,7 +698,9 @@ static int maw_remux(const char *input_filepath,
                 cover_fmt_ctx,
                 output_fmt_ctx,
                 audio_input_stream_index,
-                video_input_stream_index);
+                video_input_stream_index,
+                filtersrc_ctx,
+                filtersink_ctx);
     if (r != 0)
         goto end;
 
@@ -512,6 +722,10 @@ end:
         }
         avformat_free_context(output_fmt_ctx);
     }
+
+    avfilter_graph_free(&filter_graph);
+    avfilter_free(filtersrc_ctx);
+    avfilter_free(filtersink_ctx);
 
     return r;
 }

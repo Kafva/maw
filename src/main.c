@@ -121,7 +121,7 @@ static int run_tests(const char *match_testcase) {
     for (i = 0; i < total; i++) {
 
         if (match_testcase != NULL) {
-            r = strncmp(match_testcase, testcases[i].desc, strlen(match_testcase));
+            r = strncasecmp(match_testcase, testcases[i].desc, strlen(match_testcase));
             if (r != 0) {
                 if (enable_color)
                     fprintf(stdout, "\033[38;5;246mok\033[0m %d - %s # skip\n", i, testcases[i].desc);

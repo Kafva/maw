@@ -16,7 +16,7 @@ PROGRAM           = maw
 endif
 
 OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
-BUILD             = build
+BUILD             = $(CURDIR)/build
 
 CFLAGS            += -DMAW_PROGRAM=\"$(PROGRAM)\"
 CFLAGS            += -std=c99
@@ -40,17 +40,52 @@ CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
 CFLAGS            += -Wdeclaration-after-statement
 CFLAGS            += -pedantic
+
 # Libraries
+LDFLAGS           += -lyaml
+ifeq ($(STATIC),1)
+# Statically link maw against its dependencies if set.
+# This can be useful for debugging, the static libs are compiled
+# with debug symbols by default.
+ifeq ($(UNAME),darwin)
+LDFLAGS           += -framework Foundation
+LDFLAGS           += -framework AppKit
+LDFLAGS           += -framework Security
+LDFLAGS           += -framework Metal
+LDFLAGS           += -framework OpenGL
+LDFLAGS           += -framework CoreFoundation
+LDFLAGS           += -framework CoreVideo
+LDFLAGS           += -framework CoreImage
+LDFLAGS           += -framework CoreMedia
+LDFLAGS           += -framework CoreGraphics
+LDFLAGS           += -framework AudioToolbox
+LDFLAGS           += -framework VideoToolbox
+LDFLAGS           += -framework AVFoundation
+LDFLAGS           += -lz
+LDFLAGS           += -liconv
+LDFLAGS           += -lbz2
+else
+LDFLAGS           += -static
+endif # UNAME
+LDFLAGS           += $(BUILD)/deps/lib/libavcodec.a
+LDFLAGS           += $(BUILD)/deps/lib/libavformat.a
+LDFLAGS           += $(BUILD)/deps/lib/libavutil.a
+LDFLAGS           += $(BUILD)/deps/lib/libavfilter.a
+LDFLAGS           += $(BUILD)/deps/lib/libswresample.a
+LDFLAGS           += $(BUILD)/deps/lib/libswscale.a
+LDFLAGS           += $(BUILD)/deps/lib/libavdevice.a
+else
 LDFLAGS           += -lavcodec
 LDFLAGS           += -lavformat
 LDFLAGS           += -lavutil
 LDFLAGS           += -lavfilter
-LDFLAGS           += -lyaml
+endif # STATIC
+
 
 # Release/debug only flags
 ifeq ($(DEBUG),1)
 CFLAGS            += -g
-CFLAGS            += -Og
+CFLAGS            += -O0
 CFLAGS            += -fsanitize=address
 CFLAGS            += -Wno-unused
 CFLAGS            += -Wno-unused-parameter
@@ -61,6 +96,9 @@ CFLAGS            += -Wunused
 endif
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
+ifeq ($(STATIC),1)
+all: dep
+endif
 
 $(BUILD)/%.o: $(SRCS_PATTERN) $(HEADERS)
 	@mkdir -p $(dir $@)
@@ -76,5 +114,33 @@ compile_commands.json: $(BUILD)/$(PROGRAM)
 	@cat $(BUILD)/.*.json >> $@
 	@echo ] >> $@
 
+################################################################################
+
+# (Optional) Download and build dependencies from source
+dep: $(BUILD)/deps/lib/libavfilter.a $(BUILD)/deps/lib/libyaml.a
+
+$(BUILD)/deps/lib/libavfilter.a: $(CURDIR)/deps/FFmpeg
+	mkdir -p $(dir $@)
+	(cd $< && ./configure --prefix=$(BUILD)/deps --enable-debug)
+	$(MAKE) -C $<
+	$(MAKE) -C $< install
+
+$(BUILD)/deps/lib/libyaml.a: $(CURDIR)/deps/libyaml
+	(cd $< && autoreconf -vfi)
+	(cd $< && ./configure --prefix=$(BUILD)/deps --enable-debug)
+	$(MAKE) -C $<
+	$(MAKE) -C $< install
+
+$(CURDIR)/deps/FFmpeg:
+	mkdir -p $(dir $@)
+	git clone --depth 1 https://github.com/FFmpeg/FFmpeg.git $@
+
+$(CURDIR)/deps/libyaml:
+	mkdir -p $(dir $@)
+	git clone --depth 1 https://github.com/yaml/libyaml.git $@
+
 clean:
+	rm -rf $(BUILD)/*.o $(BUILD)/.*.json $(BUILD)/tests $(BUILD)/maw*
+
+distclean:
 	rm -rf $(BUILD)

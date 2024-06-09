@@ -1,5 +1,6 @@
 # vi: ft=gitignore
 
+/deps
 .lldbinit
 .testenv
 /*.m4a

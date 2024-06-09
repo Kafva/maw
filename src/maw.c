@@ -82,7 +82,6 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
-    enum AVMediaType codec_type;
     const AVFilter *crop_filter = NULL;
     const AVFilter *buffersrc_filter  = NULL;
     const AVFilter *buffersink_filter = NULL;

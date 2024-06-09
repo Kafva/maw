@@ -6,10 +6,9 @@ Music library manager
 brew install libyaml ffmpeg
 
 # Build options:
-#   DEBUG=1:    Build with debug configuration
+#   DEBUG=1:    Build with debug configuration, dependencies are also built
+#               from source with debug symbols when this option is enabled
 #   TESTS=1:    Build unit tests executable
-#   STATIC=1:   Build dependences from source (with debug symbols) 
-#               and link statically
 make
 ./build/maw --help
 
@@ -19,6 +18,6 @@ make
 
 # Debug a specific test case
 ./scripts/gendata.rb && 
-    STATIC=1 DEBUG=1 TESTS=1 make && 
+    DEBUG=1 TESTS=1 make && 
     lldb -o run ./build/maw_test -- -v -l quiet -m $TESTCASE
 ```

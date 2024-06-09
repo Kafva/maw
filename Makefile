@@ -20,15 +20,12 @@ BUILD             = $(CURDIR)/build
 
 CFLAGS            += -DMAW_PROGRAM=\"$(PROGRAM)\"
 CFLAGS            += -std=c99
-CFLAGS            += -fstack-protector-all
 ifeq ($(UNAME),linux)
 CFLAGS            += -D_GNU_SOURCE
 endif
-# Includes
+CFLAGS            += -fstack-protector-all
 CFLAGS            += -I$(CURDIR)/include
-ifeq ($(UNAME),darwin)
-CFLAGS            += -I/opt/homebrew/include
-endif
+
 # Warnings
 CFLAGS            += -Wall
 CFLAGS            += -Wextra
@@ -46,61 +43,31 @@ CFLAGS            += -pedantic
 
 # Libraries
 LDFLAGS           += -lyaml
-ifeq ($(STATIC),1)
-# Statically link maw against its dependencies if set.
-# This can be useful for debugging, the static libs are compiled
-# with debug symbols by default.
-ifeq ($(UNAME),darwin)
-LDFLAGS           += -framework Foundation
-LDFLAGS           += -framework AppKit
-LDFLAGS           += -framework Security
-LDFLAGS           += -framework Metal
-LDFLAGS           += -framework OpenGL
-LDFLAGS           += -framework CoreFoundation
-LDFLAGS           += -framework CoreVideo
-LDFLAGS           += -framework CoreImage
-LDFLAGS           += -framework CoreMedia
-LDFLAGS           += -framework CoreGraphics
-LDFLAGS           += -framework AudioToolbox
-LDFLAGS           += -framework VideoToolbox
-LDFLAGS           += -framework AVFoundation
-LDFLAGS           += -lz
-LDFLAGS           += -liconv
-LDFLAGS           += -lbz2
-else
-LDFLAGS           += -static
-endif # UNAME
-LDFLAGS           += $(BUILD)/deps/lib/libavcodec.a
-LDFLAGS           += $(BUILD)/deps/lib/libavformat.a
-LDFLAGS           += $(BUILD)/deps/lib/libavutil.a
-LDFLAGS           += $(BUILD)/deps/lib/libavfilter.a
-LDFLAGS           += $(BUILD)/deps/lib/libswresample.a
-LDFLAGS           += $(BUILD)/deps/lib/libswscale.a
-LDFLAGS           += $(BUILD)/deps/lib/libavdevice.a
-else
 LDFLAGS           += -lavcodec
 LDFLAGS           += -lavformat
 LDFLAGS           += -lavutil
 LDFLAGS           += -lavfilter
-endif # STATIC
-
 
 # Release/debug only flags
 ifeq ($(DEBUG),1)
 CFLAGS            += -g
 CFLAGS            += -O0
-CFLAGS            += -fsanitize=address
 CFLAGS            += -Wno-unused
 CFLAGS            += -Wno-unused-parameter
+CFLAGS            += -fsanitize=address
+# Use the libraries that we build from source
+CFLAGS            += -I$(BUILD)/deps/include
+LDFLAGS           += -Wl,-rpath,$(BUILD)/deps/lib
+LDFLAGS           += -L$(BUILD)/deps/lib
+all: dep
 else
 CFLAGS            += -O3
 CFLAGS            += -Wunreachable-code
 CFLAGS            += -Wunused
-endif
-
-ifeq ($(STATIC),1)
-all: dep
-endif
+ifeq ($(UNAME),darwin)
+CFLAGS            += -I/opt/homebrew/include
+endif # UNAME
+endif # DEBUG
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
 
@@ -120,18 +87,22 @@ compile_commands.json: $(BUILD)/$(PROGRAM)
 
 ################################################################################
 
-# (Optional) Download and build dependencies from source
+# For DEBUG builds, download and build dependencies from source
 dep: $(BUILD)/deps/lib/libavfilter.a $(BUILD)/deps/lib/libyaml.a
 
 $(BUILD)/deps/lib/libavfilter.a: $(CURDIR)/deps/FFmpeg
 	mkdir -p $(dir $@)
-	(cd $< && ./configure --prefix=$(BUILD)/deps --enable-debug)
+	cd $< && ./configure --prefix=$(BUILD)/deps \
+	                     --disable-programs \
+	                     --disable-stripping \
+	                     --enable-debug \
+	                     --enable-shared
 	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
 $(BUILD)/deps/lib/libyaml.a: $(CURDIR)/deps/libyaml
-	(cd $< && autoreconf -vfi)
-	(cd $< && ./configure --prefix=$(BUILD)/deps --enable-debug)
+	cd $< && autoreconf -vfi
+	cd $< && ./configure --prefix=$(BUILD)/deps
 	$(MAKE) -C $<
 	$(MAKE) -C $< install
 

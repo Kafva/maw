@@ -84,10 +84,9 @@ $(BUILD)/$(PROGRAM): $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
 
 compile_commands.json: $(BUILD)/$(PROGRAM)
-	@# Combine JSON fragments from build into a complete compilation database
-	@echo [ > $@
-	@cat $(BUILD)/.*.json >> $@
-	@echo ] >> $@
+	@# Combine JSON fragments from the build (and from dependencies if they exist)
+	@# into a complete compilation database
+	./scripts/genccdb.rb > $@
 
 ################################################################################
 

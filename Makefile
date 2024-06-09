@@ -21,6 +21,9 @@ BUILD             = $(CURDIR)/build
 CFLAGS            += -DMAW_PROGRAM=\"$(PROGRAM)\"
 CFLAGS            += -std=c99
 CFLAGS            += -fstack-protector-all
+ifeq ($(UNAME),linux)
+CFLAGS            += -D_GNU_SOURCE
+endif
 # Includes
 CFLAGS            += -I$(CURDIR)/include
 ifeq ($(UNAME),darwin)
@@ -95,10 +98,11 @@ CFLAGS            += -Wunreachable-code
 CFLAGS            += -Wunused
 endif
 
-all: $(BUILD)/$(PROGRAM) compile_commands.json
 ifeq ($(STATIC),1)
 all: dep
 endif
+
+all: $(BUILD)/$(PROGRAM) compile_commands.json
 
 $(BUILD)/%.o: $(SRCS_PATTERN) $(HEADERS)
 	@mkdir -p $(dir $@)

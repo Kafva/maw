@@ -47,6 +47,10 @@ LDFLAGS           += -lavcodec
 LDFLAGS           += -lavformat
 LDFLAGS           += -lavutil
 LDFLAGS           += -lavfilter
+ifeq ($(UNAME),linux)
+LDFLAGS           += -lswresample
+LDFLAGS           += -lswscale
+endif
 
 # Release/debug only flags
 ifeq ($(DEBUG),1)

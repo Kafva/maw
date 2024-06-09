@@ -75,10 +75,10 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
                                  AVFormatContext *output_fmt_ctx,
                                  const struct Metadata *metadata,
                                  int video_input_stream_index,
-                                 AVFilterGraph *filter_graph,
-                                 AVFilterContext *filtersrc_ctx,
-                                 AVFilterContext *filtersink_ctx,
-                                 AVCodecContext *dec_codec_ctx) {
+                                 AVCodecContext *dec_codec_ctx,
+                                 AVFilterGraph **filter_graph,
+                                 AVFilterContext **filtersrc_ctx,
+                                 AVFilterContext **filtersink_ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
@@ -98,7 +98,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
 
     input_stream = input_fmt_ctx->streams[video_input_stream_index];
 
-    filter_graph = avfilter_graph_alloc();
+    *filter_graph = avfilter_graph_alloc();
     buffersrc_filter  = avfilter_get_by_name("buffer");
     buffersink_filter = avfilter_get_by_name("buffersink");
     crop_filter = avfilter_get_by_name("crop");
@@ -128,22 +128,22 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         goto end;
     }
 
-    r = avfilter_graph_create_filter(&filtersrc_ctx, buffersrc_filter, "in",
-                                     args, NULL, filter_graph);
+    r = avfilter_graph_create_filter(filtersrc_ctx, buffersrc_filter, "in",
+                                     args, NULL, *filter_graph);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to create input buffer filter");
         goto end;
     }
     MAW_LOGF(MAW_DEBUG, "Created input buffer filter: %s\n", args);
 
-    r = avfilter_graph_create_filter(&filtersink_ctx, buffersink_filter, "out",
-                                     NULL, NULL, filter_graph);
+    r = avfilter_graph_create_filter(filtersink_ctx, buffersink_filter, "out",
+                                     NULL, NULL, *filter_graph);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to create output buffer filter");
         goto end;
     }
 
-    r = av_opt_set_int_list(filtersink_ctx, "pix_fmts", pix_fmts,
+    r = av_opt_set_int_list(*filtersink_ctx, "pix_fmts", pix_fmts,
                             AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to set output pixel format\n");
@@ -164,7 +164,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
      * default.
      */
     outputs->name       = av_strdup("in");
-    outputs->filter_ctx = filtersrc_ctx;
+    outputs->filter_ctx = *filtersrc_ctx;
     outputs->pad_idx    = 0;
     outputs->next       = NULL;
 
@@ -175,19 +175,19 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
      * default.
      */
     inputs->name       = av_strdup("out");
-    inputs->filter_ctx = filtersink_ctx;
+    inputs->filter_ctx = *filtersink_ctx;
     inputs->pad_idx    = 0;
     inputs->next       = NULL;
 
     crop_filter_args = "crop=w=720:h=720:x=280:y=0,format=rgb24";
-    r = avfilter_graph_parse_ptr(filter_graph, crop_filter_args,
+    r = avfilter_graph_parse_ptr(*filter_graph, crop_filter_args,
                                  &inputs, &outputs, NULL);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to parse filter arguments");
         goto end;
     }
 
-    r = avfilter_graph_config(filter_graph, NULL);
+    r = avfilter_graph_config(*filter_graph, NULL);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to configure filter graph");
         goto end;
@@ -730,10 +730,10 @@ static int maw_remux(const char *input_filepath,
                                       output_fmt_ctx,
                                       metadata,
                                       video_input_stream_index,
-                                      filter_graph,
-                                      filtersrc_ctx,
-                                      filtersink_ctx,
-                                      dec_codec_ctx);
+                                      dec_codec_ctx,
+                                      &filter_graph,
+                                      &filtersrc_ctx,
+                                      &filtersink_ctx);
             if (r != 0)
                 goto end;
         }
@@ -783,9 +783,6 @@ end:
 
     avcodec_free_context(&dec_codec_ctx);
     avfilter_graph_free(&filter_graph);
-    avfilter_free(filtersrc_ctx);
-    avfilter_free(filtersink_ctx);
-
     return r;
 }
 

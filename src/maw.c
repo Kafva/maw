@@ -9,6 +9,10 @@
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
+#include <libavutil/pixdesc.h>
+#include <libavutil/opt.h>
+#include <libavutil/pixfmt.h>
+
 #include <unistd.h>
 
 
@@ -86,6 +90,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     AVFilterInOut *inputs  = NULL;
     const char *crop_filter_args = NULL;
     char args[512];
+    enum AVPixelFormat pix_fmts[2] = { AV_PIX_FMT_RGB24, AV_PIX_FMT_NONE };
 
     if (video_input_stream_index == -1) {
         // The validity should already have been checked during demux
@@ -112,10 +117,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         goto end;
     }
 
-    // TODO: check current dims of frame and skip if already 720x720
-
-
-    // buffer video source: the decoded frames from the decoder will be inserted here.
+    // Buffer video source: the decoded frames from the decoder will be inserted here.
     r = snprintf(args, sizeof(args),
                  "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
                  dec_codec_ctx->width, dec_codec_ctx->height, dec_codec_ctx->pix_fmt,
@@ -133,6 +135,23 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         MAW_AVERROR(r, "Failed to create input buffer filter");
         goto end;
     }
+    MAW_LOGF(MAW_DEBUG, "Created input buffer filter: %s\n", args);
+
+    r = avfilter_graph_create_filter(&filtersink_ctx, buffersink_filter, "out",
+                                     NULL, NULL, filter_graph);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to create output buffer filter");
+        goto end;
+    }
+
+    r = av_opt_set_int_list(filtersink_ctx, "pix_fmts", pix_fmts,
+                            AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to set output pixel format\n");
+        goto end;
+    }
+    MAW_LOG(MAW_DEBUG, "Created output buffer filter\n");
+
 
     /*
      * Set the endpoints for the filter graph. The filter_graph will
@@ -145,25 +164,25 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
      * filter input label is not specified, it is set to "in" by
      * default.
      */
-    // outputs->name       = av_strdup("in");
-    // outputs->filter_ctx = filtersrc_ctx;
-    // outputs->pad_idx    = 0;
-    // outputs->next       = NULL;
+    outputs->name       = av_strdup("in");
+    outputs->filter_ctx = filtersrc_ctx;
+    outputs->pad_idx    = 0;
+    outputs->next       = NULL;
 
-    // /*
-    //  * The buffer sink input must be connected to the output pad of
-    //  * the last filter described by filters_descr; since the last
-    //  * filter output label is not specified, it is set to "out" by
-    //  * default.
-    //  */
-    // inputs->name       = av_strdup("out");
-    // inputs->filter_ctx = filtersink_ctx;
-    // inputs->pad_idx    = 0;
-    // inputs->next       = NULL;
+    /*
+     * The buffer sink input must be connected to the output pad of
+     * the last filter described by filters_descr; since the last
+     * filter output label is not specified, it is set to "out" by
+     * default.
+     */
+    inputs->name       = av_strdup("out");
+    inputs->filter_ctx = filtersink_ctx;
+    inputs->pad_idx    = 0;
+    inputs->next       = NULL;
 
     crop_filter_args = "crop=w=720:h=720:x=280:y=0,format=rgb24";
     r = avfilter_graph_parse_ptr(filter_graph, crop_filter_args,
-                                 NULL, NULL, NULL);
+                                 &inputs, &outputs, NULL);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to parse filter arguments");
         goto end;
@@ -345,7 +364,7 @@ static int maw_demux_media(const char *input_filepath,
         }
 
         *video_input_stream_index = i;
-        
+
 
         // Do not demux the video stream if the policy does not require the
         // original image stream.
@@ -488,9 +507,11 @@ static int maw_mux(const char *input_filepath,
                 MAW_AVERROR(r, "Failed to send packet to decoder");
                 goto end;
             }
-            // Read the decoded frame 
+            // Read the decoded frame
             r = avcodec_receive_frame(dec_codec_ctx, frame);
             switch (r) {
+                case 0:
+                    break; // OK
                 case AVERROR_EOF:
                     MAW_LOG(MAW_DEBUG, "OK: all frames read");
                     break;
@@ -503,8 +524,8 @@ static int maw_mux(const char *input_filepath,
             }
 
             // Push the frame into the filter graph
-            r = av_buffersrc_add_frame_flags(filtersrc_ctx, 
-                                             frame, 
+            r = av_buffersrc_add_frame_flags(filtersrc_ctx,
+                                             frame,
                                              AV_BUFFERSRC_FLAG_KEEP_REF);
             if (r != 0) {
                 MAW_AVERROR(r, "Error feeding the filtergraph");
@@ -516,6 +537,8 @@ static int maw_mux(const char *input_filepath,
             while (true) {
                 r = av_buffersink_get_frame(filtersink_ctx, filtered_frame);
                 switch (r) {
+                    case 0:
+                        break; // OK
                     case AVERROR_EOF:
                         MAW_LOG(MAW_DEBUG, "OK: all frames read");
                         break;
@@ -527,8 +550,8 @@ static int maw_mux(const char *input_filepath,
                         goto end;
                 }
 
-                // Encode the frame into a packet 
-                // (using the same codec decoder/encoder) 
+                // Encode the frame into a packet
+                // (using the same codec decoder/encoder)
                 r = avcodec_send_frame(dec_codec_ctx, filtered_frame);
                 if (r != 0) {
                     MAW_AVERROR(r, "Error sending frame to encoder");
@@ -539,6 +562,8 @@ static int maw_mux(const char *input_filepath,
                 // Read back the encoded packet
                 r = avcodec_receive_packet(dec_codec_ctx, pkt);
                 switch (r) {
+                    case 0:
+                        break; // OK
                     case AVERROR_EOF:
                         MAW_LOG(MAW_DEBUG, "OK: all packets read");
                         break;
@@ -685,22 +710,23 @@ static int maw_remux(const char *input_filepath,
             goto end;
         }
 
-        MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pixel_aspect=%d/%d\n", 
-             input_filepath, video_input_stream_index,   
+        MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d\n",
+             input_filepath, video_input_stream_index,
              dec_codec_ctx->width, dec_codec_ctx->height,
+             av_get_pix_fmt_name(dec_codec_ctx->pix_fmt),
              dec_codec_ctx->sample_aspect_ratio.num, dec_codec_ctx->sample_aspect_ratio.den);
 
         if (dec_codec_ctx->width == 720 && dec_codec_ctx->height == 720) {
-            // OK: already cropped
+            MAW_LOGF(MAW_DEBUG, "%s: Crop filter has already been applied\n", input_filepath);
         }
         else if (dec_codec_ctx->width != 1280 || dec_codec_ctx->height != 720) {
-            MAW_LOGF(MAW_WARN, "%s: Cropping filter not applied: unsupported cover dimensions: %dx%d\n", 
+            MAW_LOGF(MAW_WARN, "%s: Crop filter not applied: unsupported cover dimensions: %dx%d\n",
                                input_filepath, dec_codec_ctx->width, dec_codec_ctx->height);
 
         }
         else {
             MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter\n", input_filepath);
-            
+
             r = maw_filter_crop_cover(input_fmt_ctx,
                                       output_fmt_ctx,
                                       metadata,

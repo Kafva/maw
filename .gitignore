@@ -28,6 +28,7 @@ build
 # C/C++
 .ccls-cache
 compile_commands.json
+tags
 
 
 # Xcode

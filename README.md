@@ -17,7 +17,7 @@ make
 ./scripts/check.sh
 
 # Debug a specific test case
-./scripts/gendata.rb && 
-    DEBUG=1 TESTS=1 make && 
+./scripts/gendata.rb &&
+    DEBUG=1 TESTS=1 make &&
     lldb -o run ./build/maw_test -- -v -l quiet -m $TESTCASE
 ```

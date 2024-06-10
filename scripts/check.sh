@@ -7,4 +7,4 @@ TESTS=1 make clean all
 
 ./build/maw_test -- $@
 
-echo $? 
+echo $?

@@ -1,5 +1,5 @@
-#ifndef MAW_TEST_H
-#define MAW_TEST_H
+#ifndef TESTS_MAW_TEST_H
+#define TESTS_MAW_TEST_H
 
 #ifdef MAW_TEST
 
@@ -11,10 +11,10 @@ struct Testcase {
     bool (*fn)(const char *);
 };
 
-bool test_keep_cover_policy(const char *);
-bool test_crop_cover_policy(const char *);
-bool test_keep_all_fields_policy(const char *);
-bool test_keep_core_fields_policy(const char *);
+bool test_keep_all(const char *);
+bool test_clear_non_core_fields(const char *);
+bool test_clear_cover(const char *);
+bool test_crop_cover(const char *);
 bool test_add_cover(const char *);
 bool test_replace_cover(const char *);
 bool test_bad_covers(const char *);
@@ -22,18 +22,19 @@ bool test_no_audio(const char *);
 bool test_dual_audio(const char *);
 bool test_dual_video(const char *);
 
+
 #define DEFINE_TESTCASES \
     struct Testcase testcases[] = { \
-        { .desc = "Keep cover",                 .fn = test_keep_cover_policy }, \
-        { .desc = "Crop cover",                 .fn = test_crop_cover_policy }, \
-        { .desc = "Keep all fields",            .fn = test_keep_all_fields_policy }, \
-        { .desc = "Keep core fields",           .fn = test_keep_core_fields_policy }, \
-        { .desc = "Add cover",                  .fn = test_add_cover },  \
-        { .desc = "Replace cover",              .fn = test_replace_cover }, \
-        { .desc = "Bad covers",                 .fn = test_bad_covers }, \
-        { .desc = "No audio streams",           .fn = test_no_audio   }, \
-        { .desc = "Dual audio streams",         .fn = test_dual_audio }, \
-        { .desc = "Dual video streams",         .fn = test_dual_video }, \
+        { .desc = "Default behaviour should keep everything as is",   .fn = test_keep_all }, \
+        { .desc = "Clear non core fields",                            .fn = test_clear_non_core_fields }, \
+        { .desc = "Clear cover",                                      .fn = test_clear_cover },  \
+        { .desc = "Crop cover",                                       .fn = test_crop_cover }, \
+        { .desc = "Add cover",                                        .fn = test_add_cover },  \
+        { .desc = "Replace cover",                                    .fn = test_replace_cover }, \
+        { .desc = "Bad covers",                                       .fn = test_bad_covers }, \
+        { .desc = "No audio streams",                                 .fn = test_no_audio   }, \
+        { .desc = "Dual audio streams",                               .fn = test_dual_audio }, \
+        { .desc = "Dual video streams",                               .fn = test_dual_video }, \
     }
 #endif
 
@@ -45,4 +46,4 @@ bool test_dual_video(const char *);
    } \
 } while (0)
 
-#endif // MAW_TEST_H
+#endif // TESTS_MAW_TEST_H

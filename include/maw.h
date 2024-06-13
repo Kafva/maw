@@ -3,17 +3,15 @@
 
 #include <stdbool.h>
 
-// Decides what to keep from the input file when no custom values are provided.
-enum MetadataPolicy {
-    // Only keep a subset of metadata fields
-    KEEP_CORE_FIELDS    = 0x1,
-    // Keep all metadata fields
-    KEEP_ALL_FIELDS     = 0x1 << 1,
-    // Keep the cover art (removed or replaced by default)
-    KEEP_COVER          = 0x1 << 2,
-    // Crop 1280x720 covers to 720x720
-    CROP_COVER          = 0x1 << 3,
-} typedef MetadataPolicy;
+// The cover policy options are mutually exclusive from one another
+enum CoverPolicy {
+    // Keep original cover art unless a custom `cover_path` is given (default)
+    KEEP_COVER_UNLESS_PROVIDED               = 0x0,
+    // Remove cover art if present
+    CLEAR_COVER                              = 0x1,
+    // Crop 1280x720 covers to 720x720, idempotent for 720x720 covers.
+    CROP_COVER                               = 0x1 << 1,
+} typedef CoverPolicy;
 
 enum MediaError {
     // Fallback error code for maw functions
@@ -22,16 +20,20 @@ enum MediaError {
     UNSUPPORTED_INPUT_STREAMS = 51,
 } typedef MediaError;
 
-#define POLICY_NEEDS_ORIGINAL_COVER(policy) (policy & (KEEP_COVER | CROP_COVER))
+#define NEEDS_ORIGINAL_COVER(metadata) \
+    (metadata->cover_policy != CLEAR_COVER &&  \
+     (metadata->cover_policy == CROP_COVER || metadata->cover_path == NULL))
 
 struct Metadata {
     char *title;
     char *album;
     char *artist;
     char *cover_path;
+    CoverPolicy cover_policy;
+    bool clear_non_core_fields;
 } typedef Metadata;
 
-int maw_update(const char *, const struct Metadata *, const int);
+int maw_update(const char *, const Metadata *);
 
 #ifdef MAW_TEST
 #include <libavformat/avformat.h>
@@ -39,10 +41,10 @@ int maw_update(const char *, const struct Metadata *, const int);
 #define LHS_EMPTY_OR_EQ(lhs, rhs) \
     (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
 
-bool maw_verify(const char *, const struct Metadata *, const int);
+bool maw_verify(const char *, const Metadata *);
 bool maw_verify_cover(const AVFormatContext *,
                       const char *,
-                      const struct Metadata *);
+                      const Metadata *);
 #endif
 
 #endif // MAW_H

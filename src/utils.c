@@ -1,5 +1,5 @@
 #include "log.h"
-#include "util.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <fcntl.h>

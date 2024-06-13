@@ -223,12 +223,12 @@ def setup
             red:
               album: Red album
               artist: Red artist
-              policy: KEEP_CORE_FIELDS
+              clear_non_core_fields: true
             blue:
               album: Blue album
               artist: Blue artist
               cover: blue.png
-              policy: KEEP_CORE_FIELDS
+              clear_non_core_fields: true
     HEREDOC
 
     FileUtils.rm_rf TOP
@@ -243,20 +243,21 @@ def setup
     generate_dual_audio "#{TOP}/unit/dual_audio.mp4"
     generate_dual_video "#{TOP}/unit/dual_video.mp4"
     generate_audio "#{TOP}/unit/only_audio.m4a"
+
     generate_audio "#{TOP}/unit/add_cover.m4a"
-    generate_audio "#{TOP}/unit/keep_cover.m4a",
-                   cover_color: "#5f9ea0"
+    generate_audio "#{TOP}/unit/clear_cover.m4a"
     generate_audio "#{TOP}/unit/crop_cover.m4a",
                    cover_color: "#98fb98",
                    cover_res: "1280x720"
     generate_audio "#{TOP}/unit/replace_cover.m4a",
                    cover_color: "#00ff00"
-    generate_audio "#{TOP}/unit/keep_core_fields.m4a",
-                   title: "keep_core_fields", 
+    generate_audio "#{TOP}/unit/keep_all.m4a",
+                   title: "keep_all",
                    artist: "Artist",
-                   album: "Album"
-    generate_audio "#{TOP}/unit/keep_all_fields.m4a",  
-                   title: "keep_all_fields", 
+                   album: "Album",
+                   cover_color: "#5f1eb0"
+    generate_audio "#{TOP}/unit/clear_non_core_fields.m4a",
+                   title: "clear_non_core_fields",
                    artist: "Artist",
                    album: "Album",
                    cover_color: "white",

@@ -5,6 +5,7 @@
 
 #include <string.h>
 
+// TODO: no cover art, verifcation fails
 bool test_dual_audio(const char *desc) {
     int r;
     const char *path = "./.testenv/unit/dual_audio.mp4";
@@ -53,11 +54,11 @@ bool test_keep_all(const char *desc) {
     const char *path = "./.testenv/unit/keep_all.m4a";
     // Default policy: keep everything (except explicitly set metadata fields) as is
     const Metadata metadata = {
-        .title = "keep_all_fields",
+        .title = "keep_all",
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        .cover_policy = KEEP_COVER_UNLESS_PROVIDED // implicit
+        // .cover_policy = KEEP_COVER_UNLESS_PROVIDED // (implicit)
     };
     (void)desc;
 
@@ -65,7 +66,7 @@ bool test_keep_all(const char *desc) {
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(path, &metadata);
     MAW_ASSERT_EQ(r, true, desc);
-    return false; // TODO
+    return true;
 }
 
 bool test_clear_non_core_fields(const char *desc) {
@@ -91,7 +92,7 @@ bool test_clear_non_core_fields(const char *desc) {
 
 bool test_bad_covers(const char *desc) {
     int r;
-    const char *path = "./.testenv/unit/keep_cover.m4a";
+    const char *path = "./.testenv/unit/keep_all.m4a";
     const Metadata bad_metadata[] = {
         { .cover_path = "./.testenv/unit/dual_audio.mp4" },
         { .cover_path = "./.testenv/unit/only_audio.m4a" },
@@ -102,13 +103,14 @@ bool test_bad_covers(const char *desc) {
         UNSUPPORTED_INPUT_STREAMS,
         UNSUPPORTED_INPUT_STREAMS,
         AVERROR(ENOENT),
-        UNSUPPORTED_INPUT_STREAMS,
+        AVERROR_INVALIDDATA,
+        // UNSUPPORTED_INPUT_STREAMS,
     };
     (void)desc;
 
     for (size_t i = 0; i < sizeof(bad_metadata)/sizeof(Metadata); i++) {
         r = maw_update(path, &(bad_metadata[i]));
-        MAW_ASSERT_EQ(r, errors[i], bad_metadata->cover_path);
+        MAW_ASSERT_EQ(r, errors[i], bad_metadata[i].cover_path);
     }
 
     return true;

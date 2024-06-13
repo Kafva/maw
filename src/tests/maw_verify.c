@@ -43,15 +43,14 @@ bool maw_verify(const char *filepath,
         }
     }
 
-
-
     if (metadata->cover_path != NULL) {
         // Configured cover should be present
         ok = maw_verify_cover(fmt_ctx, filepath, metadata);
     }
-    else if (!NEEDS_ORIGINAL_COVER(metadata)) {
+    else if (NEEDS_ORIGINAL_COVER(metadata)) {
         // Original cover should still be present, we only check that there
         // are two streams, we do not know what the original data looked like
+        // TODO: but what if the original audio does not have a cover...
         if (fmt_ctx->nb_streams != 2) {
             MAW_LOGF(MAW_ERROR, "%s: Expected two streams: found %u\n",
                      filepath, fmt_ctx->nb_streams);

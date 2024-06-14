@@ -421,8 +421,12 @@ static int maw_mux(const char *input_filepath,
     // actual raw data. Filters can not be applied directly on packets, we
     // need to decode them into frames and re-encode them back into packets.
     AVPacket *pkt = NULL;
+    AVPacket *filtered_pkt = NULL;
     AVFrame *frame = NULL;
     AVFrame *filtered_frame = NULL;
+    AVCodecContext *enc_codec_ctx = NULL;
+    enum AVCodecID codec_id;
+    const AVCodec *enc_codec = NULL;
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
@@ -437,7 +441,8 @@ static int maw_mux(const char *input_filepath,
     }
 
     pkt = av_packet_alloc();
-    if (pkt == NULL) {
+    filtered_pkt = av_packet_alloc();
+    if (pkt == NULL || filtered_pkt == NULL) {
         MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet\n", output_filepath);
         goto end;
     }
@@ -494,6 +499,30 @@ static int maw_mux(const char *input_filepath,
 
         if (pkt->stream_index == video_input_stream_index &&
             (metadata->cover_policy == CROP_COVER)) {
+
+            // Create an encoder context, we need this to translate the output frames
+            // from the filtergraph back into packets
+            codec_id = output_fmt_ctx->streams[1]->codecpar->codec_id;
+            enc_codec = avcodec_find_encoder(codec_id);
+            if (enc_codec == NULL) {
+                MAW_LOG(MAW_ERROR, "Failed to find encoder");
+                goto end;
+            }
+
+            enc_codec_ctx = avcodec_alloc_context3(NULL);
+            if (enc_codec_ctx == NULL) {
+                r = AVERROR(ENOMEM);
+                MAW_AVERROR(r, "Failed to allocate encoder context");
+                goto end;
+            }
+
+            enc_codec_ctx->time_base = (AVRational){1, 1};
+            r = avcodec_open2(enc_codec_ctx, enc_codec, NULL);
+            if (r != 0) {
+                MAW_AVERROR(r, "Failed to open encoder context");
+                goto end;
+            }
+
             // Send the packet to the decoder
             r = avcodec_send_packet(dec_codec_ctx, pkt);
             if (r != 0) {
@@ -539,21 +568,19 @@ static int maw_mux(const char *input_filepath,
                         MAW_LOG(MAW_DEBUG, "!!!: there may be more frames to read");
                         break;
                     default:
-                        MAW_AVERROR(r, "Failed filter packet");
+                        MAW_AVERROR(r, "Failed to read filtered frame");
                         goto end;
                 }
 
                 // Encode the frame into a packet
-                // (using the same codec decoder/encoder)
-                r = avcodec_send_frame(dec_codec_ctx, filtered_frame);
+                r = avcodec_send_frame(enc_codec_ctx, filtered_frame);
                 if (r != 0) {
                     MAW_AVERROR(r, "Error sending frame to encoder");
                     goto end;
                 }
-                av_frame_unref(filtered_frame);
 
                 // Read back the encoded packet
-                r = avcodec_receive_packet(dec_codec_ctx, pkt);
+                r = avcodec_receive_packet(enc_codec_ctx, filtered_pkt);
                 switch (r) {
                     case 0:
                         break; // OK
@@ -564,12 +591,12 @@ static int maw_mux(const char *input_filepath,
                         MAW_LOG(MAW_DEBUG, "!!!: there may be more packets to read");
                         break;
                     default:
-                        MAW_AVERROR(r, "Failed read encoded packet");
+                        MAW_AVERROR(r, "Failed to read encoded packet");
                         goto end;
                 }
 
                 // Write the encoded packet to the output stream
-                r = av_interleaved_write_frame(output_fmt_ctx, pkt);
+                r = av_interleaved_write_frame(output_fmt_ctx, filtered_pkt);
                 if (r != 0) {
                     MAW_AVERROR(r, "Failed to mux packet");
                     goto end;
@@ -632,6 +659,7 @@ static int maw_mux(const char *input_filepath,
 
 end:
     av_packet_free(&pkt);
+    av_packet_free(&filtered_pkt);
     av_frame_free(&frame);
     av_frame_free(&filtered_frame);
     return r;

@@ -47,21 +47,24 @@ bool maw_verify(const char *filepath,
         // Configured cover should be present
         ok = maw_verify_cover(fmt_ctx, filepath, metadata);
     }
-    else if (NEEDS_ORIGINAL_COVER(metadata)) {
-        // Original cover should still be present, we only check that there
-        // are two streams, we do not know what the original data looked like
-        // TODO: but what if the original audio does not have a cover...
-        if (fmt_ctx->nb_streams != 2) {
-            MAW_LOGF(MAW_ERROR, "%s: Expected two streams: found %u\n",
+    else if (metadata->cover_policy == CLEAR_COVER) {
+        // No cover should be present
+        if (fmt_ctx->nb_streams != 1) {
+            MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u\n",
                      filepath, fmt_ctx->nb_streams);
             goto end;
         }
         ok = true;
     }
+    else if (metadata->cover_policy == CROP_COVER && fmt_ctx->nb_streams == 2) {
+        // TODO: Verify the dimensions of the cover (if one exists)
+        ok = false;
+    }
     else {
-        // No cover should be present
-        if (fmt_ctx->nb_streams != 1) {
-            MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u\n",
+        // Original cover should still be present (this could mean no cover)
+        // we only check the stream count, we do not know what the original data looked like
+        if (fmt_ctx->nb_streams != 1 && fmt_ctx->nb_streams != 2) {
+            MAW_LOGF(MAW_ERROR, "%s: Unexpected number of streams: found %u\n",
                      filepath, fmt_ctx->nb_streams);
             goto end;
         }

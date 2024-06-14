@@ -5,7 +5,6 @@
 
 #include <string.h>
 
-// TODO: no cover art, verifcation fails
 bool test_dual_audio(const char *desc) {
     int r;
     const char *path = "./.testenv/unit/dual_audio.mp4";

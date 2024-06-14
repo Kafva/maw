@@ -3,7 +3,7 @@ Music library manager
 
 ```bash
 # Install dependences
-brew install libyaml ffmpeg
+brew install libyaml ffmpeg nasm
 
 # Build options:
 #   DEBUG=1:    Build with debug configuration, dependencies are also built

@@ -15,6 +15,14 @@
 
 #include <unistd.h>
 
+#define MAW_CREATE_FILTER(filter_ctx, filter, name, filter_graph, args) do { \
+    r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, *filter_graph); \
+    if (r != 0) { \
+        MAW_AVERROR(r, "Failed to create filter"); \
+        goto end; \
+    } \
+    MAW_LOGF(MAW_DEBUG, "Created %s filter: %s\n", name, args);\
+} while (0)
 
 static int maw_demux_cover(AVFormatContext **cover_fmt_ctx,
                            AVFormatContext *output_fmt_ctx,
@@ -86,9 +94,8 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     const AVFilter *crop_filter = NULL;
     const AVFilter *buffersrc_filter  = NULL;
     const AVFilter *buffersink_filter = NULL;
-    const char *crop_filter_args = NULL;
     char args[512];
-    enum AVPixelFormat pix_fmts[2] = { AV_PIX_FMT_RGB24, AV_PIX_FMT_NONE };
+    int x_offset;
 
     if (video_input_stream_index == -1) {
         // The validity should already have been checked during demux
@@ -111,7 +118,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         goto end;
     }
 
-    // Buffer video source: the decoded frames from the decoder will be inserted here.
+    // Input filter source: the decoded frames from the decoder will be inserted here.
     r = snprintf(args, sizeof(args),
                  "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
                  dec_codec_ctx->width, dec_codec_ctx->height, dec_codec_ctx->pix_fmt,
@@ -122,31 +129,22 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         MAW_LOG(MAW_ERROR, "snprintf error/truncation");
         goto end;
     }
+    MAW_CREATE_FILTER(filter_buffersrc_ctx, buffersrc_filter, "in", filter_graph, args);
 
-    r = avfilter_graph_create_filter(filter_buffersrc_ctx, buffersrc_filter, "in",
-                                     args, NULL, *filter_graph);
-    if (r != 0) {
-        MAW_AVERROR(r, "Failed to create input buffer filter");
+    // Crop filter: frames are cropped at this stage
+    x_offset = (CROP_ACCEPTED_WIDTH - CROP_DESIRED_WIDTH) / 2;
+    r = snprintf(args, sizeof(args), "w=%d:h=%d:x=%d:y=0", 
+                 CROP_DESIRED_WIDTH, CROP_DESIRED_HEIGHT, x_offset);
+
+    if (r < 0 || r >= (int)sizeof(args)) {
+        MAW_LOG(MAW_ERROR, "snprintf error/truncation");
         goto end;
     }
-    MAW_LOGF(MAW_DEBUG, "Created input buffer filter: %s\n", args);
-
-    r = avfilter_graph_create_filter(filter_buffersink_ctx, buffersink_filter, "out",
-                                     NULL, NULL, *filter_graph);
-    if (r != 0) {
-        MAW_AVERROR(r, "Failed to create output buffer filter");
-        goto end;
-    }
-    MAW_LOG(MAW_DEBUG, "Created output buffer filter: (no args)\n");
-
-    crop_filter_args = "w=720:h=720:x=280:y=0";
-    r = avfilter_graph_create_filter(filter_crop_ctx, crop_filter, "crop",
-                                     crop_filter_args, NULL, *filter_graph);
-    if (r != 0) {
-        MAW_AVERROR(r, "Failed to create crop filter");
-        goto end;
-    }
-    MAW_LOGF(MAW_DEBUG, "Created crop filter: %s\n", crop_filter_args);
+    MAW_CREATE_FILTER(filter_crop_ctx, crop_filter, "crop", filter_graph, args);
+    
+    // Output filter sink
+    args[0] = '\0'; // (no args)
+    MAW_CREATE_FILTER(filter_buffersink_ctx, buffersink_filter, "out", filter_graph, args);
 
     r = avfilter_link(*filter_buffersrc_ctx, 0, *filter_crop_ctx, 0);
     if (r != 0) {

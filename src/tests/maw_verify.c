@@ -47,7 +47,6 @@ end:
     return ok;
 }
 
-
 bool maw_verify(const char *filepath,
                 const Metadata *metadata) {
     bool ok = false;

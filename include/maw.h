@@ -3,6 +3,12 @@
 
 #include <stdbool.h>
 
+
+#define CROP_ACCEPTED_WIDTH 1280
+#define CROP_ACCEPTED_HEIGHT 720
+#define CROP_DESIRED_WIDTH 720
+#define CROP_DESIRED_HEIGHT 720
+
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
     // Keep original cover art unless a custom `cover_path` is given (default)

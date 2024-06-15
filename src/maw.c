@@ -1,4 +1,5 @@
 #include "maw.h"
+#include "libavutil/rational.h"
 #include "log.h"
 
 #include <libavcodec/avcodec.h>
@@ -150,29 +151,19 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     }
     MAW_LOG(MAW_DEBUG, "Created output buffer filter\n");
 
-
-    /*
-     * Set the endpoints for the filter graph. The filter_graph will
-     * be linked to the graph described by filters_descr.
-     */
-
-    /*
-     * The buffer source output must be connected to the input pad of
-     * the first filter described by filters_descr; since the first
-     * filter input label is not specified, it is set to "in" by
-     * default.
-     */
+    // The buffer source output must be connected to the input pad of
+    // the first filter described by filters_descr; since the first
+    // filter input label is not specified, it is set to "in" by
+    // default.
     outputs->name       = av_strdup("in");
     outputs->filter_ctx = *filtersrc_ctx;
     outputs->pad_idx    = 0;
     outputs->next       = NULL;
 
-    /*
-     * The buffer sink input must be connected to the output pad of
-     * the last filter described by filters_descr; since the last
-     * filter output label is not specified, it is set to "out" by
-     * default.
-     */
+    // The buffer sink input must be connected to the output pad of
+    // the last filter described by filters_descr; since the last
+    // filter output label is not specified, it is set to "out" by
+    // default.
     inputs->name       = av_strdup("out");
     inputs->filter_ctx = *filtersink_ctx;
     inputs->pad_idx    = 0;
@@ -411,7 +402,8 @@ static int maw_mux(const char *input_filepath,
                    int video_input_stream_index,
                    AVFilterContext *filtersrc_ctx,
                    AVFilterContext *filtersink_ctx,
-                   AVCodecContext *dec_codec_ctx) {
+                   AVCodecContext *dec_codec_ctx,
+                   AVCodecContext *enc_codec_ctx) {
     int r = INTERNAL_ERROR;
     int prev_stream_index = -1;
     int output_stream_index = -1;
@@ -424,9 +416,14 @@ static int maw_mux(const char *input_filepath,
     AVPacket *filtered_pkt = NULL;
     AVFrame *frame = NULL;
     AVFrame *filtered_frame = NULL;
-    AVCodecContext *enc_codec_ctx = NULL;
-    enum AVCodecID codec_id;
-    const AVCodec *enc_codec = NULL;
+    FILE* fp;
+
+
+    // if (metadata->cover_policy == CROP_COVER) {
+    //     // XXX
+    //     output_fmt_ctx->streams[1]->codecpar->width = 720;
+    //     output_fmt_ctx->streams[1]->codecpar->height = 720;
+    // }
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
@@ -441,8 +438,7 @@ static int maw_mux(const char *input_filepath,
     }
 
     pkt = av_packet_alloc();
-    filtered_pkt = av_packet_alloc();
-    if (pkt == NULL || filtered_pkt == NULL) {
+    if (pkt == NULL) {
         MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet\n", output_filepath);
         goto end;
     }
@@ -450,9 +446,10 @@ static int maw_mux(const char *input_filepath,
     if (metadata->cover_policy == CROP_COVER) {
         frame = av_frame_alloc();
         filtered_frame = av_frame_alloc();
-        if (frame == NULL || filtered_frame == NULL) {
+        filtered_pkt = av_packet_alloc();
+        if (frame == NULL || filtered_frame == NULL || filtered_pkt == NULL) {
             r = AVERROR(ENOMEM);
-            MAW_AVERROR(r, "Failed to initialize frames");
+            MAW_AVERROR(r, "Failed to initialize filter structures");
             goto end;
         }
     }
@@ -500,29 +497,6 @@ static int maw_mux(const char *input_filepath,
         if (pkt->stream_index == video_input_stream_index &&
             (metadata->cover_policy == CROP_COVER)) {
 
-            // Create an encoder context, we need this to translate the output frames
-            // from the filtergraph back into packets
-            codec_id = output_fmt_ctx->streams[1]->codecpar->codec_id;
-            enc_codec = avcodec_find_encoder(codec_id);
-            if (enc_codec == NULL) {
-                MAW_LOG(MAW_ERROR, "Failed to find encoder");
-                goto end;
-            }
-
-            enc_codec_ctx = avcodec_alloc_context3(NULL);
-            if (enc_codec_ctx == NULL) {
-                r = AVERROR(ENOMEM);
-                MAW_AVERROR(r, "Failed to allocate encoder context");
-                goto end;
-            }
-
-            enc_codec_ctx->time_base = (AVRational){1, 1};
-            r = avcodec_open2(enc_codec_ctx, enc_codec, NULL);
-            if (r != 0) {
-                MAW_AVERROR(r, "Failed to open encoder context");
-                goto end;
-            }
-
             // Send the packet to the decoder
             r = avcodec_send_packet(dec_codec_ctx, pkt);
             if (r != 0) {
@@ -531,18 +505,12 @@ static int maw_mux(const char *input_filepath,
             }
             // Read the decoded frame
             r = avcodec_receive_frame(dec_codec_ctx, frame);
-            switch (r) {
-                case 0:
-                    break; // OK
-                case AVERROR_EOF:
-                    MAW_LOG(MAW_DEBUG, "OK: all frames read");
-                    break;
-                case AVERROR(EAGAIN):
-                    MAW_LOG(MAW_DEBUG, "!!!: there may be more frames to read");
-                    break;
-                default:
-                    MAW_AVERROR(r, "Failed to decode packet");
-                    goto end;
+            if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
+                break;
+            }
+            else if (r != 0) {
+                MAW_AVERROR(r, "Failed to read decoded frame");
+                goto end;
             }
 
             // Push the frame into the filter graph
@@ -558,18 +526,12 @@ static int maw_mux(const char *input_filepath,
             // Pull filtered frames from the filtergraph
             while (true) {
                 r = av_buffersink_get_frame(filtersink_ctx, filtered_frame);
-                switch (r) {
-                    case 0:
-                        break; // OK
-                    case AVERROR_EOF:
-                        MAW_LOG(MAW_DEBUG, "OK: all frames read");
-                        break;
-                    case AVERROR(EAGAIN):
-                        MAW_LOG(MAW_DEBUG, "!!!: there may be more frames to read");
-                        break;
-                    default:
-                        MAW_AVERROR(r, "Failed to read filtered frame");
-                        goto end;
+                if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
+                    break;
+                }
+                else if (r != 0) {
+                    MAW_AVERROR(r, "Failed to read filtered frame");
+                    goto end;
                 }
 
                 // Encode the frame into a packet
@@ -578,24 +540,27 @@ static int maw_mux(const char *input_filepath,
                     MAW_AVERROR(r, "Error sending frame to encoder");
                     goto end;
                 }
-
                 // Read back the encoded packet
                 r = avcodec_receive_packet(enc_codec_ctx, filtered_pkt);
-                switch (r) {
-                    case 0:
-                        break; // OK
-                    case AVERROR_EOF:
-                        MAW_LOG(MAW_DEBUG, "OK: all packets read");
-                        break;
-                    case AVERROR(EAGAIN):
-                        MAW_LOG(MAW_DEBUG, "!!!: there may be more packets to read");
-                        break;
-                    default:
-                        MAW_AVERROR(r, "Failed to read encoded packet");
-                        goto end;
+                if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
+                    break;
+                }
+                else if (r != 0) {
+                    MAW_AVERROR(r, "Failed to read filtered packet");
+                    goto end;
                 }
 
                 // Write the encoded packet to the output stream
+                filtered_pkt->pos = -1;
+                filtered_pkt->pts = AV_NOPTS_VALUE;
+                filtered_pkt->duration = 0;
+                filtered_pkt->stream_index = 1;
+
+                // TODO DEBUG
+                fp = fopen("test.png", "w");
+                r = fwrite(filtered_pkt->data, filtered_pkt->size, 1, fp);
+                r = fclose(fp);
+
                 r = av_interleaved_write_frame(output_fmt_ctx, filtered_pkt);
                 if (r != 0) {
                     MAW_AVERROR(r, "Failed to mux packet");
@@ -683,8 +648,10 @@ static int maw_remux(const char *input_filepath,
     int audio_input_stream_index = -1;
     int video_input_stream_index = -1;
     AVCodecContext *dec_codec_ctx = NULL;
+    AVCodecContext *enc_codec_ctx = NULL;
     AVStream *stream = NULL;
     const AVCodec *dec_codec = NULL;
+    const AVCodec *enc_codec = NULL;
     enum AVCodecID codec_id;
 
     r = maw_demux_media(input_filepath,
@@ -758,6 +725,36 @@ static int maw_remux(const char *input_filepath,
             if (r != 0)
                 goto end;
         }
+
+        // Create an encoder context, we need this to translate the output frames
+        // from the filtergraph back into packets
+        enc_codec = avcodec_find_encoder(codec_id);
+        if (enc_codec == NULL) {
+            MAW_LOG(MAW_ERROR, "Failed to find encoder");
+            goto end;
+        }
+
+        enc_codec_ctx = avcodec_alloc_context3(enc_codec);
+        if (enc_codec_ctx == NULL) {
+            r = AVERROR(ENOMEM);
+            MAW_AVERROR(r, "Failed to allocate encoder context");
+            goto end;
+        }
+
+        enc_codec_ctx->time_base = (AVRational){1,1};
+        enc_codec_ctx->framerate = input_fmt_ctx->streams[video_input_stream_index]->codecpar->framerate;
+        enc_codec_ctx->max_b_frames = 1;
+        // Use the same dimensions as the output stream
+        enc_codec_ctx->width = output_fmt_ctx->streams[1]->codecpar->width;
+        enc_codec_ctx->height = output_fmt_ctx->streams[1]->codecpar->height;
+        // Use the same pix_fmt as the decoder
+        enc_codec_ctx->pix_fmt = dec_codec_ctx->pix_fmt;
+
+        r = avcodec_open2(enc_codec_ctx, enc_codec, NULL);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to open encoder context");
+            goto end;
+        }
     }
 
     // The metadata for artist etc. is in the AVFormatContext, streams also have
@@ -779,7 +776,8 @@ static int maw_remux(const char *input_filepath,
                 video_input_stream_index,
                 filtersrc_ctx,
                 filtersink_ctx,
-                dec_codec_ctx);
+                dec_codec_ctx,
+                enc_codec_ctx);
     if (r != 0)
         goto end;
 
@@ -802,6 +800,7 @@ end:
         avformat_free_context(output_fmt_ctx);
     }
 
+    avcodec_free_context(&enc_codec_ctx);
     avcodec_free_context(&dec_codec_ctx);
     avfilter_graph_free(&filter_graph);
     return r;

@@ -77,16 +77,15 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
                                  int video_input_stream_index,
                                  AVCodecContext *dec_codec_ctx,
                                  AVFilterGraph **filter_graph,
-                                 AVFilterContext **filtersrc_ctx,
-                                 AVFilterContext **filtersink_ctx) {
+                                 AVFilterContext **filter_buffersrc_ctx,
+                                 AVFilterContext **filter_crop_ctx,
+                                 AVFilterContext **filter_buffersink_ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     const AVFilter *crop_filter = NULL;
     const AVFilter *buffersrc_filter  = NULL;
     const AVFilter *buffersink_filter = NULL;
-    AVFilterInOut *outputs = NULL;
-    AVFilterInOut *inputs  = NULL;
     const char *crop_filter_args = NULL;
     char args[512];
     enum AVPixelFormat pix_fmts[2] = { AV_PIX_FMT_RGB24, AV_PIX_FMT_NONE };
@@ -102,15 +101,11 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     buffersrc_filter  = avfilter_get_by_name("buffer");
     buffersink_filter = avfilter_get_by_name("buffersink");
     crop_filter = avfilter_get_by_name("crop");
-    outputs = avfilter_inout_alloc();
-    inputs  = avfilter_inout_alloc();
 
     if (filter_graph == NULL ||
         buffersrc_filter == NULL ||
         buffersink_filter == NULL ||
-        crop_filter == NULL ||
-        outputs == NULL ||
-        inputs == NULL) {
+        crop_filter == NULL) {
         r = AVERROR(ENOMEM);
         MAW_AVERROR(r, "Failed to initialize crop filter");
         goto end;
@@ -128,7 +123,7 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         goto end;
     }
 
-    r = avfilter_graph_create_filter(filtersrc_ctx, buffersrc_filter, "in",
+    r = avfilter_graph_create_filter(filter_buffersrc_ctx, buffersrc_filter, "in",
                                      args, NULL, *filter_graph);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to create input buffer filter");
@@ -136,44 +131,31 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
     }
     MAW_LOGF(MAW_DEBUG, "Created input buffer filter: %s\n", args);
 
-    r = avfilter_graph_create_filter(filtersink_ctx, buffersink_filter, "out",
+    r = avfilter_graph_create_filter(filter_buffersink_ctx, buffersink_filter, "out",
                                      NULL, NULL, *filter_graph);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to create output buffer filter");
         goto end;
     }
-
-    r = av_opt_set_int_list(*filtersink_ctx, "pix_fmts", pix_fmts,
-                            AV_PIX_FMT_NONE, AV_OPT_SEARCH_CHILDREN);
-    if (r != 0) {
-        MAW_AVERROR(r, "Failed to set output pixel format\n");
-        goto end;
-    }
     MAW_LOG(MAW_DEBUG, "Created output buffer filter\n");
 
-    // The buffer source output must be connected to the input pad of
-    // the first filter described by filters_descr; since the first
-    // filter input label is not specified, it is set to "in" by
-    // default.
-    outputs->name       = av_strdup("in");
-    outputs->filter_ctx = *filtersrc_ctx;
-    outputs->pad_idx    = 0;
-    outputs->next       = NULL;
-
-    // The buffer sink input must be connected to the output pad of
-    // the last filter described by filters_descr; since the last
-    // filter output label is not specified, it is set to "out" by
-    // default.
-    inputs->name       = av_strdup("out");
-    inputs->filter_ctx = *filtersink_ctx;
-    inputs->pad_idx    = 0;
-    inputs->next       = NULL;
-
-    crop_filter_args = "crop=w=720:h=720:x=280:y=0,format=rgb24";
-    r = avfilter_graph_parse_ptr(*filter_graph, crop_filter_args,
-                                 &inputs, &outputs, NULL);
+    crop_filter_args = "w=720:h=720:x=280:y=0"; // ,format=rgb24
+    r = avfilter_graph_create_filter(filter_crop_ctx, crop_filter, "crop",
+                                     crop_filter_args, NULL, *filter_graph);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to parse filter arguments");
+        MAW_AVERROR(r, "Failed to create crop filter");
+        goto end;
+    }
+    MAW_LOG(MAW_DEBUG, "Created crop filter\n");
+
+    r = avfilter_link(*filter_buffersrc_ctx, 0, *filter_crop_ctx, 0);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to link filters");
+        goto end;
+    }
+    r = avfilter_link(*filter_crop_ctx, 0, *filter_buffersink_ctx, 0);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to link filters");
         goto end;
     }
 
@@ -196,8 +178,6 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
 
     r = 0;
 end:
-    avfilter_inout_free(&inputs);
-    avfilter_inout_free(&outputs);
     return r;
 }
 
@@ -400,8 +380,8 @@ static int maw_mux(const char *input_filepath,
                    AVFormatContext *output_fmt_ctx,
                    int audio_input_stream_index,
                    int video_input_stream_index,
-                   AVFilterContext *filtersrc_ctx,
-                   AVFilterContext *filtersink_ctx,
+                   AVFilterContext *filter_buffersrc_ctx,
+                   AVFilterContext *filter_buffersink_ctx,
                    AVCodecContext *dec_codec_ctx,
                    AVCodecContext *enc_codec_ctx) {
     int r = INTERNAL_ERROR;
@@ -419,11 +399,11 @@ static int maw_mux(const char *input_filepath,
     FILE* fp;
 
 
-    // if (metadata->cover_policy == CROP_COVER) {
-    //     // XXX
-    //     output_fmt_ctx->streams[1]->codecpar->width = 720;
-    //     output_fmt_ctx->streams[1]->codecpar->height = 720;
-    // }
+    if (metadata->cover_policy == CROP_COVER) {
+        // XXX
+        output_fmt_ctx->streams[1]->codecpar->width = 720;
+        output_fmt_ctx->streams[1]->codecpar->height = 720;
+    }
 
     r = avio_open(&output_fmt_ctx->pb, output_filepath, AVIO_FLAG_WRITE);
     if (r != 0) {
@@ -514,7 +494,7 @@ static int maw_mux(const char *input_filepath,
             }
 
             // Push the frame into the filter graph
-            r = av_buffersrc_add_frame_flags(filtersrc_ctx,
+            r = av_buffersrc_add_frame_flags(filter_buffersrc_ctx,
                                              frame,
                                              AV_BUFFERSRC_FLAG_KEEP_REF);
             if (r != 0) {
@@ -525,7 +505,7 @@ static int maw_mux(const char *input_filepath,
 
             // Pull filtered frames from the filtergraph
             while (true) {
-                r = av_buffersink_get_frame(filtersink_ctx, filtered_frame);
+                r = av_buffersink_get_frame(filter_buffersink_ctx, filtered_frame);
                 if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
                     break;
                 }
@@ -643,8 +623,9 @@ static int maw_remux(const char *input_filepath,
     AVFormatContext *output_fmt_ctx = NULL;
     AVFormatContext *cover_fmt_ctx = NULL;
     AVFilterGraph *filter_graph = NULL;
-    AVFilterContext *filtersrc_ctx = NULL;
-    AVFilterContext *filtersink_ctx = NULL;
+    AVFilterContext *filter_buffersrc_ctx = NULL;
+    AVFilterContext *filter_crop_ctx = NULL;
+    AVFilterContext *filter_buffersink_ctx = NULL;
     int audio_input_stream_index = -1;
     int video_input_stream_index = -1;
     AVCodecContext *dec_codec_ctx = NULL;
@@ -720,8 +701,9 @@ static int maw_remux(const char *input_filepath,
                                       video_input_stream_index,
                                       dec_codec_ctx,
                                       &filter_graph,
-                                      &filtersrc_ctx,
-                                      &filtersink_ctx);
+                                      &filter_buffersrc_ctx,
+                                      &filter_crop_ctx,
+                                      &filter_buffersink_ctx);
             if (r != 0)
                 goto end;
         }
@@ -745,8 +727,8 @@ static int maw_remux(const char *input_filepath,
         enc_codec_ctx->framerate = input_fmt_ctx->streams[video_input_stream_index]->codecpar->framerate;
         enc_codec_ctx->max_b_frames = 1;
         // Use the same dimensions as the output stream
-        enc_codec_ctx->width = output_fmt_ctx->streams[1]->codecpar->width;
-        enc_codec_ctx->height = output_fmt_ctx->streams[1]->codecpar->height;
+        enc_codec_ctx->width =  720; //output_fmt_ctx->streams[1]->codecpar->width;
+        enc_codec_ctx->height = 720; //output_fmt_ctx->streams[1]->codecpar->height;
         // Use the same pix_fmt as the decoder
         enc_codec_ctx->pix_fmt = dec_codec_ctx->pix_fmt;
 
@@ -774,8 +756,8 @@ static int maw_remux(const char *input_filepath,
                 output_fmt_ctx,
                 audio_input_stream_index,
                 video_input_stream_index,
-                filtersrc_ctx,
-                filtersink_ctx,
+                filter_buffersrc_ctx,
+                filter_buffersink_ctx,
                 dec_codec_ctx,
                 enc_codec_ctx);
     if (r != 0)

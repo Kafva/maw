@@ -4,6 +4,7 @@
 
 # https://trac.ffmpeg.org/wiki/Map
 # https://video.stackexchange.com/a/4571
+# https://ffmpeg.org/ffmpeg-filters.html
 # Extract cropped cover
 #   ffmpeg -y -i esc.m4a -an -frames:v 1 -filter:v "crop=w=720:h=720:x=280:y=0" output.png
 

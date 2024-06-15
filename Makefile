@@ -55,7 +55,11 @@ endif
 # Release/debug only flags
 ifeq ($(DEBUG),1)
 CFLAGS            += -g
+ifeq ($(UNAME),darwin)
 CFLAGS            += -O0
+else
+CFLAGS            += -Og
+endif
 CFLAGS            += -Wno-unused
 CFLAGS            += -Wno-unused-parameter
 CFLAGS            += -fsanitize=address

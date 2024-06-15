@@ -36,16 +36,16 @@ enum MediaError {
 } typedef MediaError;
 
 struct Metadata {
-    char *title;
-    char *album;
-    char *artist;
-    char *cover_path;
+    const char *filepath;
+    const char *title;
+    const char *album;
+    const char *artist;
+    const char *cover_path;
     CoverPolicy cover_policy;
     bool clear_non_core_fields;
 } typedef Metadata;
 
 struct MawContext {
-   const char *input_filepath;
    const char *output_filepath;
    const Metadata *metadata;
    AVFormatContext *input_fmt_ctx;
@@ -61,7 +61,7 @@ struct MawContext {
    AVCodecContext *enc_codec_ctx;
 } typedef MawContext;
 
-int maw_update(const char *, const Metadata *);
+int maw_update(const Metadata *);
 
 
 #define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \

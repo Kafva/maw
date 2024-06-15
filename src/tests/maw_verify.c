@@ -4,8 +4,7 @@
 #include "utils.h"
 
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
-                      const char *filepath,
-                      const Metadata *metadata) {
+                             const Metadata *metadata) {
     int r;
     char cover_data[BUFSIZ];
     AVStream *stream = NULL;
@@ -21,13 +20,13 @@ static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
 
     if (fmt_ctx->nb_streams != 2) {
         MAW_LOGF(MAW_ERROR, "%s: Expected two streams: found %u\n",
-                 filepath, fmt_ctx->nb_streams);
+                 metadata->filepath, fmt_ctx->nb_streams);
         goto end;
     }
 
     stream = fmt_ctx->streams[1];
     if (stream->attached_pic.data == NULL) {
-        MAW_LOGF(MAW_ERROR, "%s: video stream is empty\n", filepath);
+        MAW_LOGF(MAW_ERROR, "%s: video stream is empty\n", metadata->filepath);
         goto end;
     }
     if (stream->attached_pic.size != read_bytes) {
@@ -48,20 +47,19 @@ end:
     return ok;
 }
 
-bool maw_verify(const char *filepath,
-                const Metadata *metadata) {
+bool maw_verify(const Metadata *metadata) {
     bool ok = false;
     int r;
     AVFormatContext *fmt_ctx = NULL;
     const AVDictionaryEntry *entry = NULL;
 
-    if ((r = avformat_open_input(&fmt_ctx, filepath, NULL, NULL))) {
-        MAW_AVERROR(r, filepath);
+    if ((r = avformat_open_input(&fmt_ctx, metadata->filepath, NULL, NULL))) {
+        MAW_AVERROR(r, metadata->filepath);
         goto end;
     }
 
     if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-        MAW_AVERROR(r, filepath);
+        MAW_AVERROR(r, metadata->filepath);
         goto end;
     }
 
@@ -91,7 +89,7 @@ bool maw_verify(const char *filepath,
 
     if (metadata->cover_path != NULL) {
         // Configured cover should be present
-        if (!maw_verify_cover(fmt_ctx, filepath, metadata)) {
+        if (!maw_verify_cover(fmt_ctx, metadata)) {
             goto end;
         }
     }
@@ -99,16 +97,16 @@ bool maw_verify(const char *filepath,
         // No cover should be present
         if (fmt_ctx->nb_streams != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u\n",
-                     filepath, fmt_ctx->nb_streams);
+                     metadata->filepath, fmt_ctx->nb_streams);
             goto end;
         }
     }
     else if (metadata->cover_policy == CROP_COVER && fmt_ctx->nb_streams == 2) {
-        if (!(fmt_ctx->streams[1]->codecpar->width == CROP_DESIRED_WIDTH &&
-              fmt_ctx->streams[1]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
+        if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width == CROP_DESIRED_WIDTH &&
+              fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
             MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d\n",
-                     filepath, fmt_ctx->streams[1]->codecpar->width,
-                               fmt_ctx->streams[1]->codecpar->height);
+                     metadata->filepath, fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
+                                         fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height);
             goto end;
         }
     }
@@ -117,7 +115,7 @@ bool maw_verify(const char *filepath,
         // we only check the stream count, we do not know what the original data looked like
         if (fmt_ctx->nb_streams != 1 && fmt_ctx->nb_streams != 2) {
             MAW_LOGF(MAW_ERROR, "%s: Unexpected number of streams: found %u\n",
-                     filepath, fmt_ctx->nb_streams);
+                     metadata->filepath, fmt_ctx->nb_streams);
             goto end;
         }
     }

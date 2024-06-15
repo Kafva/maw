@@ -9,6 +9,6 @@
 #define LHS_EMPTY_OR_EQ(lhs, rhs) \
     (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
 
-bool maw_verify(const char *, const Metadata *);
+bool maw_verify(const Metadata *);
 
 #endif

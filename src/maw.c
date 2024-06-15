@@ -15,15 +15,6 @@
 
 #include <unistd.h>
 
-#define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \
-    r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, filter_graph); \
-    if (r != 0) { \
-        MAW_AVERROR(r, "Failed to create filter"); \
-        goto end; \
-    } \
-    MAW_LOGF(MAW_DEBUG, "Created %s filter: %s\n", name, args);\
-} while (0)
-
 static int maw_demux_cover(MawContext *ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
@@ -77,11 +68,10 @@ end:
     return r;
 }
 
-static int maw_filter_crop_cover(MawContext *ctx,
-                                 AVFilterGraph **filter_graph) {
+static int maw_filter_crop_cover(MawContext *ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
-    AVFilterContext *filter_crop_ctx;
+    AVFilterContext *filter_crop_ctx = NULL;
     const AVFilter *crop_filter = NULL;
     const AVFilter *buffersrc_filter  = NULL;
     const AVFilter *buffersink_filter = NULL;
@@ -93,13 +83,18 @@ static int maw_filter_crop_cover(MawContext *ctx,
         goto end;
     }
 
-    *filter_graph = avfilter_graph_alloc();
+    ctx->filter_graph = avfilter_graph_alloc();
+    if (ctx == NULL) {
+        r = AVERROR(ENOMEM);
+        MAW_AVERROR(r, "Failed to allocate filter graph context");
+        goto end;
+    }
+
     buffersrc_filter  = avfilter_get_by_name("buffer");
     buffersink_filter = avfilter_get_by_name("buffersink");
     crop_filter = avfilter_get_by_name("crop");
 
-    if (filter_graph == NULL ||
-        buffersrc_filter == NULL ||
+    if (buffersrc_filter == NULL ||
         buffersink_filter == NULL ||
         crop_filter == NULL) {
         r = AVERROR(ENOMEM);
@@ -118,7 +113,7 @@ static int maw_filter_crop_cover(MawContext *ctx,
         MAW_LOG(MAW_ERROR, "snprintf error/truncation");
         goto end;
     }
-    MAW_CREATE_FILTER(r, &(ctx->filter_buffersrc_ctx), buffersrc_filter, "in", *filter_graph, args);
+    MAW_CREATE_FILTER(r, &(ctx->filter_buffersrc_ctx), buffersrc_filter, "in", ctx->filter_graph, args);
 
     // Crop filter: frames are cropped at this stage
     x_offset = (CROP_ACCEPTED_WIDTH - CROP_DESIRED_WIDTH) / 2;
@@ -129,11 +124,10 @@ static int maw_filter_crop_cover(MawContext *ctx,
         MAW_LOG(MAW_ERROR, "snprintf error/truncation");
         goto end;
     }
-    MAW_CREATE_FILTER(r, &filter_crop_ctx, crop_filter, "crop", *filter_graph, args);
+    MAW_CREATE_FILTER(r, &filter_crop_ctx, crop_filter, "crop", ctx->filter_graph, args);
 
     // Output filter sink
-    args[0] = '\0'; // (no args)
-    MAW_CREATE_FILTER(r, &(ctx->filter_buffersink_ctx), buffersink_filter, "out", *filter_graph, args);
+    MAW_CREATE_FILTER(r, &(ctx->filter_buffersink_ctx), buffersink_filter, "out", ctx->filter_graph, (char*)NULL);
 
     r = avfilter_link(ctx->filter_buffersrc_ctx, 0, filter_crop_ctx, 0);
     if (r != 0) {
@@ -146,7 +140,7 @@ static int maw_filter_crop_cover(MawContext *ctx,
         goto end;
     }
 
-    r = avfilter_graph_config(*filter_graph, NULL);
+    r = avfilter_graph_config(ctx->filter_graph, NULL);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to configure filter graph");
         goto end;
@@ -551,7 +545,6 @@ end:
 // 1 audio stream + 0 video streams
 static int maw_remux(MawContext *ctx) {
     int r;
-    AVFilterGraph *filter_graph = NULL;
     const AVCodec *dec_codec = NULL;
     const AVCodec *enc_codec = NULL;
     enum AVCodecID codec_id;
@@ -610,7 +603,7 @@ static int maw_remux(MawContext *ctx) {
         else {
             MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter\n", ctx->input_filepath);
 
-            r = maw_filter_crop_cover(ctx, &filter_graph);
+            r = maw_filter_crop_cover(ctx);
             if (r != 0)
                 goto end;
 
@@ -660,7 +653,6 @@ static int maw_remux(MawContext *ctx) {
         goto end;
 
 end:
-    avfilter_graph_free(&filter_graph);
     return r;
 }
 
@@ -688,6 +680,7 @@ static void maw_free_context(MawContext *ctx) {
 
     avcodec_free_context(&ctx->enc_codec_ctx);
     avcodec_free_context(&ctx->dec_codec_ctx);
+    avfilter_graph_free(&ctx->filter_graph);
 
     free(ctx);
 }
@@ -721,6 +714,8 @@ static MawContext* maw_init_context(const char *input_filepath,
         goto end;
     }
 
+
+
     ctx = calloc(1, sizeof(MawContext));
     if (ctx == NULL) {
         r = AVERROR(ENOMEM);
@@ -736,6 +731,13 @@ static MawContext* maw_init_context(const char *input_filepath,
     ctx->metadata = metadata;
     ctx->input_filepath = input_filepath;
     ctx->output_filepath = output_filepath;
+    // Filtering variables
+    ctx->filter_graph = NULL;
+    ctx->filter_buffersrc_ctx = NULL;
+    ctx->filter_buffersink_ctx = NULL;
+    ctx->dec_codec_ctx = NULL;
+    ctx->enc_codec_ctx = NULL;
+
 
 end:
     return ctx;

@@ -15,6 +15,20 @@
 
 #include <unistd.h>
 
+static int maw_demux_cover(MawContext*);
+static int maw_filter_crop_cover(MawContext*);
+static int maw_copy_metadata_fields(AVFormatContext*, const Metadata*);
+static int maw_set_metadata(MawContext*);
+static int maw_demux(MawContext*);
+static int maw_mux(MawContext*);
+static int maw_init_dec_context(MawContext*);
+static int maw_init_enc_context(MawContext*);
+static int maw_remux(MawContext*);
+static void maw_free_context(MawContext*);
+static MawContext* maw_init_context(const char*, const char*, const Metadata*);
+
+////////////////////////////////////////////////////////////////////////////////
+
 static int maw_demux_cover(MawContext *ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
@@ -227,7 +241,7 @@ end:
 }
 
 // Video streams will only be demuxed if they are needed by the current policy
-static int maw_demux_media(MawContext *ctx) {
+static int maw_demux(MawContext *ctx) {
     int r = INTERNAL_ERROR;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
@@ -281,7 +295,6 @@ static int maw_demux_media(MawContext *ctx) {
         }
 
         ctx->video_input_stream_index = i;
-
 
         // Do not demux the original video stream if it is not needed
         if (!NEEDS_ORIGINAL_COVER(ctx->metadata)) {
@@ -360,6 +373,12 @@ static int maw_mux(MawContext *ctx) {
     }
 
     if (should_crop) {
+        // Create an encoder context, we need this to translate the output frames
+        // from the filtergraph back into packets
+        r = maw_init_enc_context(ctx);
+        if (r != 0)
+            goto end;
+
         frame = av_frame_alloc();
         filtered_frame = av_frame_alloc();
         filtered_pkt = av_packet_alloc();
@@ -539,57 +558,105 @@ end:
     return r;
 }
 
+static int maw_init_dec_context(MawContext *ctx) {
+    int r = INTERNAL_ERROR;
+    const AVCodec *dec_codec = NULL;
+
+    dec_codec = avcodec_find_decoder(VIDEO_INPUT_STREAM(ctx)->codecpar->codec_id);
+    if (dec_codec == NULL) {
+        MAW_LOG(MAW_ERROR, "Failed to find decoder");
+        goto end;
+    }
+
+    ctx->dec_codec_ctx = avcodec_alloc_context3(NULL);
+    if (ctx->dec_codec_ctx == NULL) {
+        r = AVERROR(ENOMEM);
+        MAW_AVERROR(r, "Failed to allocate decoder context");
+        goto end;
+    }
+
+    r = avcodec_parameters_to_context(ctx->dec_codec_ctx, VIDEO_INPUT_STREAM(ctx)->codecpar);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to copy codec parameters");
+        goto end;
+    }
+
+    r = avcodec_open2(ctx->dec_codec_ctx, dec_codec, NULL);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to open decoder context");
+        goto end;
+    }
+
+    MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d\n",
+         ctx->input_filepath, ctx->video_input_stream_index,
+         ctx->dec_codec_ctx->width, ctx->dec_codec_ctx->height,
+         av_get_pix_fmt_name(ctx->dec_codec_ctx->pix_fmt),
+         ctx->dec_codec_ctx->sample_aspect_ratio.num, ctx->dec_codec_ctx->sample_aspect_ratio.den);
+    r = 0;
+end:
+    return r;
+}
+
+static int maw_init_enc_context(MawContext *ctx) {
+    int r = INTERNAL_ERROR;
+    const AVCodec *enc_codec = NULL;
+
+    enc_codec = avcodec_find_encoder(VIDEO_INPUT_STREAM(ctx)->codecpar->codec_id);
+    if (enc_codec == NULL) {
+        MAW_LOG(MAW_ERROR, "Failed to find encoder");
+        goto end;
+    }
+
+    ctx->enc_codec_ctx = avcodec_alloc_context3(enc_codec);
+    if (ctx->enc_codec_ctx == NULL) {
+        r = AVERROR(ENOMEM);
+        MAW_AVERROR(r, "Failed to allocate encoder context");
+        goto end;
+    }
+
+    ctx->enc_codec_ctx->time_base = (AVRational){1,1};
+    ctx->enc_codec_ctx->framerate = VIDEO_INPUT_STREAM(ctx)->codecpar->framerate;
+    ctx->enc_codec_ctx->max_b_frames = 1;
+    // Use the same dimensions as the output stream
+    ctx->enc_codec_ctx->width = CROP_DESIRED_WIDTH;
+    ctx->enc_codec_ctx->height = CROP_DESIRED_HEIGHT;
+    // Use the same pix_fmt as the decoder
+    ctx->enc_codec_ctx->pix_fmt = ctx->dec_codec_ctx->pix_fmt;
+
+    r = avcodec_open2(ctx->enc_codec_ctx, enc_codec, NULL);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to open encoder context");
+        goto end;
+    }
+    r = 0;
+end:
+    return r;
+}
+
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 // The output should always have either:
 // 1 audio stream + 1 video stream
 // 1 audio stream + 0 video streams
 static int maw_remux(MawContext *ctx) {
-    int r;
-    const AVCodec *dec_codec = NULL;
-    const AVCodec *enc_codec = NULL;
-    enum AVCodecID codec_id;
+    int r = INTERNAL_ERROR;
 
-    r = maw_demux_media(ctx);
+    // * Find the indices of the video and audio stream and create
+    // corresponding output streams
+    r = maw_demux(ctx);
     if (r != 0)
         goto end;
 
     if (ctx->metadata->cover_path != NULL && strlen(ctx->metadata->cover_path) > 0) {
+        // * Find the input stream in the cover and create a corresponding output
+        // stream
         r = maw_demux_cover(ctx);
         if (r != 0)
             goto end;
     }
     else if (ctx->metadata->cover_policy == CROP_COVER) {
-        codec_id = VIDEO_INPUT_STREAM(ctx)->codecpar->codec_id;
-        dec_codec = avcodec_find_decoder(codec_id);
-        if (dec_codec == NULL) {
-            MAW_LOG(MAW_ERROR, "Failed to find decoder");
+        r = maw_init_dec_context(ctx);
+        if (r != 0)
             goto end;
-        }
-
-        ctx->dec_codec_ctx = avcodec_alloc_context3(NULL);
-        if (ctx->dec_codec_ctx == NULL) {
-            r = AVERROR(ENOMEM);
-            MAW_AVERROR(r, "Failed to allocate decoder context");
-            goto end;
-        }
-
-        r = avcodec_parameters_to_context(ctx->dec_codec_ctx, VIDEO_INPUT_STREAM(ctx)->codecpar);
-        if (r != 0) {
-            MAW_AVERROR(r, "Failed to copy codec parameters");
-            goto end;
-        }
-
-        r = avcodec_open2(ctx->dec_codec_ctx, dec_codec, NULL);
-        if (r != 0) {
-            MAW_AVERROR(r, "Failed to open decoder context");
-            goto end;
-        }
-
-        MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d\n",
-             ctx->input_filepath, ctx->video_input_stream_index,
-             ctx->dec_codec_ctx->width, ctx->dec_codec_ctx->height,
-             av_get_pix_fmt_name(ctx->dec_codec_ctx->pix_fmt),
-             ctx->dec_codec_ctx->sample_aspect_ratio.num, ctx->dec_codec_ctx->sample_aspect_ratio.den);
 
         if (ctx->dec_codec_ctx->width == CROP_DESIRED_WIDTH &&
             ctx->dec_codec_ctx->height == CROP_DESIRED_HEIGHT) {
@@ -603,51 +670,21 @@ static int maw_remux(MawContext *ctx) {
         else {
             MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter\n", ctx->input_filepath);
 
+            // Initialize a filter to crop the existing video stream
             r = maw_filter_crop_cover(ctx);
             if (r != 0)
                 goto end;
-
-            // Create an encoder context, we need this to translate the output frames
-            // from the filtergraph back into packets
-            enc_codec = avcodec_find_encoder(codec_id);
-            if (enc_codec == NULL) {
-                MAW_LOG(MAW_ERROR, "Failed to find encoder");
-                goto end;
-            }
-
-            ctx->enc_codec_ctx = avcodec_alloc_context3(enc_codec);
-            if (ctx->enc_codec_ctx == NULL) {
-                r = AVERROR(ENOMEM);
-                MAW_AVERROR(r, "Failed to allocate encoder context");
-                goto end;
-            }
-
-            ctx->enc_codec_ctx->time_base = (AVRational){1,1};
-            ctx->enc_codec_ctx->framerate = VIDEO_INPUT_STREAM(ctx)->codecpar->framerate;
-            ctx->enc_codec_ctx->max_b_frames = 1;
-            // Use the same dimensions as the output stream
-            ctx->enc_codec_ctx->width = CROP_DESIRED_WIDTH;
-            ctx->enc_codec_ctx->height = CROP_DESIRED_HEIGHT;
-            // Use the same pix_fmt as the decoder
-            ctx->enc_codec_ctx->pix_fmt = ctx->dec_codec_ctx->pix_fmt;
-
-            r = avcodec_open2(ctx->enc_codec_ctx, enc_codec, NULL);
-            if (r != 0) {
-                MAW_AVERROR(r, "Failed to open encoder context");
-                goto end;
-            }
         }
     }
 
-    // The metadata for artist etc. is in the AVFormatContext, streams also have
-    // a metadata field but these contain other stuff, e.g. audio streams can
-    // have 'language' and 'handler_name'
+    // * Configure metadata
     r = maw_set_metadata(ctx);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to copy metadata");
         goto end;
     }
 
+    // * Write the demuxed content back to disk
     r = maw_mux(ctx);
     if (r != 0)
         goto end;
@@ -714,8 +751,6 @@ static MawContext* maw_init_context(const char *input_filepath,
         goto end;
     }
 
-
-
     ctx = calloc(1, sizeof(MawContext));
     if (ctx == NULL) {
         r = AVERROR(ENOMEM);
@@ -737,8 +772,6 @@ static MawContext* maw_init_context(const char *input_filepath,
     ctx->filter_buffersink_ctx = NULL;
     ctx->dec_codec_ctx = NULL;
     ctx->enc_codec_ctx = NULL;
-
-
 end:
     return ctx;
 }

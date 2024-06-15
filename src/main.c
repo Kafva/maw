@@ -119,7 +119,6 @@ static int run_tests(const char *match_testcase) {
 
     fprintf(stdout, "0..%d\n", total - 1);
     for (i = 0; i < total; i++) {
-
         if (match_testcase != NULL) {
             r = strncasecmp(match_testcase, testcases[i].desc, strlen(match_testcase));
             if (r != 0) {

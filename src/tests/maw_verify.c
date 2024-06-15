@@ -1,5 +1,6 @@
 #include "tests/maw_verify.h"
 #include "log.h"
+#include "maw.h"
 #include "utils.h"
 
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
@@ -103,8 +104,8 @@ bool maw_verify(const char *filepath,
         }
     }
     else if (metadata->cover_policy == CROP_COVER && fmt_ctx->nb_streams == 2) {
-        if (!(fmt_ctx->streams[1]->codecpar->width == 720 &&
-              fmt_ctx->streams[1]->codecpar->height == 720)) {
+        if (!(fmt_ctx->streams[1]->codecpar->width == CROP_DESIRED_WIDTH &&
+              fmt_ctx->streams[1]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
             MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d\n",
                      filepath, fmt_ctx->streams[1]->codecpar->width, 
                                fmt_ctx->streams[1]->codecpar->height);

@@ -41,6 +41,12 @@ static void maw_log_prefix(enum LogLevel level, const char *filename, int line) 
 void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...) {
     va_list args;
 
+#ifdef MAW_TEST
+    // Be completely silent during tests unless we pass '-v'
+    if (!maw_verbose) {
+        return;
+    }
+#endif
     if (level == MAW_DEBUG && !maw_verbose) {
         return;
     }

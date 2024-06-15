@@ -128,6 +128,13 @@ bool test_crop_cover(const char *desc) {
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(path, &metadata);
     MAW_ASSERT_EQ(r, true, desc);
+
+    // Verify that a second update is idempotent
+    r = maw_update(path, &metadata);
+    MAW_ASSERT_EQ(r, 0, desc);
+    r = maw_verify(path, &metadata);
+    MAW_ASSERT_EQ(r, true, desc);
+
     return true;
 }
 

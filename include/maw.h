@@ -1,6 +1,9 @@
 #ifndef MAW_H
 #define MAW_H
 
+#include "libavcodec/avcodec.h"
+#include "libavfilter/avfilter.h"
+#include <libavformat/avformat.h>
 #include <stdbool.h>
 
 
@@ -38,6 +41,25 @@ struct Metadata {
     CoverPolicy cover_policy;
     bool clear_non_core_fields;
 } typedef Metadata;
+
+#define VIDEO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->video_input_stream_index]
+#define AUDIO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->audio_input_stream_index]
+
+struct MawContext {
+   const char *input_filepath;
+   const char *output_filepath;
+   const Metadata *metadata;
+   AVFormatContext *input_fmt_ctx;
+   AVFormatContext *cover_fmt_ctx;
+   AVFormatContext *output_fmt_ctx;
+   int audio_input_stream_index;
+   int video_input_stream_index;
+   // Filtering variables
+   AVFilterContext *filter_buffersrc_ctx;
+   AVFilterContext *filter_buffersink_ctx;
+   AVCodecContext *dec_codec_ctx;
+   AVCodecContext *enc_codec_ctx;
+} typedef MawContext;
 
 int maw_update(const char *, const Metadata *);
 

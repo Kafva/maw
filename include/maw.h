@@ -35,16 +35,4 @@ struct Metadata {
 
 int maw_update(const char *, const Metadata *);
 
-#ifdef MAW_TEST
-#include <libavformat/avformat.h>
-
-#define LHS_EMPTY_OR_EQ(lhs, rhs) \
-    (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
-
-bool maw_verify(const char *, const Metadata *);
-bool maw_verify_cover(const AVFormatContext *,
-                      const char *,
-                      const Metadata *);
-#endif
-
 #endif // MAW_H

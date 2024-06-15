@@ -1,6 +1,7 @@
 #include <libavutil/error.h>
 
 #include "tests/maw_test.h"
+#include "tests/maw_verify.h"
 #include "maw.h"
 
 #include <string.h>
@@ -127,7 +128,7 @@ bool test_crop_cover(const char *desc) {
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(path, &metadata);
     MAW_ASSERT_EQ(r, true, desc);
-    return false; // TODO
+    return true;
 }
 
 bool test_clear_cover(const char *desc) {

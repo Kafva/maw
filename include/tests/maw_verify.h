@@ -2,12 +2,13 @@
 #define TESTS_MAW_VERIFY_H
 
 #include <stdbool.h>
+#include <libavformat/avformat.h>
+
 #include "maw.h"
 
-bool maw_verify(const char *, const Metadata *);
+#define LHS_EMPTY_OR_EQ(lhs, rhs) \
+    (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
 
-bool maw_verify_cover(const AVFormatContext *,
-                      const char *,
-                      const Metadata *);
+bool maw_verify(const char *, const Metadata *);
 
 #endif

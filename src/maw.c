@@ -137,16 +137,16 @@ static int maw_filter_crop_cover(AVFormatContext *input_fmt_ctx,
         MAW_AVERROR(r, "Failed to create output buffer filter");
         goto end;
     }
-    MAW_LOG(MAW_DEBUG, "Created output buffer filter\n");
+    MAW_LOG(MAW_DEBUG, "Created output buffer filter: (no args)\n");
 
-    crop_filter_args = "w=720:h=720:x=280:y=0"; // ,format=rgb24
+    crop_filter_args = "w=720:h=720:x=280:y=0";
     r = avfilter_graph_create_filter(filter_crop_ctx, crop_filter, "crop",
                                      crop_filter_args, NULL, *filter_graph);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to create crop filter");
         goto end;
     }
-    MAW_LOG(MAW_DEBUG, "Created crop filter\n");
+    MAW_LOGF(MAW_DEBUG, "Created crop filter: %s\n", crop_filter_args);
 
     r = avfilter_link(*filter_buffersrc_ctx, 0, *filter_crop_ctx, 0);
     if (r != 0) {
@@ -204,9 +204,7 @@ end:
     return r;
 }
 
-/**
- * @return 0 on success, negative AVERROR code on failure.
- */
+// @return 0 on success, negative AVERROR code on failure.
 static int maw_set_metadata(AVFormatContext *input_fmt_ctx,
                             AVFormatContext *output_fmt_ctx,
                             const Metadata *metadata) {
@@ -396,8 +394,6 @@ static int maw_mux(const char *input_filepath,
     AVPacket *filtered_pkt = NULL;
     AVFrame *frame = NULL;
     AVFrame *filtered_frame = NULL;
-    FILE* fp;
-
 
     if (metadata->cover_policy == CROP_COVER) {
         // XXX
@@ -535,11 +531,6 @@ static int maw_mux(const char *input_filepath,
                 filtered_pkt->pts = AV_NOPTS_VALUE;
                 filtered_pkt->duration = 0;
                 filtered_pkt->stream_index = 1;
-
-                // TODO DEBUG
-                fp = fopen("test.png", "w");
-                r = fwrite(filtered_pkt->data, filtered_pkt->size, 1, fp);
-                r = fclose(fp);
 
                 r = av_interleaved_write_frame(output_fmt_ctx, filtered_pkt);
                 if (r != 0) {

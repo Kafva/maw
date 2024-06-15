@@ -25,7 +25,7 @@ bool test_dual_video(const char *);
 
 #define DEFINE_TESTCASES \
     struct Testcase testcases[] = { \
-        { .desc = "Default behaviour should keep everything as is",   .fn = test_keep_all }, \
+        { .desc = "Keep metadata and cover",                          .fn = test_keep_all }, \
         { .desc = "Clear non core fields",                            .fn = test_clear_non_core_fields }, \
         { .desc = "Clear cover",                                      .fn = test_clear_cover },  \
         { .desc = "Add cover",                                        .fn = test_add_cover },  \

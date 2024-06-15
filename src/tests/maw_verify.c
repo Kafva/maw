@@ -107,7 +107,7 @@ bool maw_verify(const char *filepath,
         if (!(fmt_ctx->streams[1]->codecpar->width == CROP_DESIRED_WIDTH &&
               fmt_ctx->streams[1]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
             MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d\n",
-                     filepath, fmt_ctx->streams[1]->codecpar->width, 
+                     filepath, fmt_ctx->streams[1]->codecpar->width,
                                fmt_ctx->streams[1]->codecpar->height);
             goto end;
         }

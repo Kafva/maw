@@ -65,7 +65,6 @@ static int maw_demux_cover(MawContext *ctx) {
         goto end;
     }
 
-    // Always create a new video stream for the output
     output_stream = avformat_new_stream(ctx->output_fmt_ctx, NULL);
 
     r = avcodec_parameters_copy(output_stream->codecpar,
@@ -84,7 +83,6 @@ end:
 
 static int maw_filter_crop_cover(MawContext *ctx) {
     int r = INTERNAL_ERROR;
-    AVStream *output_stream = NULL;
     AVFilterContext *filter_crop_ctx = NULL;
     const AVFilter *crop_filter = NULL;
     const AVFilter *buffersrc_filter  = NULL;
@@ -160,18 +158,10 @@ static int maw_filter_crop_cover(MawContext *ctx) {
         goto end;
     }
 
-    // Always create a new video stream for the output
-    output_stream = avformat_new_stream(ctx->output_fmt_ctx, NULL);
-
-    r = avcodec_parameters_copy(output_stream->codecpar, VIDEO_INPUT_STREAM(ctx)->codecpar);
-    if (r != 0) {
-        MAW_AVERROR(r, ctx->metadata->cover_path);
-        goto end;
-    }
-
-    output_stream->codecpar->width = CROP_DESIRED_WIDTH;
-    output_stream->codecpar->height = CROP_DESIRED_HEIGHT;
-    output_stream->disposition = AV_DISPOSITION_ATTACHED_PIC;
+    // Update relevant values in the output format
+    ctx->output_fmt_ctx->streams[1]->codecpar->width = CROP_DESIRED_WIDTH;
+    ctx->output_fmt_ctx->streams[1]->codecpar->height = CROP_DESIRED_HEIGHT;
+    ctx->output_fmt_ctx->streams[1]->disposition = AV_DISPOSITION_ATTACHED_PIC;
 
     r = 0;
 end:

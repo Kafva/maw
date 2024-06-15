@@ -64,7 +64,7 @@ void maw_log(enum LogLevel level, const char *filename, int line, const char *ms
         return;
     }
     maw_log_prefix(level, filename, line);
-    write(STDERR_FILENO, msg, strlen(msg));
+    (void)write(STDERR_FILENO, msg, strlen(msg));
 }
 
 int maw_log_init(bool verbose, int av_log_level) {

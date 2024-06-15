@@ -159,9 +159,9 @@ static int maw_filter_crop_cover(MawContext *ctx) {
     }
 
     // Update relevant values in the output format
-    ctx->output_fmt_ctx->streams[1]->codecpar->width = CROP_DESIRED_WIDTH;
-    ctx->output_fmt_ctx->streams[1]->codecpar->height = CROP_DESIRED_HEIGHT;
-    ctx->output_fmt_ctx->streams[1]->disposition = AV_DISPOSITION_ATTACHED_PIC;
+    VIDEO_OUTPUT_STREAM(ctx)->codecpar->width = CROP_DESIRED_WIDTH;
+    VIDEO_OUTPUT_STREAM(ctx)->codecpar->height = CROP_DESIRED_HEIGHT;
+    VIDEO_OUTPUT_STREAM(ctx)->disposition = AV_DISPOSITION_ATTACHED_PIC;
 
     r = 0;
 end:
@@ -252,7 +252,7 @@ static int maw_demux(MawContext *ctx) {
 
         ctx->audio_input_stream_index = i;
 
-        // Create an output stream for each OK input stream
+        // Create ONE output stream for audio
         output_stream = avformat_new_stream(ctx->output_fmt_ctx, NULL);
         input_stream = ctx->input_fmt_ctx->streams[i];
 
@@ -337,7 +337,6 @@ static int maw_mux(MawContext *ctx) {
     // actual raw data. Filters can not be applied directly on packets, we
     // need to decode them into frames and re-encode them back into packets.
     AVPacket *pkt = NULL;
-    AVPacket *filtered_pkt = NULL;
     AVFrame *frame = NULL;
     AVFrame *filtered_frame = NULL;
     bool should_crop = ctx->metadata->cover_policy == CROP_COVER &&
@@ -371,8 +370,7 @@ static int maw_mux(MawContext *ctx) {
 
         frame = av_frame_alloc();
         filtered_frame = av_frame_alloc();
-        filtered_pkt = av_packet_alloc();
-        if (frame == NULL || filtered_frame == NULL || filtered_pkt == NULL) {
+        if (frame == NULL || filtered_frame == NULL) {
             r = AVERROR(ENOMEM);
             MAW_AVERROR(r, "Failed to initialize filter structures");
             goto end;
@@ -392,7 +390,7 @@ static int maw_mux(MawContext *ctx) {
 
         if (pkt->stream_index == ctx->audio_input_stream_index) {
             // Audio stream
-            output_stream_index = 0;
+            output_stream_index = AUDIO_OUTPUT_STREAM_INDEX;
         }
         else if (pkt->stream_index == ctx->video_input_stream_index) {
             if (!NEEDS_ORIGINAL_COVER(ctx->metadata)) {
@@ -400,7 +398,7 @@ static int maw_mux(MawContext *ctx) {
                 continue;
             }
             // Video stream to keep
-            output_stream_index = 1;
+            output_stream_index = VIDEO_OUTPUT_STREAM_INDEX;
         }
         else {
             // Rate limit repeated log messages
@@ -464,7 +462,7 @@ static int maw_mux(MawContext *ctx) {
                     goto end;
                 }
                 // Read back the encoded packet
-                r = avcodec_receive_packet(ctx->enc_codec_ctx, filtered_pkt);
+                r = avcodec_receive_packet(ctx->enc_codec_ctx, pkt);
                 if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
                     break;
                 }
@@ -474,34 +472,27 @@ static int maw_mux(MawContext *ctx) {
                 }
 
                 // Write the encoded packet to the output stream
-                filtered_pkt->pos = -1;
-                filtered_pkt->pts = AV_NOPTS_VALUE;
-                filtered_pkt->duration = 0;
-                filtered_pkt->stream_index = 1;
-
-                r = av_interleaved_write_frame(ctx->output_fmt_ctx, filtered_pkt);
-                if (r != 0) {
-                    MAW_AVERROR(r, "Failed to mux packet");
-                    goto end;
-                }
-            }
-        } else {
-            if (pkt->stream_index == ctx->audio_input_stream_index) {
-                av_packet_rescale_ts(pkt, input_stream->time_base,
-                                          output_stream->time_base);
                 pkt->pos = -1;
+                pkt->pts = AV_NOPTS_VALUE;
+                pkt->stream_index = 1;
             }
-            // The pkt passed to this function is automatically freed
-            r = av_interleaved_write_frame(ctx->output_fmt_ctx, pkt);
-            if (r != 0) {
-                MAW_AVERROR(r, "Failed to mux packet");
-                goto end;
-            }
-            // This warning: 'Encoder did not produce proper pts, making some up.'
-            // appears for packets in cover art streams (since they do not have a
-            // pts value set), its harmless, more info on pts:
-            // http://dranger.com/ffmpeg/tutorial05.html
         }
+
+        if (pkt->stream_index == ctx->audio_input_stream_index) {
+            av_packet_rescale_ts(pkt, input_stream->time_base,
+                                      output_stream->time_base);
+            pkt->pos = -1;
+        }
+        // The pkt passed to this function is automatically freed
+        r = av_interleaved_write_frame(ctx->output_fmt_ctx, pkt);
+        if (r != 0) {
+            MAW_AVERROR(r, "Failed to mux packet");
+            goto end;
+        }
+        // This warning: 'Encoder did not produce proper pts, making some up.'
+        // appears for packets in cover art streams (since they do not have a
+        // pts value set), its harmless, more info on pts:
+        // http://dranger.com/ffmpeg/tutorial05.html
     }
 
     // Mux streams from cover
@@ -518,7 +509,7 @@ static int maw_mux(MawContext *ctx) {
             goto end;
         }
 
-        output_stream_index = 1;
+        output_stream_index = VIDEO_OUTPUT_STREAM_INDEX;
 
         // Input and output stream for the current packet
         input_stream = ctx->cover_fmt_ctx->streams[pkt->stream_index];
@@ -542,7 +533,6 @@ static int maw_mux(MawContext *ctx) {
 
 end:
     av_packet_free(&pkt);
-    av_packet_free(&filtered_pkt);
     av_frame_free(&frame);
     av_frame_free(&filtered_frame);
     return r;
@@ -624,9 +614,6 @@ end:
 }
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
-// The output should always have either:
-// 1 audio stream + 1 video stream
-// 1 audio stream + 0 video streams
 static int maw_remux(MawContext *ctx) {
     int r = INTERNAL_ERROR;
 
@@ -660,7 +647,7 @@ static int maw_remux(MawContext *ctx) {
         else {
             MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter\n", ctx->input_filepath);
 
-            // Initialize a filter to crop the existing video stream
+            // * Initialize a filter to crop the existing video stream
             r = maw_filter_crop_cover(ctx);
             if (r != 0)
                 goto end;
@@ -674,7 +661,7 @@ static int maw_remux(MawContext *ctx) {
         goto end;
     }
 
-    // * Write the demuxed content back to disk
+    // * Write the demuxed content back to disk (via filter if applicable)
     r = maw_mux(ctx);
     if (r != 0)
         goto end;

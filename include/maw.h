@@ -12,6 +12,12 @@
 #define CROP_DESIRED_WIDTH 720
 #define CROP_DESIRED_HEIGHT 720
 
+// The output should always have either:
+// 1 audio stream + 1 video stream
+// 1 audio stream + 0 video streams
+#define AUDIO_OUTPUT_STREAM_INDEX 0
+#define VIDEO_OUTPUT_STREAM_INDEX 1
+
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
     // Keep original cover art unless a custom `cover_path` is given (default)
@@ -76,7 +82,11 @@ int maw_update(const char *, const Metadata *);
     (metadata->cover_policy != CLEAR_COVER &&  \
      (metadata->cover_policy == CROP_COVER || metadata->cover_path == NULL))
 
-#define VIDEO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->video_input_stream_index]
 #define AUDIO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->audio_input_stream_index]
+#define VIDEO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->video_input_stream_index]
+
+#define AUDIO_OUTPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[AUDIO_OUTPUT_STREAM_INDEX]
+#define VIDEO_OUTPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]
+
 
 #endif // MAW_H

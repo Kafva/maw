@@ -21,6 +21,7 @@ bool test_bad_covers(const char *);
 bool test_no_audio(const char *);
 bool test_dual_audio(const char *);
 bool test_dual_video(const char *);
+bool test_jobs(const char *);
 
 
 #define DEFINE_TESTCASES \
@@ -35,6 +36,7 @@ bool test_dual_video(const char *);
         { .desc = "Dual audio streams",                               .fn = test_dual_audio }, \
         { .desc = "Dual video streams",                               .fn = test_dual_video }, \
         { .desc = "Crop cover",                                       .fn = test_crop_cover }, \
+        { .desc = "Jobs",                                             .fn = test_jobs }, \
     }
 #endif
 

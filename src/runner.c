@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <sys/event.h>
+
 
 static void *maw_runner_thread(void *arg) {
     const Metadata *metadata = (Metadata*)arg;
@@ -16,9 +18,17 @@ static void *maw_runner_thread(void *arg) {
 int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
     int r = INTERNAL_ERROR;
     pthread_t *threads = NULL;
+    struct kevent *events = NULL;
+    int kfd = -1;
     int *fds = NULL;
     size_t active_jobs = 0;
     size_t jobs_done = 0;
+
+    kfd = kqueue();
+    if (kfd != 0) {
+        MAW_PERROR("Failed to setup kqueue");
+        goto end;
+    }
 
     fds = calloc(jobs, sizeof(int));
     if (fds == NULL) {
@@ -31,6 +41,9 @@ int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
         MAW_LOG(MAW_ERROR, "Out of memory");
         goto end;
     }
+
+    //
+    EV_SET(events, kfd, EVFILT_READ, EV_ADD, 0, 0, NULL);
 
     // for (size_t i = 0; i < size; i++) {
     //     if (active_jobs < jobs) {
@@ -49,5 +62,6 @@ int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
 end:
     free(threads);
     free(fds);
+    (void)close(kfd);
     return r;
 }

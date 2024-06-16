@@ -44,7 +44,7 @@
                    make
                 '';
                 installPhase = ''
-                  
+
                 '';
             };
             "${name}" = default;

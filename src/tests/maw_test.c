@@ -189,3 +189,9 @@ bool test_replace_cover(const char *desc) {
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
+
+// Jobs ////////////////////////////////////////////////////////////////////////
+
+bool test_jobs(const char *desc) {
+    return false;
+}

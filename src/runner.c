@@ -1,11 +1,16 @@
 #include "runner.h"
 #include "log.h"
 
-#include <pthread.h>
 #include <unistd.h>
 
 #include <sys/event.h>
 
+static void *maw_runner_thread(void *);
+static RunnerContext *maw_runner_init(size_t);
+int maw_runner_launch(Metadata [], size_t, size_t);
+static void maw_runner_free(RunnerContext *);
+
+////////////////////////////////////////////////////////////////////////////////
 
 static void *maw_runner_thread(void *arg) {
     const Metadata *metadata = (Metadata*)arg;
@@ -15,14 +20,11 @@ static void *maw_runner_thread(void *arg) {
     return NULL;
 }
 
-int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
-    int r = INTERNAL_ERROR;
-    pthread_t *threads = NULL;
+static RunnerContext *maw_runner_init(size_t jobs) {
+    RunnerContext *runner = NULL;
     struct kevent *events = NULL;
+    pthread_t *threads = NULL;
     int kfd = -1;
-    int *fds = NULL;
-    size_t active_jobs = 0;
-    size_t jobs_done = 0;
 
     kfd = kqueue();
     if (kfd != 0) {
@@ -30,11 +32,11 @@ int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
         goto end;
     }
 
-    fds = calloc(jobs, sizeof(int));
-    if (fds == NULL) {
-        MAW_LOG(MAW_ERROR, "Out of memory");
-        goto end;
-    }
+    // fds = calloc(jobs, sizeof(int));
+    // if (fds == NULL) {
+    //     MAW_LOG(MAW_ERROR, "Out of memory");
+    //     goto end;
+    // }
 
     threads = calloc(jobs, sizeof(pthread_t));
     if (threads == NULL) {
@@ -42,8 +44,25 @@ int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
         goto end;
     }
 
+end:
+    return runner;
+}
+
+int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
+    int r = INTERNAL_ERROR;
+    int *fds = NULL;
+    size_t active_jobs = 0;
+    size_t jobs_done = 0;
+    RunnerContext *runner = NULL;
+
+    runner = maw_runner_init(jobs);
+    if (runner == NULL) {
+        goto end;
+    }
+    
+
     //
-    EV_SET(events, kfd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+    // EV_SET(events, kfd, EVFILT_READ, EV_ADD, 0, 0, NULL);
 
     // for (size_t i = 0; i < size; i++) {
     //     if (active_jobs < jobs) {
@@ -59,9 +78,14 @@ int maw_runner_launch(Metadata arr[], size_t size, size_t jobs) {
     //     }
     // }
 
+    r = 0;
 end:
-    free(threads);
-    free(fds);
-    (void)close(kfd);
+    maw_runner_free(runner);
     return r;
+}
+
+static void maw_runner_free(RunnerContext *runner) {
+    free(runner->threads);
+    free(runner->events);
+    (void)close(runner->kfd);
 }

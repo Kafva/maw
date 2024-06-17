@@ -3,8 +3,12 @@
 
 #include "maw.h"
 
+#include <pthread.h>
+
 struct RunnerContext {
     struct kevent *events;
+    pthread_t *threads;
+    int kfd;
 
 } typedef RunnerContext;
 

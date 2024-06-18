@@ -264,29 +264,17 @@ def setup
                    random_metadata: false
 
     # E2E testing data
-    #
-    # ALBUMS.each do |album|
-    #     FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
-    #     generate_cover album, "#{ART_ROOT}/#{album}.png"
-    #     basepath = "#{MUSIC_ROOT}/#{album}"
+    ALBUMS.each do |album|
+        FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
+        generate_cover album, "#{ART_ROOT}/#{album}.png"
+        basepath = "#{MUSIC_ROOT}/#{album}"
 
-    #     (0...1).each do |i|
-    #         # Video
-    #         generate_video "#{basepath}/video_#{album}_#{i}.mp4",
-    #                        color: album
-
-    #         # Audio stream with cover (mp4 extension)
-    #         generate_audio "#{basepath}/audio_#{album}_#{i}.mp4",
-    #                        cover_color: album
-
-    #         # Audio stream with cover (m4a extension)
-    #         generate_audio "#{basepath}/audio_#{album}_#{i}.m4a",
-    #                        cover_color: album
-
-    #         # Audio stream without cover (m4a extension)
-    #         generate_audio "#{basepath}/audio_no_cover_#{album}_#{i}.m4a"
-    #     end
-    # end
+        (0...1).each do |i|
+            # Audio stream with cover
+            generate_audio "#{basepath}/audio_#{album}_#{i}.m4a",
+                           cover_color: album
+        end
+    end
 
     system "tree", "--noreport", "#{TOP}/music" if FLAGS[:debug]
 end
@@ -301,7 +289,7 @@ FLAGS = { # rubocop:disable Style/MutableConstant
     debug: false
 }
 
-ALBUMS = ["blue"].freeze
+ALBUMS = ["blue", "red"].freeze
 TOP = "#{File.dirname(__FILE__)}/../.testenv".freeze
 ART_ROOT = "#{TOP}/art".freeze
 MUSIC_ROOT = "#{TOP}/albums".freeze

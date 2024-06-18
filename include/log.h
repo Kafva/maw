@@ -10,11 +10,10 @@ enum LogLevel {
     MAW_ERROR
 };
 
-void maw_logf(enum LogLevel, const char *, int, const char *, ...)
+void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...)
              __attribute__((format (printf, 4, 5)));
-void maw_log(enum LogLevel, const char *, int, const char *);
-
-int maw_log_init(bool, int);
+void maw_log(enum LogLevel level, const char *filename, int line, const char *msg);
+int maw_log_init(bool verbose, int av_log_level);
 
 #define MAW_LOGF(level, fmt, ...) \
     maw_logf(level, __FILE_NAME__, __LINE__, fmt, __VA_ARGS__)

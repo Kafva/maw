@@ -1,5 +1,6 @@
 #include <libavutil/error.h>
 
+#include "runner.h"
 #include "tests/maw_test.h"
 #include "tests/maw_verify.h"
 #include "maw.h"
@@ -193,5 +194,20 @@ bool test_replace_cover(const char *desc) {
 // Jobs ////////////////////////////////////////////////////////////////////////
 
 bool test_jobs(const char *desc) {
-    return false;
+    int r;
+    Metadata arr[] = {
+        { 
+            .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
+            .title = "audio_blue_0"
+        },
+        { 
+            .filepath = ".testenv/albums/red/audio_red_0.m4a",
+            .title = "audio_red_0"
+        },
+    };
+
+    r = maw_runner_launch(arr, sizeof arr, 1);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    return false; // XXX
 }

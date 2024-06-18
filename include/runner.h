@@ -9,9 +9,8 @@ struct RunnerContext {
     struct kevent *events;
     pthread_t *threads;
     int kfd;
-
 } typedef RunnerContext;
 
-int maw_runner_launch(Metadata[], size_t,  size_t);
+int maw_runner_launch(Metadata arr[], size_t size, size_t jobs);
 
 #endif // RUNNER_H

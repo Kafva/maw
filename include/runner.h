@@ -5,11 +5,11 @@
 
 #include <pthread.h>
 
-struct RunnerContext {
-    struct kevent *events;
-    pthread_t *threads;
-    int kfd;
-} typedef RunnerContext;
+struct ThreadContext {
+    const Metadata metadata;
+    int r;
+    
+} typedef ThreadContext;
 
 int maw_runner_launch(Metadata arr[], size_t size, size_t jobs);
 

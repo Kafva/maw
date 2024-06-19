@@ -205,8 +205,9 @@ bool test_jobs(const char *desc) {
             .title = "audio_red_0"
         },
     };
+    size_t arrsize = sizeof(arr) / sizeof(Metadata);
 
-    r = maw_runner_launch(arr, sizeof arr, 1);
+    r = maw_runner_launch(arr, arrsize, 1);
     MAW_ASSERT_EQ(r, 0, desc);
 
     return false; // XXX

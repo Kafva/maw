@@ -198,17 +198,25 @@ bool test_jobs(const char *desc) {
     Metadata arr[] = {
         { 
             .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
-            .title = "audio_blue_0"
+            .title = "audio_blue_0",
+            .album = "New blue",
+            .cover_path = "./.testenv/art/blue-1.png",
         },
         { 
             .filepath = ".testenv/albums/red/audio_red_0.m4a",
-            .title = "audio_red_0"
+            .title = "audio_red_0",
+            .album = "New red"
         },
     };
     size_t arrsize = sizeof(arr) / sizeof(Metadata);
 
-    r = maw_runner_launch(arr, arrsize, 1);
+    r = maw_runner_launch(arr, arrsize, 3);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    return false; // XXX
+    for (size_t i = 0; i < arrsize; i++) {
+        r = maw_verify(&arr[i]);
+        MAW_ASSERT_EQ(r, true, desc);
+    }
+
+    return true;
 }

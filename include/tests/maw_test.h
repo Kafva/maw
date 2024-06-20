@@ -36,7 +36,7 @@ bool test_jobs(const char *);
         { .desc = "Dual audio streams",                               .fn = test_dual_audio }, \
         { .desc = "Dual video streams",                               .fn = test_dual_video }, \
         { .desc = "Crop cover",                                       .fn = test_crop_cover }, \
-        { .desc = "Jobs",                                             .fn = test_jobs }, \
+        { .desc = "Threads",                                          .fn = test_jobs }, \
     }
 #endif
 

@@ -20,6 +20,7 @@ BUILD             = $(CURDIR)/build
 
 CFLAGS            += -DMAW_PROGRAM=\"$(PROGRAM)\"
 CFLAGS            += -std=c99
+CFLAGS            += -pthread
 ifeq ($(UNAME),linux)
 CFLAGS            += -D_GNU_SOURCE
 endif

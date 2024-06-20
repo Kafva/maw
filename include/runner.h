@@ -5,12 +5,18 @@
 
 #include <pthread.h>
 
+enum ThreadStatus {
+    UNINITIALIZED,
+    STARTED,
+    FAILED,
+} typedef ThreadStatus;
+
 struct ThreadContext {
-    const Metadata metadata;
-    int r;
-    
+    const Metadata *metadata;
+    int metadata_index;
+    ThreadStatus status;
 } typedef ThreadContext;
 
-int maw_runner_launch(Metadata arr[], size_t size, size_t jobs);
+int maw_runner_launch(Metadata metadata[], size_t size, size_t jobs);
 
 #endif // RUNNER_H

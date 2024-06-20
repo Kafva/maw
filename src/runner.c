@@ -51,17 +51,16 @@ static void *maw_runner_thread(void *arg) {
 
         // On fail, set next_metadata_index to -1, cancelling other threads
         if (r != 0) {
+            ctx->status = THREAD_FAILED;
             r = pthread_mutex_lock(&lock);
             if (r != 0) {
                 MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s\n", strerror(r));
-                ctx->status = THREAD_FAILED;
                 break;
             }
             next_metadata_index = -1;
             r = pthread_mutex_unlock(&lock);
             if (r != 0) {
                 MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s\n", strerror(r));
-                ctx->status = THREAD_FAILED;
                 break;
             }
             break;
@@ -83,10 +82,13 @@ static void *maw_runner_thread(void *arg) {
     return NULL;
 }
 
+// @return non-zero if at least one thread fails
 int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
+    int status = -1;
     int r = INTERNAL_ERROR;
     pthread_t *threads = NULL;
     ThreadContext *thread_ctxs = NULL;
+    unsigned long tid;
 
     next_metadata_index = size;
 
@@ -125,6 +127,7 @@ int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
         }
     }
 
+    status = 0;
 end:
     if (thread_ctxs != NULL) {
         for (size_t i = 0; i < thread_count; i++) {
@@ -132,12 +135,17 @@ end:
                 continue;
 
             r = pthread_join(threads[i], NULL);
-            if (r != 0)
+            if (r != 0) {
                 MAW_LOGF(MAW_ERROR, "pthread_join: %s\n", strerror(r));
+                status = -1; // XXX
+            }
 
             r = thread_ctxs[i].status;
-            if (r == THREAD_FAILED)
-                MAW_LOGF(MAW_ERROR, "Thread #%zu failed\n", i);
+            if (r == THREAD_FAILED) {
+                tid = (unsigned long)threads[i];
+                MAW_LOGF(MAW_ERROR, "Thread #%lu failed\n", tid);
+                status = -1; // XXX
+            }
         }
     }
 
@@ -146,7 +154,8 @@ end:
     r = pthread_mutex_destroy(&lock);
     if (r != 0) {
         MAW_LOGF(MAW_ERROR, "pthread_mutex_destroy: %s\n", strerror(r));
+        status = -1; // XXX
     }
 
-    return r;
+    return status;
 }

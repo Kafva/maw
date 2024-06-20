@@ -232,34 +232,34 @@ bool test_jobs_ok(const char *desc) {
 }
 
 bool test_jobs_error(const char *desc) {
-    // int r;
-    // Metadata arr[] = {
-    //     { 
-    //         .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
-    //         .title = "audio_blue_0",
-    //         .album = "New blue",
-    //         .cover_path = "./.testenv/art/blue-1.png",
-    //     },
-    //     { 
-    //         // BAD
-    //         .filepath = "non_existant",
-    //     },
-    //     { 
-    //         .filepath = ".testenv/albums/red/audio_red_1.m4a",
-    //         .title = "audio_red_1",
-    //         .album = "New red"
-    //     },
-    //     { 
-    //         .filepath = ".testenv/albums/red/audio_red_2.m4a",
-    //         .title = "audio_red_2",
-    //         .album = "New red"
-    //     },
-    // };
-    // size_t arrsize = sizeof(arr) / sizeof(Metadata);
+    int r;
+    Metadata arr[] = {
+        { 
+            .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
+            .title = "audio_blue_0",
+            .album = "New blue",
+            .cover_path = "./.testenv/art/blue-1.png",
+        },
+        { 
+            // BAD
+            .filepath = "non_existant",
+        },
+        { 
+            .filepath = ".testenv/albums/red/audio_red_1.m4a",
+            .title = "audio_red_1",
+            .album = "New red"
+        },
+        { 
+            .filepath = ".testenv/albums/red/audio_red_2.m4a",
+            .title = "audio_red_2",
+            .album = "New red"
+        },
+    };
+    size_t arrsize = sizeof(arr) / sizeof(Metadata);
 
-    // r = maw_runner_launch(arr, arrsize, 3);
-    // MAW_ASSERT_EQ(r, 1, desc);
+    r = maw_runner_launch(arr, arrsize, 2);
+    MAW_ASSERT_EQ(r, -1, desc);
 
-    return false; // TODO
+    return true;
 }
 

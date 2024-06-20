@@ -274,6 +274,10 @@ def setup
             generate_audio "#{basepath}/audio_#{album}_#{i}.m4a",
                            cover_color: album
         end
+        (0...3).each do |i|
+            FileUtils.cp "#{basepath}/audio_#{album}_#{i}.m4a",
+                         "#{basepath}/audio_#{album}_#{i + 1}.m4a"
+        end
     end
 
     system "tree", "--noreport", "#{TOP}/music" if FLAGS[:debug]

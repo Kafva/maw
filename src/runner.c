@@ -12,14 +12,14 @@ static void *maw_runner_thread(void *arg) {
     int r;
     ThreadContext *ctx = (ThreadContext*)arg;
     int finished_jobs = 0;
-    pthread_t tid = pthread_self();
+    unsigned long tid = (unsigned long)pthread_self();
 
     if (ctx->status != STARTED) {
-        MAW_LOGF(MAW_ERROR, "Thread #%lu not properly started\n", (unsigned long)tid);
+        MAW_LOGF(MAW_ERROR, "Thread #%lu not properly started\n", tid);
         return NULL;
     }
 
-    MAW_LOGF(MAW_DEBUG, "Thread #%lu started\n", (unsigned long)tid);
+    MAW_LOGF(MAW_DEBUG, "Thread #%lu started\n", tid);
 
     while (true) {
         if (next_metadata_index < 0) {
@@ -72,10 +72,12 @@ static void *maw_runner_thread(void *arg) {
     }
 
     if (ctx->status == FAILED) {
-        MAW_LOGF(MAW_ERROR, "Thread #%lu: %d job(s) failed\n", (unsigned long)tid, finished_jobs);
+        MAW_LOGF(MAW_ERROR, "Thread #%lu: %d job(s) failed\n", tid, 
+                                                               finished_jobs);
     }
     else {
-        MAW_LOGF(MAW_DEBUG, "Thread #%lu: %d job(s) ok\n", (unsigned long)tid, finished_jobs);
+        MAW_LOGF(MAW_DEBUG, "Thread #%lu: %d job(s) ok\n", tid, 
+                                                           finished_jobs);
     }
 
     return NULL;

@@ -6,9 +6,9 @@
 #include <pthread.h>
 
 enum ThreadStatus {
-    UNINITIALIZED,
-    STARTED,
-    FAILED,
+    THREAD_UNINITIALIZED,
+    THREAD_STARTED,
+    THREAD_FAILED,
 } typedef ThreadStatus;
 
 struct ThreadContext {

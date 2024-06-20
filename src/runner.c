@@ -14,7 +14,7 @@ static void *maw_runner_thread(void *arg) {
     int finished_jobs = 0;
     unsigned long tid = (unsigned long)pthread_self();
 
-    if (ctx->status != STARTED) {
+    if (ctx->status != THREAD_STARTED) {
         MAW_LOGF(MAW_ERROR, "Thread #%lu not properly started\n", tid);
         return NULL;
     }
@@ -29,7 +29,7 @@ static void *maw_runner_thread(void *arg) {
         r = pthread_mutex_lock(&lock);
         if (r != 0) {
             MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s\n", strerror(r));
-            ctx->status = FAILED;
+            ctx->status = THREAD_FAILED;
             break;
         }
 
@@ -39,7 +39,7 @@ static void *maw_runner_thread(void *arg) {
         r = pthread_mutex_unlock(&lock);
         if (r != 0) {
             MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s\n", strerror(r));
-            ctx->status = FAILED;
+            ctx->status = THREAD_FAILED;
             break;
         }
         if (ctx->metadata_index < 0) {
@@ -54,14 +54,14 @@ static void *maw_runner_thread(void *arg) {
             r = pthread_mutex_lock(&lock);
             if (r != 0) {
                 MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s\n", strerror(r));
-                ctx->status = FAILED;
+                ctx->status = THREAD_FAILED;
                 break;
             }
             next_metadata_index = -1;
             r = pthread_mutex_unlock(&lock);
             if (r != 0) {
                 MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s\n", strerror(r));
-                ctx->status = FAILED;
+                ctx->status = THREAD_FAILED;
                 break;
             }
             break;
@@ -71,7 +71,7 @@ static void *maw_runner_thread(void *arg) {
         }
     }
 
-    if (ctx->status == FAILED) {
+    if (ctx->status == THREAD_FAILED) {
         MAW_LOGF(MAW_ERROR, "Thread #%lu: %d job(s) failed\n", tid, 
                                                                finished_jobs);
     }
@@ -103,7 +103,7 @@ int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
     }
 
     for (size_t i = 0; i < thread_count; i++) {
-        thread_ctxs[i].status = UNINITIALIZED;
+        thread_ctxs[i].status = THREAD_UNINITIALIZED;
         thread_ctxs[i].metadata_index = -1;
         thread_ctxs[i].metadata = metadata;
     }
@@ -115,7 +115,7 @@ int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
     }
 
     for (size_t i = 0; i < thread_count; i++) {
-        thread_ctxs[i].status = STARTED;
+        thread_ctxs[i].status = THREAD_STARTED;
         r = pthread_create(&threads[i], NULL,
                            maw_runner_thread,
                            (void*)(&thread_ctxs[i]));
@@ -128,7 +128,7 @@ int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
 end:
     if (thread_ctxs != NULL) {
         for (size_t i = 0; i < thread_count; i++) {
-            if (thread_ctxs[i].status == UNINITIALIZED)
+            if (thread_ctxs[i].status == THREAD_UNINITIALIZED)
                 continue;
 
             r = pthread_join(threads[i], NULL);
@@ -136,7 +136,7 @@ end:
                 MAW_LOGF(MAW_ERROR, "pthread_join: %s\n", strerror(r));
 
             r = thread_ctxs[i].status;
-            if (r == FAILED)
+            if (r == THREAD_FAILED)
                 MAW_LOGF(MAW_ERROR, "Thread #%zu failed\n", i);
         }
     }

@@ -3,6 +3,21 @@
 
 static void *maw_runner_thread(void *);
 
+////////////////////////////////////////////////////////////////////////////////
+
+#define WITH_LOCK(r, expr) do { \
+    r = pthread_mutex_lock(&lock); \
+    if (r != 0) { \
+        MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s\n", strerror(r)); \
+        goto end; \
+    } \
+    expr \
+    r = pthread_mutex_unlock(&lock); \
+    if (r != 0) { \
+        MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s\n", strerror(r)); \
+        goto end; \
+    } \
+} while (0) \
 
 // Must be locked before read/write
 static int next_metadata_index;
@@ -10,8 +25,8 @@ static pthread_mutex_t lock;
 
 static void *maw_runner_thread(void *arg) {
     int r;
-    ThreadContext *ctx = (ThreadContext*)arg;
     int finished_jobs = 0;
+    ThreadContext *ctx = (ThreadContext*)arg;
     unsigned long tid = (unsigned long)pthread_self();
 
     if (ctx->status != THREAD_STARTED) {
@@ -23,27 +38,17 @@ static void *maw_runner_thread(void *arg) {
 
     while (true) {
         if (next_metadata_index < 0) {
-            break;
+            goto end;
         }
+
         // Take the next metadata_index
-        r = pthread_mutex_lock(&lock);
-        if (r != 0) {
-            MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s\n", strerror(r));
-            ctx->status = THREAD_FAILED;
-            break;
-        }
+        WITH_LOCK(r, {
+            next_metadata_index--;
+            ctx->metadata_index = next_metadata_index;
+        });
 
-        next_metadata_index--;
-        ctx->metadata_index = next_metadata_index;
-
-        r = pthread_mutex_unlock(&lock);
-        if (r != 0) {
-            MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s\n", strerror(r));
-            ctx->status = THREAD_FAILED;
-            break;
-        }
         if (ctx->metadata_index < 0) {
-            break;
+            goto end;
         }
 
         // Do work on current metadata_index
@@ -52,33 +57,23 @@ static void *maw_runner_thread(void *arg) {
         // On fail, set next_metadata_index to -1, cancelling other threads
         if (r != 0) {
             ctx->status = THREAD_FAILED;
-            r = pthread_mutex_lock(&lock);
-            if (r != 0) {
-                MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s\n", strerror(r));
-                break;
-            }
-            next_metadata_index = -1;
-            r = pthread_mutex_unlock(&lock);
-            if (r != 0) {
-                MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s\n", strerror(r));
-                break;
-            }
-            break;
+            WITH_LOCK(r, {
+                next_metadata_index = -1;
+            });
         }
         else {
             finished_jobs++;
         }
     }
-
+end:
     if (ctx->status == THREAD_FAILED) {
-        MAW_LOGF(MAW_ERROR, "Thread #%lu: %d job(s) failed\n", tid, 
+        MAW_LOGF(MAW_ERROR, "Thread #%lu: failed [done %d job(s)]\n", tid,
                                                                finished_jobs);
     }
     else {
-        MAW_LOGF(MAW_DEBUG, "Thread #%lu: %d job(s) ok\n", tid, 
+        MAW_LOGF(MAW_DEBUG, "Thread #%lu: ok [done %d job(s)]\n", tid,
                                                            finished_jobs);
     }
-
     return NULL;
 }
 
@@ -88,7 +83,6 @@ int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
     int r = INTERNAL_ERROR;
     pthread_t *threads = NULL;
     ThreadContext *thread_ctxs = NULL;
-    unsigned long tid;
 
     next_metadata_index = size;
 
@@ -134,17 +128,15 @@ end:
             if (thread_ctxs[i].status == THREAD_UNINITIALIZED)
                 continue;
 
+            // Save 'status' so that we do not return 0 if a thread failed
             r = pthread_join(threads[i], NULL);
             if (r != 0) {
                 MAW_LOGF(MAW_ERROR, "pthread_join: %s\n", strerror(r));
-                status = -1; // XXX
+                status = -1;
             }
 
-            r = thread_ctxs[i].status;
-            if (r == THREAD_FAILED) {
-                tid = (unsigned long)threads[i];
-                MAW_LOGF(MAW_ERROR, "Thread #%lu failed\n", tid);
-                status = -1; // XXX
+            if (thread_ctxs[i].status == THREAD_FAILED) {
+                status = -1;
             }
         }
     }
@@ -154,7 +146,7 @@ end:
     r = pthread_mutex_destroy(&lock);
     if (r != 0) {
         MAW_LOGF(MAW_ERROR, "pthread_mutex_destroy: %s\n", strerror(r));
-        status = -1; // XXX
+        status = -1;
     }
 
     return status;

@@ -1,7 +1,7 @@
-#include "runner.h"
+#include "job.h"
 #include "log.h"
 
-static void *maw_runner_thread(void *);
+static void *maw_job_thread(void *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -23,7 +23,7 @@ static void *maw_runner_thread(void *);
 static int next_metadata_index;
 static pthread_mutex_t lock;
 
-static void *maw_runner_thread(void *arg) {
+static void *maw_job_thread(void *arg) {
     int r;
     int finished_jobs = 0;
     ThreadContext *ctx = (ThreadContext*)arg;
@@ -78,7 +78,7 @@ end:
 }
 
 // @return non-zero if at least one thread fails
-int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
+int maw_job_launch(Metadata metadata[], size_t size, size_t thread_count) {
     int status = -1;
     int r = INTERNAL_ERROR;
     pthread_t *threads = NULL;
@@ -113,7 +113,7 @@ int maw_runner_launch(Metadata metadata[], size_t size, size_t thread_count) {
     for (size_t i = 0; i < thread_count; i++) {
         thread_ctxs[i].status = THREAD_STARTED;
         r = pthread_create(&threads[i], NULL,
-                           maw_runner_thread,
+                           maw_job_thread,
                            (void*)(&thread_ctxs[i]));
         if (r != 0) {
             MAW_LOGF(MAW_ERROR, "pthread_create: %s\n", strerror(r));

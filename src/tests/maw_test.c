@@ -1,6 +1,6 @@
 #include <libavutil/error.h>
 
-#include "runner.h"
+#include "job.h"
 #include "tests/maw_test.h"
 #include "tests/maw_verify.h"
 #include "maw.h"
@@ -193,7 +193,7 @@ bool test_replace_cover(const char *desc) {
 
 // Jobs ////////////////////////////////////////////////////////////////////////
 
-bool test_jobs_ok(const char *desc) {
+bool test_job_ok(const char *desc) {
     int r;
     Metadata arr[] = {
         { 
@@ -220,7 +220,7 @@ bool test_jobs_ok(const char *desc) {
     };
     size_t arrsize = sizeof(arr) / sizeof(Metadata);
 
-    r = maw_runner_launch(arr, arrsize, 3);
+    r = maw_job_launch(arr, arrsize, 3);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (size_t i = 0; i < arrsize; i++) {
@@ -231,7 +231,7 @@ bool test_jobs_ok(const char *desc) {
     return true;
 }
 
-bool test_jobs_error(const char *desc) {
+bool test_job_error(const char *desc) {
     int r;
     Metadata arr[] = {
         { 
@@ -257,7 +257,7 @@ bool test_jobs_error(const char *desc) {
     };
     size_t arrsize = sizeof(arr) / sizeof(Metadata);
 
-    r = maw_runner_launch(arr, arrsize, 2);
+    r = maw_job_launch(arr, arrsize, 2);
     MAW_ASSERT_EQ(r, -1, desc);
 
     return true;

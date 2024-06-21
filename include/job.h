@@ -1,5 +1,5 @@
-#ifndef RUNNER_H
-#define RUNNER_H
+#ifndef JOB_H
+#define JOB_H
 
 #include "maw.h"
 
@@ -17,6 +17,6 @@ struct ThreadContext {
     ThreadStatus status;
 } typedef ThreadContext;
 
-int maw_runner_launch(Metadata metadata[], size_t size, size_t jobs);
+int maw_job_launch(Metadata metadata[], size_t size, size_t jobs);
 
-#endif // RUNNER_H
+#endif // JOB_H

@@ -45,7 +45,7 @@ bool test_job_error(const char *);
 
 #define MAW_ASSERT_EQ(lhs, rhs, msg) do {\
    if (lhs != rhs) { \
-        MAW_LOGF(MAW_ERROR, "%s: got %d, expected %d\n", msg, lhs, rhs); \
+        MAW_LOGF(MAW_ERROR, "%s: got %d, expected %d", msg, lhs, rhs); \
         return false; \
    } \
 } while (0)

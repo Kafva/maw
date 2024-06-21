@@ -13,7 +13,7 @@ enum LogLevel {
 void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...)
              __attribute__((format (printf, 4, 5)));
 void maw_log(enum LogLevel level, const char *filename, int line, const char *msg);
-int maw_log_init(bool verbose, int av_log_level);
+int maw_log_init(bool verbose, bool simple_tag, int av_log_level);
 
 #define MAW_LOGF(level, fmt, ...) \
     maw_logf(level, __FILE_NAME__, __LINE__, fmt, __VA_ARGS__)
@@ -23,9 +23,9 @@ int maw_log_init(bool verbose, int av_log_level);
 
 #define MAW_PERROR(msg) do { \
    if (msg != NULL) { \
-       MAW_LOGF(MAW_ERROR, "%s: %s\n", msg, strerror(errno)); \
+       MAW_LOGF(MAW_ERROR, "%s: %s", msg, strerror(errno)); \
    } else { \
-       MAW_LOGF(MAW_ERROR, "%s\n", strerror(errno)); \
+       MAW_LOGF(MAW_ERROR, "%s", strerror(errno)); \
    } \
 } while (0)
 
@@ -34,13 +34,13 @@ int maw_log_init(bool verbose, int av_log_level);
     char errbuf[128] = {0}; \
     if (av_strerror(code, errbuf, sizeof errbuf) != 0) { \
         if (msg != NULL) { \
-            MAW_LOGF(MAW_ERROR, "%s: Unknown error\n", msg); \
+            MAW_LOGF(MAW_ERROR, "%s: Unknown error", msg); \
         } else { \
-            MAW_LOG(MAW_ERROR, "Unknown error\n"); \
+            MAW_LOG(MAW_ERROR, "Unknown error"); \
         } \
     } else { \
         if (msg != NULL) { \
-            MAW_LOGF(MAW_ERROR, "%s: %s\n", msg, errbuf); \
+            MAW_LOGF(MAW_ERROR, "%s: %s", msg, errbuf); \
         } else { \
             MAW_LOG(MAW_ERROR, errbuf); \
         } \

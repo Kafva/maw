@@ -28,19 +28,22 @@ static int run_program(const char *);
 static void usage(void);
 
 int main(int argc, char *argv[]) {
+    int r;
     int opt;
     int av_log_level = AV_LOG_QUIET;
     bool verbose = false;
+    bool simple_log = false;
     char *config_file = NULL;
 #ifdef MAW_TEST
-    const char *getopt_flags = "m:c:l:hv";
+    const char *getopt_flags = "m:c:l:hvs";
     const char *match_testcase = NULL;
 #else
-    const char *getopt_flags = "c:l:hv";
+    const char *getopt_flags = "c:l:hvs";
 #endif
 
     static struct option long_options[] = {
         {"log", optional_argument, NULL, 'l'},
+        {"simple-log", no_argument, NULL, 's'},
         {"verbose", no_argument, NULL, 'v'},
 #ifdef MAW_TEST
         {"match", optional_argument, NULL, 'm'},
@@ -60,6 +63,9 @@ int main(int argc, char *argv[]) {
 #endif
         case 'v':
             verbose = true;
+            break;
+        case 's':
+            simple_log = true;
             break;
         case 'l':
             if (strncasecmp("debug", optarg, sizeof("debug") - 1) == 0) {
@@ -88,7 +94,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    maw_log_init(verbose, av_log_level);
+    r = maw_log_init(verbose, simple_log, av_log_level);
+    if (r != 0)
+        return 1;
 
 #ifdef MAW_TEST
     (void)config_file;
@@ -102,6 +110,7 @@ static void usage(void) {
     fprintf(stderr, "usage: " MAW_PROGRAM " [flags]\n");
     fprintf(stderr, "   --verbose         Verbose logging\n");
     fprintf(stderr, "   --log <level>     Log level for libav backend\n");
+    fprintf(stderr, "   --simple-log      Print logs normally on stderr\n");
 #ifdef MAW_TEST
     fprintf(stderr, "   --match <pattern> Testcase to run\n");
 #endif
@@ -151,7 +160,7 @@ static int run_tests(const char *match_testcase) {
 
 static int run_program(const char *config_file) {
     if (config_file == NULL) {
-        MAW_LOG(MAW_ERROR, "Missing required options\n");
+        MAW_LOG(MAW_ERROR, "Missing required options");
         usage();
         return EXIT_FAILURE;
     }

@@ -71,10 +71,10 @@ int maw_update(const Metadata *metadata);
         goto end; \
     } \
     if (args == NULL) { \
-        MAW_LOGF(MAW_DEBUG, "Created %s filter: (no arguments)\n", name); \
+        MAW_LOGF(MAW_DEBUG, "Created %s filter: (no arguments)", name); \
     } \
     else { \
-        MAW_LOGF(MAW_DEBUG, "Created %s filter: %s\n", name, args); \
+        MAW_LOGF(MAW_DEBUG, "Created %s filter: %s", name, args); \
     } \
 } while (0)
 

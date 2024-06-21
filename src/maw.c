@@ -47,18 +47,18 @@ static int maw_demux_cover(MawContext *ctx) {
     }
 
     if (ctx->cover_fmt_ctx->nb_streams == 0) {
-        MAW_LOGF(MAW_ERROR, "%s: cover has no input streams\n", ctx->metadata->cover_path);
+        MAW_LOGF(MAW_ERROR, "%s: cover has no input streams", ctx->metadata->cover_path);
         r = UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
     if (ctx->cover_fmt_ctx->nb_streams > 1) {
-        MAW_LOGF(MAW_ERROR, "%s: cover has more than one input stream\n", ctx->metadata->cover_path);
+        MAW_LOGF(MAW_ERROR, "%s: cover has more than one input stream", ctx->metadata->cover_path);
         r = UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
     codec_type = ctx->cover_fmt_ctx->streams[0]->codecpar->codec_type;
     if (codec_type != AVMEDIA_TYPE_VIDEO) {
-        MAW_LOGF(MAW_ERROR, "%s: cover does not contain a video stream (found %s)\n",
+        MAW_LOGF(MAW_ERROR, "%s: cover does not contain a video stream (found %s)",
                  ctx->metadata->cover_path,
                  av_get_media_type_string(codec_type));
         r = UNSUPPORTED_INPUT_STREAMS;
@@ -246,7 +246,7 @@ static int maw_demux(MawContext *ctx) {
             continue;
         }
         if (ctx->audio_input_stream_index != -1) {
-            MAW_LOGF(MAW_WARN, "%s: Audio input stream #%u (ignored)\n", ctx->metadata->filepath, i);
+            MAW_LOGF(MAW_WARN, "%s: Audio input stream #%u (ignored)", ctx->metadata->filepath, i);
             continue;
         }
 
@@ -267,7 +267,7 @@ static int maw_demux(MawContext *ctx) {
 
     if (ctx->audio_input_stream_index == -1) {
         r = UNSUPPORTED_INPUT_STREAMS;
-        MAW_LOGF(MAW_ERROR, "%s: No audio streams\n", ctx->metadata->filepath);
+        MAW_LOGF(MAW_ERROR, "%s: No audio streams", ctx->metadata->filepath);
         goto end;
     }
 
@@ -279,7 +279,7 @@ static int maw_demux(MawContext *ctx) {
         // Skip all streams except video streams with an attached_pic disposition
         if (!is_attached_pic || ctx->video_input_stream_index != -1) {
             if ((int)i != ctx->audio_input_stream_index)
-                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%d\n",
+                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%d",
                                     ctx->metadata->filepath, av_get_media_type_string(codec_type), i);
             continue;
         }
@@ -305,21 +305,21 @@ static int maw_demux(MawContext *ctx) {
         output_stream->disposition = input_stream->disposition;
     }
 
-    MAW_LOGF(MAW_DEBUG, "%s: Audio input stream #%d\n", ctx->metadata->filepath,
+    MAW_LOGF(MAW_DEBUG, "%s: Audio input stream #%d", ctx->metadata->filepath,
                                                         ctx->audio_input_stream_index);
 
     if (ctx->video_input_stream_index != -1) {
         if (NEEDS_ORIGINAL_COVER(ctx->metadata)) {
-            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d\n", ctx->metadata->filepath,
+            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d", ctx->metadata->filepath,
                                                                 ctx->video_input_stream_index);
         }
         else {
-            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d (ignored)\n", ctx->metadata->filepath,
+            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d (ignored)", ctx->metadata->filepath,
                                                                           ctx->video_input_stream_index);
         }
     }
     else {
-        MAW_LOGF(MAW_DEBUG, "%s: Video input stream (none)\n", ctx->metadata->filepath);
+        MAW_LOGF(MAW_DEBUG, "%s: Video input stream (none)", ctx->metadata->filepath);
     }
 
     r = 0;
@@ -357,7 +357,7 @@ static int maw_mux(MawContext *ctx) {
 
     pkt = av_packet_alloc();
     if (pkt == NULL) {
-        MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet\n", ctx->output_filepath);
+        MAW_LOGF(MAW_ERROR, "%s: Failed to allocate packet", ctx->output_filepath);
         goto end;
     }
 
@@ -381,7 +381,7 @@ static int maw_mux(MawContext *ctx) {
     while (av_read_frame(ctx->input_fmt_ctx, pkt) == 0) {
         if (pkt->stream_index < 0 ||
             pkt->stream_index >= (int)ctx->input_fmt_ctx->nb_streams) {
-            MAW_LOGF(MAW_ERROR, "%s: Invalid stream index: #%d\n", ctx->metadata->filepath,
+            MAW_LOGF(MAW_ERROR, "%s: Invalid stream index: #%d", ctx->metadata->filepath,
                                                                    pkt->stream_index);
             goto end;
         }
@@ -403,7 +403,7 @@ static int maw_mux(MawContext *ctx) {
         else {
             // Rate limit repeated log messages
             if (prev_stream_index != pkt->stream_index)
-                MAW_LOGF(MAW_DEBUG, "%s: Ignoring packets from %s input stream #%d\n",
+                MAW_LOGF(MAW_DEBUG, "%s: Ignoring packets from %s input stream #%d",
                          ctx->metadata->filepath,
                          av_get_media_type_string(input_stream->codecpar->codec_type),
                          pkt->stream_index);
@@ -504,7 +504,7 @@ static int maw_mux(MawContext *ctx) {
 
         if (pkt->stream_index != 0) {
             r = INTERNAL_ERROR;
-            MAW_LOGF(MAW_ERROR, "Unexpected packet from cover stream #%d\n",
+            MAW_LOGF(MAW_ERROR, "Unexpected packet from cover stream #%d",
                      pkt->stream_index);
             goto end;
         }
@@ -567,7 +567,7 @@ static int maw_init_dec_context(MawContext *ctx) {
         goto end;
     }
 
-    MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d\n",
+    MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d",
          ctx->metadata->filepath, ctx->video_input_stream_index,
          ctx->dec_codec_ctx->width, ctx->dec_codec_ctx->height,
          av_get_pix_fmt_name(ctx->dec_codec_ctx->pix_fmt),
@@ -637,15 +637,15 @@ static int maw_remux(MawContext *ctx) {
 
         if (ctx->dec_codec_ctx->width == CROP_DESIRED_WIDTH &&
             ctx->dec_codec_ctx->height == CROP_DESIRED_HEIGHT) {
-            MAW_LOGF(MAW_DEBUG, "%s: Crop filter has already been applied\n", ctx->metadata->filepath);
+            MAW_LOGF(MAW_DEBUG, "%s: Crop filter has already been applied", ctx->metadata->filepath);
         }
         else if (ctx->dec_codec_ctx->width != CROP_ACCEPTED_WIDTH ||
                  ctx->dec_codec_ctx->height != CROP_ACCEPTED_HEIGHT) {
-            MAW_LOGF(MAW_WARN, "%s: Crop filter not applied: unsupported cover dimensions: %dx%d\n",
+            MAW_LOGF(MAW_WARN, "%s: Crop filter not applied: unsupported cover dimensions: %dx%d",
                                ctx->metadata->filepath, ctx->dec_codec_ctx->width, ctx->dec_codec_ctx->height);
         }
         else {
-            MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter\n", ctx->metadata->filepath);
+            MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter", ctx->metadata->filepath);
 
             // * Initialize a filter to crop the existing video stream
             r = maw_filter_crop_cover(ctx);
@@ -763,7 +763,7 @@ int maw_update(const Metadata *metadata) {
     }
     (void)close(tmphandle);
 
-    MAW_LOGF(MAW_DEBUG, "%s -> %s\n", metadata->filepath, tmpfile);
+    MAW_LOGF(MAW_DEBUG, "%s -> %s", metadata->filepath, tmpfile);
 
     ctx = maw_init_context(metadata, tmpfile);
     if (ctx == NULL)

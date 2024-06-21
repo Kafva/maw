@@ -61,7 +61,7 @@ struct MawContext {
    AVCodecContext *enc_codec_ctx;
 } typedef MawContext;
 
-int maw_update(const Metadata *metadata);
+int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
 
 
 #define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \

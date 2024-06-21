@@ -13,7 +13,8 @@ enum LogLevel {
 void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...)
              __attribute__((format (printf, 4, 5)));
 void maw_log(enum LogLevel level, const char *filename, int line, const char *msg);
-int maw_log_init(bool verbose, bool simple_tag, int av_log_level);
+int maw_log_init(bool verbose, bool simple_tag, int av_log_level)
+    __attribute__((warn_unused_result));
 
 #define MAW_LOGF(level, fmt, ...) \
     maw_logf(level, __FILE_NAME__, __LINE__, fmt, __VA_ARGS__)

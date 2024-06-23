@@ -17,7 +17,7 @@
 
 #ifdef MAW_TEST
 
-#include "tests/maw_test.h"
+#include "maw/tests/maw_test.h"
 static int run_tests(const char *);
 
 #else
@@ -32,18 +32,16 @@ int main(int argc, char *argv[]) {
     int opt;
     int av_log_level = AV_LOG_QUIET;
     bool verbose = false;
-    bool simple_log = false;
     char *config_file = NULL;
 #ifdef MAW_TEST
-    const char *getopt_flags = "m:c:l:hvs";
+    const char *getopt_flags = "m:c:l:hv";
     const char *match_testcase = NULL;
 #else
-    const char *getopt_flags = "c:l:hvs";
+    const char *getopt_flags = "c:l:hv";
 #endif
 
     static struct option long_options[] = {
         {"log", optional_argument, NULL, 'l'},
-        {"simple-log", no_argument, NULL, 's'},
         {"verbose", no_argument, NULL, 'v'},
 #ifdef MAW_TEST
         {"match", optional_argument, NULL, 'm'},
@@ -63,9 +61,6 @@ int main(int argc, char *argv[]) {
 #endif
         case 'v':
             verbose = true;
-            break;
-        case 's':
-            simple_log = true;
             break;
         case 'l':
             if (strncasecmp("debug", optarg, sizeof("debug") - 1) == 0) {
@@ -94,9 +89,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    r = maw_log_init(verbose, simple_log, av_log_level);
-    if (r != 0)
-        return 1;
+    maw_log_init(verbose, av_log_level);
 
 #ifdef MAW_TEST
     (void)config_file;
@@ -166,10 +159,8 @@ static int run_program(const char *config_file) {
         return EXIT_FAILURE;
     }
 
-    //(void)maw_cfg_parse(config_file);
-    for (int i = 0; i < 10; i++) {
-        MAW_LOGF(MAW_INFO, "printing... %d", i);
-    }
+    (void)maw_cfg_parse(config_file);
+
     return EXIT_SUCCESS;
 }
 

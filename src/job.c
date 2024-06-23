@@ -1,7 +1,11 @@
 #include "maw/job.h"
 #include "maw/log.h"
 
+#include <unistd.h>
+#include <time.h>
+
 static void *maw_job_thread(void *);
+static void maw_clock_measure(time_t);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,6 +26,25 @@ static void *maw_job_thread(void *);
 // Must be locked before read/write
 static int next_metadata_index;
 static pthread_mutex_t lock;
+
+static void maw_clock_measure(time_t start_time) {
+    time_t end_time;
+    int elapsed;
+    int minutes, seconds;
+
+    end_time = time(NULL);
+    elapsed = end_time - start_time;
+
+    minutes = elapsed / 60;
+    seconds = elapsed % 60;
+
+    if (minutes == 0 && seconds == 0) {
+        MAW_LOG(MAW_INFO, "Done");
+    }
+    else {
+        MAW_LOGF(MAW_INFO, "Done: %02d:%02d", minutes, seconds);
+    }
+}
 
 static void *maw_job_thread(void *arg) {
     int r;
@@ -83,7 +106,9 @@ int maw_job_launch(Metadata metadata[], size_t size, size_t thread_count) {
     int r = INTERNAL_ERROR;
     pthread_t *threads = NULL;
     ThreadContext *thread_ctxs = NULL;
+    time_t start_time;
 
+    start_time = time(NULL);
     next_metadata_index = size;
 
     threads = calloc(thread_count, sizeof(pthread_t));
@@ -149,5 +174,8 @@ end:
         status = -1;
     }
 
+    if (status == 0) {
+        maw_clock_measure(start_time);
+    }
     return status;
 }

@@ -1,8 +1,8 @@
 #ifndef MAW_H
 #define MAW_H
 
-#include "libavcodec/avcodec.h"
-#include "libavfilter/avfilter.h"
+#include <libavcodec/avcodec.h>
+#include <libavfilter/avfilter.h>
 #include <libavformat/avformat.h>
 #include <stdbool.h>
 

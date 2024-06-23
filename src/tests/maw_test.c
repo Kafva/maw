@@ -1,10 +1,9 @@
+#include "maw/job.h"
+#include "maw/tests/maw_test.h"
+#include "maw/tests/maw_verify.h"
+#include "maw/maw.h"
+
 #include <libavutil/error.h>
-
-#include "job.h"
-#include "tests/maw_test.h"
-#include "tests/maw_verify.h"
-#include "maw.h"
-
 #include <string.h>
 
 bool test_dual_audio(const char *desc) {

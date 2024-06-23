@@ -3,8 +3,9 @@
 
 #ifdef MAW_TEST
 
+#include "maw/log.h"
+
 #include <stdbool.h>
-#include "log.h"
 
 struct Testcase {
     char *desc;

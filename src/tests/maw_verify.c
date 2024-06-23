@@ -1,7 +1,7 @@
-#include "tests/maw_verify.h"
-#include "log.h"
-#include "maw.h"
-#include "utils.h"
+#include "maw/tests/maw_verify.h"
+#include "maw/log.h"
+#include "maw/maw.h"
+#include "maw/utils.h"
 
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
                              const Metadata *metadata) {

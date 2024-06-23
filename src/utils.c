@@ -1,5 +1,5 @@
-#include "log.h"
-#include "utils.h"
+#include "maw/log.h"
+#include "maw/utils.h"
 
 #include <stdio.h>
 #include <fcntl.h>

@@ -1,6 +1,5 @@
-#include "maw.h"
-#include "libavutil/rational.h"
-#include "log.h"
+#include "maw/maw.h"
+#include "maw/log.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -12,6 +11,7 @@
 #include <libavutil/pixdesc.h>
 #include <libavutil/opt.h>
 #include <libavutil/pixfmt.h>
+#include <libavutil/rational.h>
 
 #include <unistd.h>
 

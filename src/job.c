@@ -1,5 +1,5 @@
-#include "job.h"
-#include "log.h"
+#include "maw/job.h"
+#include "maw/log.h"
 
 static void *maw_job_thread(void *);
 

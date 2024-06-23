@@ -1,7 +1,7 @@
 #ifndef JOB_H
 #define JOB_H
 
-#include "maw.h"
+#include "maw/maw.h"
 
 #include <pthread.h>
 

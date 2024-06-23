@@ -1,4 +1,4 @@
-#include "cfg.h"
+#include "maw/cfg.h"
 
 #include <yaml.h>
 

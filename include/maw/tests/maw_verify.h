@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <libavformat/avformat.h>
 
-#include "maw.h"
+#include "maw/maw.h"
 
 #define LHS_EMPTY_OR_EQ(lhs, rhs) \
     (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)

@@ -113,13 +113,13 @@ int maw_job_launch(Metadata metadata[], size_t size, size_t thread_count) {
 
     threads = calloc(thread_count, sizeof(pthread_t));
     if (threads == NULL) {
-        MAW_LOG(MAW_ERROR, "Out of memory");
+        MAW_PERROR("calloc");
         goto end;
     }
 
     thread_ctxs = calloc(thread_count, sizeof(ThreadContext));
     if (thread_ctxs == NULL) {
-        MAW_LOG(MAW_ERROR, "Out of memory");
+        MAW_PERROR("calloc");
         goto end;
     }
 

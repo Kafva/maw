@@ -196,23 +196,23 @@ bool test_replace_cover(const char *desc) {
 bool test_job_ok(const char *desc) {
     int r;
     Metadata arr[] = {
-        { 
+        {
             .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
             .title = "audio_blue_0",
             .album = "New blue",
             .cover_path = "./.testenv/art/blue-1.png",
         },
-        { 
+        {
             .filepath = ".testenv/albums/red/audio_red_0.m4a",
             .title = "audio_red_0",
             .album = "New red"
         },
-        { 
+        {
             .filepath = ".testenv/albums/red/audio_red_1.m4a",
             .title = "audio_red_1",
             .album = "New red"
         },
-        { 
+        {
             .filepath = ".testenv/albums/red/audio_red_2.m4a",
             .title = "audio_red_2",
             .album = "New red"
@@ -234,22 +234,22 @@ bool test_job_ok(const char *desc) {
 bool test_job_error(const char *desc) {
     int r;
     Metadata arr[] = {
-        { 
+        {
             .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
             .title = "audio_blue_0",
             .album = "New blue",
             .cover_path = "./.testenv/art/blue-1.png",
         },
-        { 
+        {
             // BAD
             .filepath = "non_existant",
         },
-        { 
+        {
             .filepath = ".testenv/albums/red/audio_red_1.m4a",
             .title = "audio_red_1",
             .album = "New red"
         },
-        { 
+        {
             .filepath = ".testenv/albums/red/audio_red_2.m4a",
             .title = "audio_red_2",
             .album = "New red"

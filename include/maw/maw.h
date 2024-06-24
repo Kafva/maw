@@ -42,7 +42,7 @@ struct Metadata {
     const char *artist;
     const char *cover_path;
     CoverPolicy cover_policy;
-    bool clear_non_core_fields;
+    bool clean;
 } typedef Metadata;
 
 struct MawContext {

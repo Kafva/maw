@@ -1,4 +1,5 @@
 #include "maw/job.h"
+#include "maw/cfg.h"
 #include "maw/tests/maw_test.h"
 #include "maw/tests/maw_verify.h"
 #include "maw/maw.h"
@@ -74,12 +75,12 @@ bool test_keep_all(const char *desc) {
 bool test_clear_non_core_fields(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath =  "./.testenv/unit/clear_non_core_fields.m4a",
-        .title = "clear_non_core_fields",
+        .filepath =  "./.testenv/unit/clean.m4a",
+        .title = "clean",
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        .clear_non_core_fields = true,
+        .clean = true,
     };
     (void)desc;
 
@@ -262,3 +263,14 @@ bool test_job_error(const char *desc) {
     return true;
 }
 
+// Configuration ///////////////////////////////////////////////////////////////
+
+bool test_cfg_ok(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/maw.yml";
+
+    r = maw_cfg_parse(config_file);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    return true;
+}

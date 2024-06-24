@@ -35,6 +35,7 @@ static void maw_log_prefix(enum LogLevel level,
     (void)snprintf(out, outsize, fmt_str, filename, line);
 }
 
+// Newline is automatically added to the end of the message
 void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...) {
     char fmt_full[MAW_LOG_MAX_MSGSIZE];
     va_list args;
@@ -64,6 +65,7 @@ void maw_logf(enum LogLevel level, const char *filename, int line, const char *f
     va_end(args);
 }
 
+// Newline is automatically added to the end of the message
 void maw_log(enum LogLevel level, const char *filename, int line, const char *msg) {
     char fmt_full[MAW_LOG_MAX_MSGSIZE];
 

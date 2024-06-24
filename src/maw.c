@@ -196,7 +196,7 @@ static int maw_set_metadata(MawContext *ctx) {
     int r = INTERNAL_ERROR;
     const AVDictionaryEntry *entry = NULL;
 
-    if (ctx->metadata->clear_non_core_fields) {
+    if (ctx->metadata->clean) {
         // Only keep some of the metadata
         while ((entry = av_dict_iterate(ctx->input_fmt_ctx->metadata, entry))) {
             if (strcmp(entry->key, "title") != 0 &&

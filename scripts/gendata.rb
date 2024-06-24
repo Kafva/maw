@@ -223,12 +223,17 @@ def setup
             red:
               album: Red album
               artist: Red artist
-              clear_non_core_fields: true
+              clean: true
             blue:
               album: Blue album
               artist: Blue artist
               cover: blue.png
-              clear_non_core_fields: true
+              clean: true
+            blue/*2.m4a:
+              cover_policy: CLEAR
+            blue/*3.m4a:
+              cover_policy: CROP
+
     HEREDOC
 
     FileUtils.rm_rf TOP
@@ -256,8 +261,8 @@ def setup
                    artist: "Artist",
                    album: "Album",
                    cover_color: "#5f1eb0"
-    generate_audio "#{TOP}/unit/clear_non_core_fields.m4a",
-                   title: "clear_non_core_fields",
+    generate_audio "#{TOP}/unit/clean.m4a",
+                   title: "clean",
                    artist: "Artist",
                    album: "Album",
                    cover_color: "white",

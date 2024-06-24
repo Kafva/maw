@@ -77,7 +77,7 @@ bool maw_verify(const Metadata *metadata) {
             if (!LHS_EMPTY_OR_EQ(metadata->album, entry->value))
                 goto end;
         }
-        else if (metadata->clear_non_core_fields &&
+        else if (metadata->clean &&
                  strcmp(entry->key, "major_brand") != 0 &&
                  strcmp(entry->key, "minor_version") != 0 &&
                  strcmp(entry->key, "compatible_brands") != 0 &&

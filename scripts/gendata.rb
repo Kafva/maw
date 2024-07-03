@@ -209,7 +209,7 @@ def generate_cover color, outputfile
 end
 
 def setup
-    cfg_yaml = <<~HEREDOC
+    cfg_yaml = <<~EOS
         art_dir: #{ART_ROOT}
         music_dir: #{MUSIC_ROOT}
         playlists:
@@ -236,13 +236,21 @@ def setup
             blue/*3.m4a:
               cover_policy: CROP
 
-    HEREDOC
+    EOS
+
+    bad_cfg_yaml = <<~EOS
+        art_dir: #{ART_ROOT}
+        music_dir: #{MUSIC_ROOT}
+        playlists:
+        -----
+    EOS
 
     FileUtils.rm_rf TOP
     FileUtils.mkdir_p ART_ROOT
     FileUtils.mkdir_p MUSIC_ROOT
     FileUtils.mkdir_p "#{TOP}/unit"
     File.write(CFG, cfg_yaml)
+    File.write("#{TOP}/bad.yml", bad_cfg_yaml)
 
 
     # Unit test data

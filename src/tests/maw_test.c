@@ -274,3 +274,14 @@ bool test_cfg_ok(const char *desc) {
 
     return true;
 }
+
+bool test_cfg_error(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/unit/bad.yml";
+
+    r = maw_cfg_parse(config_file);
+    MAW_ASSERT_EQ(r, INTERNAL_ERROR, desc);
+
+    return true;
+}
+

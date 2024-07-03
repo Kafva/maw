@@ -25,6 +25,7 @@ bool test_dual_video(const char *);
 bool test_job_ok(const char *);
 bool test_job_error(const char *);
 bool test_cfg_ok(const char *);
+bool test_cfg_error(const char *);
 
 
 #define DEFINE_TESTCASES \
@@ -42,6 +43,7 @@ bool test_cfg_ok(const char *);
         { .desc = "Jobs ok",                                          .fn = test_job_ok }, \
         { .desc = "Jobs error",                                       .fn = test_job_error }, \
         { .desc = "Configuration ok",                                 .fn = test_cfg_ok }, \
+        { .desc = "Configuration error",                              .fn = test_cfg_error }, \
     }
 #endif
 

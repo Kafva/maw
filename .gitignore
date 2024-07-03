@@ -29,6 +29,7 @@ build
 .ccls-cache
 compile_commands.json
 tags
+.tags
 
 
 # Xcode

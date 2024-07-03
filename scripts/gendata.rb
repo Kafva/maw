@@ -231,6 +231,8 @@ def setup
               clean: true
             blue/*2.m4a:
               cover_policy: CLEAR
+            blue/*blue_2.m4a:
+              cover_policy: KEEP
             blue/*3.m4a:
               cover_policy: CROP
 

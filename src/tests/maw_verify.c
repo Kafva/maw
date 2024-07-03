@@ -93,7 +93,7 @@ bool maw_verify(const Metadata *metadata) {
             goto end;
         }
     }
-    else if (metadata->cover_policy == CLEAR_COVER) {
+    else if (metadata->cover_policy == COVER_CLEAR) {
         // No cover should be present
         if (fmt_ctx->nb_streams != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u",
@@ -101,7 +101,7 @@ bool maw_verify(const Metadata *metadata) {
             goto end;
         }
     }
-    else if (metadata->cover_policy == CROP_COVER && fmt_ctx->nb_streams == 2) {
+    else if (metadata->cover_policy == COVER_CROP && fmt_ctx->nb_streams == 2) {
         if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width == CROP_DESIRED_WIDTH &&
               fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
             MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d",

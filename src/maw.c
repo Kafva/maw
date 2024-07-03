@@ -339,7 +339,7 @@ static int maw_mux(MawContext *ctx) {
     AVPacket *pkt = NULL;
     AVFrame *frame = NULL;
     AVFrame *filtered_frame = NULL;
-    bool should_crop = ctx->metadata->cover_policy == CROP_COVER &&
+    bool should_crop = ctx->metadata->cover_policy == COVER_CROP &&
                        ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
                        ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT;
 
@@ -630,7 +630,7 @@ static int maw_remux(MawContext *ctx) {
         if (r != 0)
             goto end;
     }
-    else if (ctx->metadata->cover_policy == CROP_COVER) {
+    else if (ctx->metadata->cover_policy == COVER_CROP) {
         r = maw_init_dec_context(ctx);
         if (r != 0)
             goto end;

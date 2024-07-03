@@ -61,7 +61,7 @@ bool test_keep_all(const char *desc) {
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        // .cover_policy = KEEP_COVER_UNLESS_PROVIDED // (implicit)
+        // .cover_policy = COVER_KEEP // (implicit)
     };
     (void)desc;
 
@@ -122,7 +122,7 @@ bool test_crop_cover(const char *desc) {
     int r;
     const Metadata metadata = {
         .filepath =  "./.testenv/unit/crop_cover.m4a",
-        .cover_policy = CROP_COVER,
+        .cover_policy = COVER_CROP,
     };
     (void)desc;
 
@@ -144,7 +144,7 @@ bool test_clear_cover(const char *desc) {
     int r;
     const Metadata metadata = {
         .filepath = "./.testenv/unit/clear_cover.m4a",
-        .cover_policy = CLEAR_COVER
+        .cover_policy = COVER_CLEAR
     };
     (void)desc;
 

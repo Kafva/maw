@@ -21,11 +21,11 @@
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
     // Keep original cover art unless a custom `cover_path` is given (default)
-    KEEP_COVER_UNLESS_PROVIDED               = 0x0,
+    COVER_KEEP                               = 0x0,
     // Remove cover art if present
-    CLEAR_COVER                              = 0x1,
+    COVER_CLEAR                              = 0x1,
     // Crop 1280x720 covers to 720x720, idempotent for 720x720 covers.
-    CROP_COVER                               = 0x1 << 1,
+    COVER_CROP                               = 0x1 << 1,
 } typedef CoverPolicy;
 
 enum MediaError {
@@ -79,8 +79,8 @@ int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
 } while (0)
 
 #define NEEDS_ORIGINAL_COVER(metadata) \
-    (metadata->cover_policy != CLEAR_COVER &&  \
-     (metadata->cover_policy == CROP_COVER || metadata->cover_path == NULL))
+    (metadata->cover_policy != COVER_CLEAR &&  \
+     (metadata->cover_policy == COVER_CROP || metadata->cover_path == NULL))
 
 #define AUDIO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->audio_input_stream_index]
 #define VIDEO_INPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[ctx->video_input_stream_index]

@@ -63,19 +63,19 @@ int main(int argc, char *argv[]) {
             verbose = true;
             break;
         case 'l':
-            if (strncasecmp("debug", optarg, sizeof("debug") - 1) == 0) {
+            if (STR_CASE_MATCH("debug", optarg)) {
                 av_log_level = AV_LOG_DEBUG;
             }
-            else if (strncasecmp("warning", optarg, sizeof("warning") - 1) == 0) {
+            else if (STR_CASE_MATCH("warning", optarg)) {
                 av_log_level = AV_LOG_WARNING;
             }
-            else if (strncasecmp("info", optarg, sizeof("info") - 1) == 0) {
+            else if (STR_CASE_MATCH("info", optarg)) {
                 av_log_level = AV_LOG_INFO;
             }
-            else if (strncasecmp("error", optarg, sizeof("error") - 1) == 0) {
+            else if (STR_CASE_MATCH("error", optarg)) {
                 av_log_level = AV_LOG_ERROR;
             }
-            else if (strncasecmp("quiet", optarg, sizeof("quiet") - 1) == 0) {
+            else if (STR_CASE_MATCH("quiet", optarg)) {
                 av_log_level = AV_LOG_QUIET;
             }
             else {

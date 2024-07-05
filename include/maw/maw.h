@@ -45,6 +45,13 @@ struct Metadata {
     bool clean;
 } typedef Metadata;
 
+struct Playlist {
+    const char *name;
+    const char *paths;
+    size_t count;
+
+} typedef Playlist;
+
 struct MawContext {
    const char *output_filepath;
    const Metadata *metadata;
@@ -62,7 +69,6 @@ struct MawContext {
 } typedef MawContext;
 
 int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
-
 
 #define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \
     r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, filter_graph); \
@@ -88,5 +94,8 @@ int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
 #define AUDIO_OUTPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[AUDIO_OUTPUT_STREAM_INDEX]
 #define VIDEO_OUTPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]
 
+#define STR_MATCH(target, arg) (strncmp(target, arg, sizeof(target) - 1) == 0)
+#define STR_CASE_MATCH(target, arg) (strncasecmp(target, arg, sizeof(target) - 1) == 0)
+    
 
 #endif // MAW_H

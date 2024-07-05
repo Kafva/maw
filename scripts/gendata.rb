@@ -219,6 +219,7 @@ def setup
             second:
               - blue/blue1.m4a
               - blue/blue2.m4a
+              - red
         metadata:
             red:
               album: Red album
@@ -231,6 +232,7 @@ def setup
               clean: true
             blue/*2.m4a:
               cover_policy: CLEAR
+            # Best match, this should be used!
             blue/*blue_2.m4a:
               cover_policy: KEEP
             blue/*3.m4a:
@@ -250,7 +252,7 @@ def setup
     FileUtils.mkdir_p MUSIC_ROOT
     FileUtils.mkdir_p "#{TOP}/unit"
     File.write(CFG, cfg_yaml)
-    File.write("#{TOP}/bad.yml", bad_cfg_yaml)
+    File.write("#{TOP}/unit/bad.yml", bad_cfg_yaml)
 
 
     # Unit test data

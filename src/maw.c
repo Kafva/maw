@@ -25,7 +25,7 @@ static int maw_init_dec_context(MawContext*);
 static int maw_init_enc_context(MawContext*);
 static int maw_remux(MawContext*);
 static void maw_free_context(MawContext*);
-static MawContext* maw_init_context(const Metadata*, const char*);
+static struct MawContext* maw_init_context(const Metadata*, const char*);
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -753,7 +753,7 @@ end:
 
 int maw_update(const Metadata *metadata) {
     int r = INTERNAL_ERROR;
-    char tmpfile[] = "/tmp/maw.XXXXX.m4a";
+    char tmpfile[] = "/tmp/maw.XXXXXX.m4a";
     int tmphandle = mkstemps(tmpfile, sizeof(".m4a") - 1);
     MawContext *ctx = NULL;
 

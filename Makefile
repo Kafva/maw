@@ -34,6 +34,7 @@ CFLAGS            += -Werror
 CFLAGS            += -Wstrict-prototypes
 CFLAGS            += -Wmissing-prototypes
 CFLAGS            += -Wmissing-declarations
+CFLAGS            += -Wimplicit-fallthrough
 CFLAGS            += -Wshadow
 CFLAGS            += -Wpointer-arith
 CFLAGS            += -Wcast-qual

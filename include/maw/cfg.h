@@ -1,6 +1,7 @@
 #ifndef CFG_H
 #define CFG_H
 
+#include <sys/queue.h>
 #include <yaml.h>
 #include "maw/maw.h"
 
@@ -9,23 +10,23 @@
 #define MAW_CFG_PLAYLISTS_KEY   "playlists"
 #define MAW_CFG_METADATA_KEY    "metadata"
 
+
 struct PlaylistEntry {
     Playlist value;
-    struct PlaylistEntry *next;
+    SLIST_ENTRY(PlaylistEntry) entry;
 } typedef PlaylistEntry;
 
 struct MetadataEntry {
     Metadata value;
-    struct MetadataEntry *next;
+    SLIST_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;
+
 
 struct MawConfig {
     char *art_dir;
     char *music_dir;
-    PlaylistEntry *playlists; // LINKED LIST
-    size_t playlist_count;
-    MetadataEntry *metadata; // LINKED_LIST
-    size_t metadata_count;
+    SLIST_HEAD(, PlaylistEntry) playlists_head;
+    SLIST_HEAD(, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
 enum MawConfigSection {
@@ -40,5 +41,6 @@ enum MawConfigSection {
 
 
 int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
+void maw_cfg_dump(MawConfig *cfg);
 
 #endif // CFG_H

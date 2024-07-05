@@ -1,3 +1,4 @@
+
 #include "maw/cfg.h"
 #include "maw/log.h"
 #include "maw/maw.h"
@@ -36,24 +37,6 @@ static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp) {
     (void)fclose(fp);
 }
 
-static void free_metadata(MetadataEntry *entry) {
-    if (entry == NULL)
-        return;
-    free_metadata(entry->next);
-    free(entry);
-}
-
-static void free_playlists(PlaylistEntry *entry) {
-    if (entry == NULL)
-        return;
-    free_playlists(entry->next);
-    free(entry);
-}
-
-static PlaylistEntry* alloc_playlist_entry(void) {
-    PlaylistEntry *entry;
-    return entry;
-}
 
 static void maw_cfg_deinit(MawConfig *cfg) {
     if (cfg == NULL)
@@ -62,8 +45,7 @@ static void maw_cfg_deinit(MawConfig *cfg) {
     free(cfg->music_dir);
     free(cfg->art_dir);
 
-    free_metadata(cfg->metadata);
-    free_playlists(cfg->playlists);
+    // TODO
 
     free(cfg);
 }
@@ -96,6 +78,12 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
         MAW_PERROR("calloc");
         goto end;
     }
+    (*cfg)->art_dir = NULL;
+    (*cfg)->music_dir = NULL;
+
+    // Initialize linked lists
+    SLIST_INIT(&(*cfg)->metadata_head);
+    SLIST_INIT(&(*cfg)->playlists_head);
 
     r = maw_cfg_yaml_init(filepath, &parser, &fp);
     if (r != 0) {
@@ -124,9 +112,10 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
                 }
                 break;
             case MAW_CFG_SECTION_METADATA:
+            case MAW_CFG_SECTION_PLAYLISTS:
                 // OK: encountered a new metadata entry
-                current_section = MAW_CFG_SECTION_METADATA_ENTRY;
-                current_key = strdup(prev_value);
+                // current_section = MAW_CFG_SECTION_METADATA_ENTRY;
+                // current_key = strdup(prev_value);
                 break;
             default:
                 // No mapping events should occur under 'playlists'
@@ -163,17 +152,15 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
             MAW_LOG(MAW_DEBUG, "== BEGIN Sequence");
             switch (current_section) {
             case MAW_CFG_SECTION_PLAYLISTS:
-                playlist_entry = calloc(1, sizeof(PlaylistEntry));
-                if (playlist_entry == NULL) {
-                    MAW_PERROR("calloc");
-                    goto end;
-                }
+                // TODO
 
-                if ((*cfg)->playlists == NULL) {
-                    (*cfg)->playlists = playlist_entry;
-                }
+                // playlist_entry = calloc(1, sizeof(PlaylistEntry));
+                // if (playlist_entry == NULL) {
+                //     MAW_PERROR("calloc");
+                //     goto end;
+                // }
 
-                (*cfg)->playlist_count++;
+                // SLIST_INSERT_HEAD(&(*cfg)->playlists_head, playlist_entry, entry);
 
                 current_section = MAW_CFG_SECTION_PLAYLISTS_ENTRY;
                 break;
@@ -210,10 +197,17 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
                 else if (STR_MATCH(MAW_CFG_ART_KEY, value)) {
                     current_section = MAW_CFG_SECTION_ART_DIR;
                 }
-                else {
-                    MAW_LOGF(MAW_WARN, "Unexpected scalar at %s:%zu:%zu",
-                             filepath, event.start_mark.line, event.start_mark.column);
+                else if (STR_MATCH(MAW_CFG_PLAYLISTS_KEY, value)) {
+                    current_section = MAW_CFG_SECTION_PLAYLISTS;
                 }
+                else if (STR_MATCH(MAW_CFG_METADATA_KEY, value)) {
+                    current_section = MAW_CFG_SECTION_METADATA;
+                }
+                else {
+                    MAW_LOGF(MAW_WARN, "Unexpected scalar '%s' at %s:%zu:%zu",
+                             value, filepath, event.start_mark.line, event.start_mark.column);
+                }
+                break;
             case MAW_CFG_SECTION_ART_DIR:
                 (*cfg)->art_dir = strdup(value);
                 current_section = MAW_CFG_SECTION_TOP;
@@ -223,7 +217,6 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
                 current_section = MAW_CFG_SECTION_TOP;
                 break;
             case MAW_CFG_SECTION_PLAYLISTS:
-
                 current_section = MAW_CFG_SECTION_PLAYLISTS_ENTRY;
                 break;
             case MAW_CFG_SECTION_METADATA:
@@ -234,30 +227,8 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
                 break;
             }
             
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             free(prev_value);
             prev_value = strdup(value);
-
-            // Bookeep the current key
-            // if (new_mapping) {
-            //     free(current_top_key);
-            //     current_top_key = strdup(value);
-            //     new_mapping = false;
-            //     break;
-            // }
 
             break;
         default:
@@ -269,10 +240,22 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
     }
 
     r = 0;
+    maw_cfg_dump(*cfg);
 end:
     maw_cfg_yaml_deinit(parser, fp);
     if (r != 0) {
         maw_cfg_deinit(*cfg);
     }
     return r;
+}
+
+void maw_cfg_dump(MawConfig *cfg) {
+    MetadataEntry *m;
+    MAW_LOG(MAW_DEBUG, "===");
+    MAW_LOGF(MAW_DEBUG, MAW_CFG_ART_KEY": %s", cfg->art_dir);
+    MAW_LOGF(MAW_DEBUG, MAW_CFG_MUSIC_KEY": %s", cfg->music_dir);
+
+    SLIST_FOREACH(m, &(cfg->metadata_head), entry) {
+        MAW_LOGF(MAW_DEBUG, "Metadata: %s", m->value.title);
+    }
 }

@@ -4,12 +4,18 @@ UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 SRCS              = $(wildcard src/*.c)
 HEADERS           = $(wildcard include/*.h)
 
+# Tests
+PROGRAM_TEST      = maw_test
+LLVM_PROFDATA     = $(BUILD)/$(PROGRAM_TEST).profdata
+# Needs to be set during invocation of binary
+export LLVM_PROFILE_FILE =  $(BUILD)/$(PROGRAM_TEST).profraw
+
 ifeq ($(TESTS),1)
 CFLAGS            += -DMAW_TEST
 SRCS              += $(wildcard src/tests/*.c)
 HEADERS           += $(wildcard include/tests/*.h)
 SRCS_PATTERN      = $(CURDIR)/src/**%.c
-PROGRAM           = maw_test
+PROGRAM           = $(PROGRAM_TEST)
 else
 SRCS_PATTERN       = $(CURDIR)/src/%.c
 PROGRAM           = maw
@@ -85,10 +91,10 @@ endif # UNAME
 endif # DEBUG
 
 ifeq ($(COVERAGE),1)
-CFLAGS            += -fprofile-instr-generate
-CFLAGS            += -fcoverage-mapping
-LDFLAGS           += -fprofile-instr-generate
-LDFLAGS           += -fcoverage-mapping
+COVERAGE_FLAGS    = -fprofile-instr-generate
+COVERAGE_FLAGS    += -fcoverage-mapping
+CFLAGS            += $(COVERAGE_FLAGS)
+LDFLAGS           += $(COVERAGE_FLAGS)
 endif
 
 all: $(BUILD)/$(PROGRAM) compile_commands.json
@@ -135,6 +141,21 @@ $(CURDIR)/deps/FFmpeg:
 $(CURDIR)/deps/libyaml:
 	mkdir -p $(dir $@)
 	git clone --depth 1 https://github.com/yaml/libyaml.git $@
+
+test:
+	$(CURDIR)/scripts/gendata.rb
+	TESTS=1 $(MAKE) clean all
+	$(BUILD)/$(PROGRAM_TEST)
+
+coverage:
+	$(CURDIR)/scripts/gendata.rb
+	TESTS=1 COVERAGE=1 $(MAKE) clean all
+	-$(BUILD)/$(PROGRAM_TEST)
+	llvm-profdata merge -sparse $(LLVM_PROFILE_FILE) -o $(LLVM_PROFDATA)
+	llvm-cov report $(BUILD)/$(PROGRAM_TEST) \
+		-instr-profile=$(LLVM_PROFDATA) \
+		--ignore-filename-regex='include/*' \
+		--ignore-filename-regex='deps/*'
 
 clean:
 	rm -rf $(BUILD)/*.o $(BUILD)/.*.json $(BUILD)/tests $(BUILD)/maw*

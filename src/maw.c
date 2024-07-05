@@ -1,5 +1,6 @@
 #include "maw/maw.h"
 #include "maw/log.h"
+#include "maw/utils.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -774,12 +775,20 @@ int maw_update(const Metadata *metadata) {
         goto end;
     }
 
-    r = rename(tmpfile, metadata->filepath);
-    if (r != 0) {
-         MAW_PERROR(tmpfile);
-         goto end;
+    if (on_same_device(tmpfile, metadata->filepath)) {
+        r = rename(tmpfile, metadata->filepath);
+        if (r != 0) {
+             MAW_PERROR(tmpfile);
+             goto end;
+        }
+    }
+    else {
+        r = movefile(tmpfile, metadata->filepath);
+        if (r != 0)
+             goto end;
     }
 
+    r = 0;
 end:
     (void)unlink(tmpfile);
     maw_free_context(ctx);

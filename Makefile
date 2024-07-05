@@ -42,6 +42,11 @@ CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
 CFLAGS            += -Wdeclaration-after-statement
 CFLAGS            += -pedantic
+CFLAGS            += -Wformat
+CFLAGS            += -Wuninitialized
+# CFLAGS            += -Wconversion
+CFLAGS            += -Wnull-dereference
+
 
 # Libraries
 LDFLAGS           += -lyaml

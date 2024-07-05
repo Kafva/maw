@@ -212,14 +212,14 @@ def setup
     cfg_yaml = <<~EOS
         art_dir: #{ART_ROOT}
         music_dir: #{MUSIC_ROOT}
-        playlists:
-            first:
-              - red/red1.mp4
-              - red/red2.mp4
-            second:
-              - blue/blue1.m4a
-              - blue/blue2.m4a
-              - red
+        # playlists:
+        #     first:
+        #       - red/red1.mp4
+        #       - red/red2.mp4
+        #     second:
+        #       - blue/blue1.m4a
+        #       - blue/blue2.m4a
+        #       - red
         metadata:
             red:
               album: Red album

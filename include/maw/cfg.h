@@ -11,6 +11,8 @@
 #define MAW_CFG_METADATA_KEY    "metadata"
 
 
+
+
 struct PlaylistEntry {
     Playlist value;
     SLIST_ENTRY(PlaylistEntry) entry;
@@ -38,7 +40,6 @@ enum MawConfigSection {
     MAW_CFG_SECTION_METADATA,
     MAW_CFG_SECTION_METADATA_ENTRY,
 } typedef MawConfigSection;
-
 
 int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
 void maw_cfg_dump(MawConfig *cfg);

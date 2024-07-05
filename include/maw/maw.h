@@ -47,6 +47,7 @@ struct Metadata {
 
 struct Playlist {
     const char *name;
+    // TODO SLIST
     const char *paths;
     size_t count;
 

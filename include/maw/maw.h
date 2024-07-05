@@ -95,8 +95,9 @@ int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
 #define AUDIO_OUTPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[AUDIO_OUTPUT_STREAM_INDEX]
 #define VIDEO_OUTPUT_STREAM(ctx) ctx->input_fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]
 
-#define STR_MATCH(target, arg) (strncmp(target, arg, sizeof(target) - 1) == 0)
-#define STR_CASE_MATCH(target, arg) (strncasecmp(target, arg, sizeof(target) - 1) == 0)
-    
+#define STR_MATCH(target, arg) (strlen(target) == strlen(arg) && \
+                                strncmp(target, arg, strlen(arg)) == 0)
+#define STR_CASE_MATCH(target, arg) (strlen(target) == strlen(arg) && \
+                                     strncasecmp(target, arg, strlen(arg)) == 0)
 
 #endif // MAW_H

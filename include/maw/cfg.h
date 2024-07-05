@@ -10,9 +10,6 @@
 #define MAW_CFG_PLAYLISTS_KEY   "playlists"
 #define MAW_CFG_METADATA_KEY    "metadata"
 
-
-
-
 struct PlaylistEntry {
     Playlist value;
     SLIST_ENTRY(PlaylistEntry) entry;
@@ -23,6 +20,10 @@ struct MetadataEntry {
     SLIST_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;
 
+struct YamlKey {
+    char *value;
+    SLIST_ENTRY(YamlKey) entry;
+} typedef YamlKey;
 
 struct MawConfig {
     char *art_dir;
@@ -31,15 +32,24 @@ struct MawConfig {
     SLIST_HEAD(, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
-enum MawConfigSection {
+// The states that the parser can be in, we consider different keys
+// valid in each of these states.
+enum YamlSection {
     MAW_CFG_SECTION_TOP,
-    MAW_CFG_SECTION_ART_DIR,
-    MAW_CFG_SECTION_MUSIC_DIR,
     MAW_CFG_SECTION_PLAYLISTS,
     MAW_CFG_SECTION_PLAYLISTS_ENTRY,
     MAW_CFG_SECTION_METADATA,
     MAW_CFG_SECTION_METADATA_ENTRY,
-} typedef MawConfigSection;
+} typedef YamlSection;
+
+struct YamlContext {
+    const char *filepath; // Not part of the YAML
+    int next_token_type;
+    YamlSection current_section;
+    SLIST_HEAD(, YamlKey) keys_head;
+
+} typedef YamlContext;
+
 
 int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
 void maw_cfg_dump(MawConfig *cfg);

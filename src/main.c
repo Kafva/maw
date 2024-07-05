@@ -28,7 +28,6 @@ static int run_program(const char *);
 static void usage(void);
 
 int main(int argc, char *argv[]) {
-    int r;
     int opt;
     int av_log_level = AV_LOG_QUIET;
     bool verbose = false;
@@ -153,13 +152,15 @@ static int run_tests(const char *match_testcase) {
 #else
 
 static int run_program(const char *config_file) {
+    MawConfig *cfg = NULL;
+
     if (config_file == NULL) {
         MAW_LOG(MAW_ERROR, "Missing required options");
         usage();
         return EXIT_FAILURE;
     }
 
-    (void)maw_cfg_parse(config_file);
+    (void)maw_cfg_yaml_parse(config_file, &cfg);
 
     return EXIT_SUCCESS;
 }

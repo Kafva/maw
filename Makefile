@@ -84,6 +84,13 @@ CFLAGS            += -I/opt/homebrew/include
 endif # UNAME
 endif # DEBUG
 
+ifeq ($(COVERAGE),1)
+CFLAGS            += -fprofile-instr-generate
+CFLAGS            += -fcoverage-mapping
+LDFLAGS           += -fprofile-instr-generate
+LDFLAGS           += -fcoverage-mapping
+endif
+
 all: $(BUILD)/$(PROGRAM) compile_commands.json
 
 $(BUILD)/%.o: $(SRCS_PATTERN) $(HEADERS)

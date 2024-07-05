@@ -169,7 +169,7 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
 
     r = 0;
 end:
-    return 0;
+    return r;
 }
 
 // A `YAML_VALUE_TOKEN` is a leaf.
@@ -227,7 +227,7 @@ static int maw_parse_value(MawConfig *cfg,
 
     r = 0;
 end:
-    return 0;
+    return r;
 }
 
 int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
@@ -236,7 +236,6 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
     yaml_token_t token;
     yaml_parser_t *parser;
     FILE *fp = NULL;
-    char *value = NULL;
 
     YamlContext ctx = {
         .filepath = filepath,

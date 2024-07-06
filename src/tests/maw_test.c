@@ -270,7 +270,7 @@ bool test_cfg_ok(const char *desc) {
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
 
-    r = maw_cfg_yaml_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
     return true;
@@ -281,7 +281,7 @@ bool test_cfg_error(const char *desc) {
     const char *config_file = ".testenv/unit/bad.yml";
     MawConfig *cfg = NULL;
 
-    r = maw_cfg_yaml_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, INTERNAL_ERROR, desc);
 
     return true;

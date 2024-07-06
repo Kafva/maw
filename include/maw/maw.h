@@ -5,6 +5,7 @@
 #include <libavfilter/avfilter.h>
 #include <libavformat/avformat.h>
 #include <stdbool.h>
+#include <sys/queue.h>
 
 
 #define CROP_ACCEPTED_WIDTH 1280
@@ -28,12 +29,12 @@ enum CoverPolicy {
     COVER_CROP                               = 0x1 << 1,
 } typedef CoverPolicy;
 
-enum MediaError {
+enum MawError {
     // Fallback error code for maw functions
     INTERNAL_ERROR = 50,
     // Input file has an unsupported set of streams
     UNSUPPORTED_INPUT_STREAMS = 51,
-} typedef MediaError;
+};
 
 struct Metadata {
     const char *filepath;
@@ -44,14 +45,6 @@ struct Metadata {
     CoverPolicy cover_policy;
     bool clean;
 } typedef Metadata;
-
-struct Playlist {
-    const char *name;
-    // TODO SLIST
-    const char *paths;
-    size_t count;
-
-} typedef Playlist;
 
 struct MawContext {
    const char *output_filepath;

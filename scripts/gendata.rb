@@ -231,7 +231,7 @@ def setup
               cover: blue.png
               clean: true
             blue/*2.m4a:
-              cover_policy: LEAR
+              cover_policy: CLEAR
             # Best match, this should be used!
             blue/*blue_2.m4a:
               cover_policy: KEEP

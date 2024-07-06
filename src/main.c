@@ -160,7 +160,7 @@ static int run_program(const char *config_file) {
         return EXIT_FAILURE;
     }
 
-    (void)maw_cfg_yaml_parse(config_file, &cfg);
+    (void)maw_cfg_parse(config_file, &cfg);
 
     return EXIT_SUCCESS;
 }

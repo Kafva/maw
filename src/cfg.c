@@ -3,11 +3,9 @@
 #include "maw/log.h"
 #include "maw/maw.h"
 
-static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE **fp)
-                 __attribute__((warn_unused_result));
-static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp);
-
+#define KEY_LAST(c) c->keypath[c->key_count - 1]
 #define TOSTR(arg) #arg
+#define CASE_RET(a) case a: return TOSTR(a)
 #define MAW_STRLCPY(dst, src) do {\
     size_t __r; \
     __r = strlcpy(dst, src, sizeof(dst)); \
@@ -17,8 +15,8 @@ static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp);
     } \
 } while (0)
 
-#define MAW_YAML_WARN(ctx, token, type, scalar) do { \
-    MAW_LOGF(MAW_WARN, "Unexpected %s '%s' at %s:%zu:%zu", \
+#define MAW_YAML_UNXEXPECTED(level, ctx, token, type, scalar) do { \
+    MAW_LOGF(level, "Unexpected %s '%s' at %s:%zu:%zu", \
              type, \
              scalar, \
              ctx->filepath, \
@@ -26,7 +24,11 @@ static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp);
              token->start_mark.column); \
 } while (0)
 
-////////////////////////////////////////////////////////////////////////////////
+#define MAW_YAML_WARN(ctx, token, type, scalar) \
+    MAW_YAML_UNXEXPECTED(MAW_WARN, ctx, token, type, scalar);
+
+#define MAW_YAML_ERROR(ctx, token, type, scalar) \
+    MAW_YAML_UNXEXPECTED(MAW_ERROR, ctx, token, type, scalar);
 
 static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE **fp) {
     // The API for libyaml returns 0 on failure...
@@ -58,6 +60,23 @@ static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp) {
     (void)fclose(fp);
 }
 
+static const char *maw_cfg_key_tostr(enum YamlKey key) {
+    switch (key) {
+        CASE_RET(KEY_NONE);
+        CASE_RET(KEY_INVALID);
+        CASE_RET(KEY_ARBITRARY);
+        CASE_RET(KEY_ART);
+        CASE_RET(KEY_MUSIC);
+        CASE_RET(KEY_PLAYLISTS);
+        CASE_RET(KEY_METADATA);
+        CASE_RET(KEY_ALBUM);
+        CASE_RET(KEY_ARTIST);
+        CASE_RET(KEY_COVER);
+        CASE_RET(KEY_COVER_POLICY);
+        CASE_RET(KEY_CLEAN);
+    }
+}
+
 static void maw_cfg_deinit(MawConfig *cfg) {
     if (cfg == NULL)
         return;
@@ -70,104 +89,148 @@ static void maw_cfg_deinit(MawConfig *cfg) {
     free(cfg);
 }
 
-static void maw_cfg_set_metadata_field(YamlContext *ctx,
+static void maw_cfg_key_push(YamlContext *ctx, const char *key, enum YamlKey mkey) {
+    MAW_LOGF(MAW_DEBUG, "Pushing key: %s", key);
+    ctx->keypath[ctx->key_count++] = mkey;
+}
+
+static bool maw_cfg_key_pop(YamlContext *ctx) {
+    if (ctx->key_count == 0) {
+        return false;
+    }
+    MAW_LOGF(MAW_DEBUG, "Popping key: %s",  maw_cfg_key_tostr(KEY_LAST(ctx)));
+    KEY_LAST(ctx) = KEY_NONE;
+    ctx->key_count--;
+    return true;
+}
+
+static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx, const char *key) {
+    switch (ctx->key_count) {
+    case 0:
+        if (STR_MATCH(MAW_CFG_KEY_METADATA, key)) {
+            return KEY_METADATA;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_PLAYLISTS, key)) {
+            return KEY_PLAYLISTS;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_MUSIC, key)) {
+            return KEY_MUSIC;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_ART, key)) {
+            return KEY_ART;
+        }
+        break;
+    case 1:
+        // Name of 'playlists' or 'metadata' entry
+        return KEY_ARBITRARY;
+    case 2:
+        if (STR_MATCH(MAW_CFG_KEY_ALBUM, key)) {
+            return KEY_ALBUM;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_ARTIST, key)) {
+            return KEY_ARTIST;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_COVER, key)) {
+            return KEY_COVER;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_COVER_POLICY, key)) {
+            return KEY_COVER_POLICY;
+        }
+        else if (STR_MATCH(MAW_CFG_KEY_CLEAN, key)) {
+            return KEY_CLEAN;
+        }
+        break;
+    default:
+        break;
+    }
+    return KEY_INVALID;
+}
+
+static int maw_cfg_set_metadata_field(YamlContext *ctx,
                                        yaml_token_t *token,
-                                       const char *key,
                                        Metadata *metadata,
                                        const char *value) {
-    if (STR_MATCH("filepath", key)) {
-        metadata->filepath = strdup(value);
-    }
-    else if (STR_MATCH("title", key)) {
-        metadata->title = strdup(value);
-    }
-    else if (STR_MATCH("album", key)) {
-        metadata->album = strdup(value);
-    }
-    else if (STR_MATCH("artist", key)) {
-        metadata->artist = strdup(value);
-    }
-    else if (STR_MATCH("cover", key)) {
-        // TODO prepend art_dir
-        metadata->cover_path = strdup(value);
-    }
-    else if (STR_MATCH("cover_policy", key)) {
-        if (STR_CASE_MATCH("keep", value)) {
-            metadata->cover_policy = COVER_KEEP;
-        }
-        else if (STR_CASE_MATCH("crop", value)) {
-            metadata->cover_policy = COVER_CROP;
-        }
-        else if (STR_CASE_MATCH("clear", value)) {
-            metadata->cover_policy = COVER_CLEAR;
-        }
-        else {
-            MAW_YAML_WARN(ctx, token, "value", value);
-            goto end;
-        }
-    }
-    else if (STR_MATCH("clean", key)) {
-        metadata->clean = strncasecmp("true", value, sizeof("true") - 1) == 0;
-    }
-    else {
-        MAW_YAML_WARN(ctx, token, "key", key);
-        goto end;
+    int r = INTERNAL_ERROR;
+    switch (ctx->keypath[2]) {
+        case KEY_ALBUM:
+            metadata->album = strdup(value);
+            break;
+        case KEY_ARTIST:
+            metadata->artist = strdup(value);
+            break;
+        case KEY_COVER:
+            // TODO prepend art_dir
+            metadata->cover_path = strdup(value);
+            break;
+        case KEY_COVER_POLICY:
+            if (STR_CASE_MATCH("keep", value)) {
+                metadata->cover_policy = COVER_KEEP;
+            }
+            else if (STR_CASE_MATCH("crop", value)) {
+                metadata->cover_policy = COVER_CROP;
+            }
+            else if (STR_CASE_MATCH("clear", value)) {
+                metadata->cover_policy = COVER_CLEAR;
+            }
+            else {
+                MAW_YAML_ERROR(ctx, token, "value", value);
+                goto end;
+            }
+            break;
+        case KEY_CLEAN:
+            metadata->clean = strncasecmp("true", value, sizeof("true") - 1) == 0;
+            break;
+        default:
+            MAW_YAML_ERROR(ctx, token, "value", value);
+            break;
     }
 
-    MAW_LOGF(MAW_DEBUG, "Setting %s: %s", key, value);
+    MAW_LOGF(MAW_DEBUG, "Setting: %s", value);
+    r = 0;
 end:
-    return;
+    return r;
 }
 
 // A `YAML_KEY_TOKEN` is not a leaf.
 static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) {
     int r = INTERNAL_ERROR;
     MetadataEntry *metadata_entry = NULL;
-    YamlKey *key = NULL;
+    const char *key = NULL;
+    enum YamlKey mkey;
 
-    key = calloc(1, sizeof(YamlKey));
-    if (key == NULL) {
-        goto end;
-    }
-    key->value = strdup((char*)token->data.scalar.value);
+    key = (const char*)token->data.scalar.value;
+    mkey = maw_cfg_parse_key_to_enum(ctx, key);
 
-    switch (ctx->current_section) {
-        case MAW_CFG_SECTION_TOP:
-            if (STR_MATCH("playlists", key->value)) {
-                ctx->current_section = MAW_CFG_SECTION_PLAYLISTS;
-            }
-            else if (STR_MATCH("metadata", key->value)) {
-                ctx->current_section = MAW_CFG_SECTION_METADATA;
-            }
-            else if (!STR_MATCH("art_dir", key->value) &&
-                     !STR_MATCH("music_dir", key->value)) {
-                MAW_YAML_WARN(ctx, token, "key", key->value);
+    switch (mkey) {
+        case KEY_INVALID:
+            goto end;
+        case KEY_ARBITRARY:
+            // All keys are valid under 'metadata' and 'playlists'
+            switch (ctx->keypath[0]) {
+                case KEY_METADATA:
+                    // New entry under 'metadata'
+                    metadata_entry = calloc(1, sizeof(MetadataEntry));
+                    if (metadata_entry == NULL) {
+                        MAW_PERROR("calloc");
+                        goto end;
+                    }
+                    metadata_entry->value.filepath = strdup(key);
+                    SLIST_INSERT_HEAD(&cfg->metadata_head, metadata_entry, entry);
+                    break;
+                case KEY_PLAYLISTS:
+                    // TODO
+                    break;
+                default:
+                    MAW_LOGF(MAW_ERROR, "Unexpected key at index 0: %s",
+                             maw_cfg_key_tostr(ctx->keypath[0]));
+                    goto end;
             }
             break;
-        case MAW_CFG_SECTION_METADATA:
-            // Create a new metadata entry with the current key as the filepath
-            metadata_entry = calloc(1, sizeof(MetadataEntry));
-            if (metadata_entry == NULL) {
-                MAW_PERROR("calloc");
-                goto end;
-            }
-            metadata_entry->value.filepath = strdup(key->value);
-            SLIST_INSERT_HEAD(&cfg->metadata_head, metadata_entry, entry);
-            // Move one level deeper
-            ctx->current_section = MAW_CFG_SECTION_METADATA_ENTRY;
-            break;
-        case MAW_CFG_SECTION_METADATA_ENTRY:
-            // OK: next value is a `Metadata` field 
-            break;
-        case MAW_CFG_SECTION_PLAYLISTS:
-        case MAW_CFG_SECTION_PLAYLISTS_ENTRY:
-            // TODO
+        default:
             break;
     }
 
-    // Add the current key to the context list
-    MAW_LOGF(MAW_DEBUG, "Pushing key: %s", key->value);
-    SLIST_INSERT_HEAD(&ctx->keys_head, key, entry);
+    maw_cfg_key_push(ctx,  key, mkey);
 
     r = 0;
 end:
@@ -179,53 +242,84 @@ static int maw_parse_value(MawConfig *cfg,
                            YamlContext *ctx,
                            yaml_token_t *token) {
     int r = INTERNAL_ERROR;
-    const char *key;
     const char *value;
-    MetadataEntry *metadata_entry = NULL;
+    Metadata *metadata = NULL;
 
-    if (SLIST_EMPTY(&ctx->keys_head)) {
-        goto end;
-    }
-    key = SLIST_FIRST(&ctx->keys_head)->value;
     value = (const char*)token->data.scalar.value;
 
-    switch (ctx->current_section) {
-        case MAW_CFG_SECTION_TOP:
-            if (STR_MATCH("art_dir", key)) {
-                MAW_LOGF(MAW_DEBUG, "Setting %s: %s", key, value);
-                cfg->art_dir = strdup(value);
-            }
-            else if (STR_MATCH("music_dir", key)) {
-                MAW_LOGF(MAW_DEBUG, "Setting %s: %s", key, value);
-                cfg->music_dir = strdup(value);
-            }
-            else {
-                MAW_YAML_WARN(ctx, token, "key", key);
-            }
+    switch (ctx->key_count) {
+    case 0:
+        // No leafs should occur under the root
+        MAW_YAML_ERROR(ctx, token, "value", value);
+        goto end;
+    case 1:
+        switch (ctx->keypath[0]) {
+        case KEY_ART:
+            cfg->art_dir = strdup(value);
             break;
-        case MAW_CFG_SECTION_METADATA:
-        case MAW_CFG_SECTION_PLAYLISTS:
-            // Should never happen
-            MAW_YAML_WARN(ctx, token, "key", key);
+        case KEY_MUSIC:
+            cfg->music_dir = strdup(value);
+            break;
+        default:
+            MAW_YAML_ERROR(ctx, token, "value", value);
             goto end;
-        case MAW_CFG_SECTION_METADATA_ENTRY:
-            // Assign the value to the latest Metadata item
-            if (SLIST_EMPTY(&cfg->metadata_head)) {
-                goto end;
-            }
-            metadata_entry = SLIST_FIRST(&cfg->metadata_head);
-            maw_cfg_set_metadata_field(ctx, token, key, &metadata_entry->value, value);
-            break;
-        case MAW_CFG_SECTION_PLAYLISTS_ENTRY:
-            goto end; // TODO
+        }
+        break;
+    case 3:
+        switch (ctx->keypath[0]) {
+            case KEY_METADATA:
+                metadata = &SLIST_FIRST(&cfg->metadata_head)->value;
+                (void)maw_cfg_set_metadata_field(ctx, token, metadata, value);
+                break;
+            case KEY_PLAYLISTS:
+                // TODO
+                break;
+            default:
+                MAW_YAML_WARN(ctx, token, "value", value);
+        }
+        break;
+    default:
+        MAW_YAML_ERROR(ctx, token, "value", value);
+        goto end;
     }
 
-    // Always pop the key after parsing a value
-    MAW_LOGF(MAW_DEBUG, "Popping key: %s", key);
-    SLIST_REMOVE_HEAD(&ctx->keys_head, entry);
+    (void)maw_cfg_key_pop(ctx);
     r = 0;
 end:
     return r;
+}
+
+static void maw_cfg_ctx_dump(YamlContext *ctx) {
+    char out[1024];
+    out[0] = '\0';
+
+    for (int i = 0; i < MAW_CFG_MAX_DEPTH; i++) {
+        (void)strlcat(out, maw_cfg_key_tostr(ctx->keypath[i]), sizeof(out));
+        (void)strlcat(out, "|", sizeof(out));
+    }
+
+    if (strlen(out) > 0) {
+        out[strlen(out) - 1] = '\0';
+    }
+
+    MAW_LOGF(MAW_DEBUG, "Yaml context: %s", out);
+}
+
+void maw_cfg_dump(MawConfig *cfg) {
+    MetadataEntry *m;
+    MAW_LOG(MAW_DEBUG, "=== Configuration");
+    MAW_LOGF(MAW_DEBUG, "  "MAW_CFG_KEY_ART": %s", cfg->art_dir);
+    MAW_LOGF(MAW_DEBUG, "  "MAW_CFG_KEY_MUSIC": %s", cfg->music_dir);
+
+    SLIST_FOREACH(m, &(cfg->metadata_head), entry) {
+        MAW_LOGF(MAW_DEBUG, "%s:", m->value.filepath);
+        MAW_LOGF(MAW_DEBUG, "  album: %s", m->value.album);
+        MAW_LOGF(MAW_DEBUG, "  artist: %s", m->value.artist);
+        MAW_LOGF(MAW_DEBUG, "  cover: %s", m->value.cover_path);
+        MAW_LOGF(MAW_DEBUG, "  cover_policy: %d", m->value.cover_policy);
+        MAW_LOGF(MAW_DEBUG, "  clean: %d", m->value.clean);
+    }
+    MAW_LOG(MAW_DEBUG, "===");
 }
 
 /**
@@ -235,7 +329,7 @@ end:
  *
  * @return 0 on success,
  */
-int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
+int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     int yr = 0;
     int r = INTERNAL_ERROR;
     bool done = false;
@@ -246,9 +340,9 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
     YamlContext ctx = {
         .filepath = filepath,
         .next_token_type = 0,
-        .current_section = MAW_CFG_SECTION_TOP
+        .keypath = {0},
+        .key_count = 0,
     };
-    SLIST_INIT(&ctx.keys_head);
 
     parser = calloc(1, sizeof(yaml_parser_t));
     if (parser == NULL) {
@@ -293,36 +387,19 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
                 }
                 break;
             case YAML_BLOCK_MAPPING_START_TOKEN:
-                // TODO
+                MAW_LOG(MAW_DEBUG, "BEGIN mapping");
                 break;
             case YAML_BLOCK_END_TOKEN:
-                // End of a block mapping, i.e. end of a `Metadata` entry
+                MAW_LOG(MAW_DEBUG, "END mapping");
+                // End of a block mapping, e.g. end of a `Metadata` entry
                 // Pop the current key and move up one level
-                if (SLIST_EMPTY(&ctx.keys_head)) {
-                    break;
-                }
-                SLIST_REMOVE_HEAD(&ctx.keys_head, entry);
-
-                switch (ctx.current_section) {
-                    case MAW_CFG_SECTION_TOP:
-                        break;
-                    case MAW_CFG_SECTION_METADATA:
-                    case MAW_CFG_SECTION_PLAYLISTS:
-                        ctx.current_section = MAW_CFG_SECTION_TOP;
-                        break;
-                    case MAW_CFG_SECTION_METADATA_ENTRY:
-                        ctx.current_section = MAW_CFG_SECTION_METADATA;
-                        break;
-                    case MAW_CFG_SECTION_PLAYLISTS_ENTRY:
-                        ctx.current_section = MAW_CFG_SECTION_PLAYLISTS;
-                        break;
-                }
+                (void)maw_cfg_key_pop(&ctx);
                 break;
             case YAML_STREAM_END_TOKEN:
                 done = true;
                 break;
             default:
-                MAW_LOGF(MAW_DEBUG, "Token: %d", token.type);
+                MAW_LOGF(MAW_DEBUG, "Token event: %#x", token.type);
                 break;
         }
 
@@ -337,37 +414,4 @@ end:
         maw_cfg_deinit(*cfg);
     }
     return r;
-}
-
-void maw_cfg_ctx_dump(YamlContext *ctx) {
-    YamlKey *k;
-    char out[1024];
-
-    out[0] = '\0';
-    SLIST_FOREACH(k, &ctx->keys_head, entry) {
-        (void)strlcat(out, k->value, sizeof(out));
-        (void)strlcat(out, "|", sizeof(out));
-    }
-
-    if (strlen(out) > 0) {
-        out[strlen(out) - 1] = '\0';
-    }
-    MAW_LOGF(MAW_DEBUG, "Yaml context: %s", out);
-}
-
-void maw_cfg_dump(MawConfig *cfg) {
-    MetadataEntry *m;
-    MAW_LOG(MAW_DEBUG, "=== Configuration");
-    MAW_LOGF(MAW_DEBUG, "  "MAW_CFG_ART_KEY": %s", cfg->art_dir);
-    MAW_LOGF(MAW_DEBUG, "  "MAW_CFG_MUSIC_KEY": %s", cfg->music_dir);
-
-    SLIST_FOREACH(m, &(cfg->metadata_head), entry) {
-        MAW_LOGF(MAW_DEBUG, "%s:", m->value.filepath);
-        MAW_LOGF(MAW_DEBUG, "  album: %s", m->value.album);
-        MAW_LOGF(MAW_DEBUG, "  artist: %s", m->value.artist);
-        MAW_LOGF(MAW_DEBUG, "  cover: %s", m->value.cover_path);
-        MAW_LOGF(MAW_DEBUG, "  cover_policy: %d", m->value.cover_policy);
-        MAW_LOGF(MAW_DEBUG, "  clean: %d", m->value.clean);
-    }
-    MAW_LOG(MAW_DEBUG, "===");
 }

@@ -5,10 +5,43 @@
 #include <yaml.h>
 #include "maw/maw.h"
 
-#define MAW_CFG_ART_KEY         "art_dir"
-#define MAW_CFG_MUSIC_KEY       "music_dir"
-#define MAW_CFG_PLAYLISTS_KEY   "playlists"
-#define MAW_CFG_METADATA_KEY    "metadata"
+#define MAW_CFG_KEY_ART             "art_dir"
+#define MAW_CFG_KEY_MUSIC           "music_dir"
+#define MAW_CFG_KEY_PLAYLISTS       "playlists"
+#define MAW_CFG_KEY_METADATA        "metadata"
+#define MAW_CFG_KEY_ALBUM           "album"
+#define MAW_CFG_KEY_ARTIST          "artist"
+#define MAW_CFG_KEY_COVER           "cover"
+#define MAW_CFG_KEY_COVER_POLICY    "cover_policy"
+#define MAW_CFG_KEY_CLEAN           "clean"
+
+#define MAW_CFG_MAX_DEPTH 3
+
+enum YamlKey {
+    KEY_NONE,
+    KEY_INVALID,
+    KEY_ARBITRARY,
+    KEY_ART,
+    KEY_MUSIC,
+    KEY_PLAYLISTS,
+    KEY_METADATA,
+    KEY_ALBUM,
+    KEY_ARTIST,
+    KEY_COVER,
+    KEY_COVER_POLICY,
+    KEY_CLEAN,
+};
+
+struct PlaylistPath {
+    const char *path;
+    SLIST_ENTRY(PlaylistPath) entry;
+} typedef PlaylistPath;
+
+struct Playlist {
+    const char *name;
+    SLIST_HEAD(,PlaylistPath) entries;
+    size_t count;
+} typedef Playlist;
 
 struct PlaylistEntry {
     Playlist value;
@@ -20,11 +53,6 @@ struct MetadataEntry {
     SLIST_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;
 
-struct YamlKey {
-    char *value;
-    SLIST_ENTRY(YamlKey) entry;
-} typedef YamlKey;
-
 struct MawConfig {
     char *art_dir;
     char *music_dir;
@@ -32,27 +60,16 @@ struct MawConfig {
     SLIST_HEAD(, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
-// The states that the parser can be in, we consider different keys
-// valid in each of these states.
-enum YamlSection {
-    MAW_CFG_SECTION_TOP,
-    MAW_CFG_SECTION_PLAYLISTS,
-    MAW_CFG_SECTION_PLAYLISTS_ENTRY,
-    MAW_CFG_SECTION_METADATA,
-    MAW_CFG_SECTION_METADATA_ENTRY,
-} typedef YamlSection;
-
 struct YamlContext {
-    const char *filepath; // Not part of the YAML
+    const char *filepath;
     int next_token_type;
-    YamlSection current_section;
-    SLIST_HEAD(, YamlKey) keys_head;
+    enum YamlKey keypath[MAW_CFG_MAX_DEPTH];
+    size_t key_count;
 
 } typedef YamlContext;
 
 
-int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
 void maw_cfg_dump(MawConfig *cfg);
-void maw_cfg_ctx_dump(YamlContext *ctx);
+int maw_cfg_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
 
 #endif // CFG_H

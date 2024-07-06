@@ -29,6 +29,8 @@ static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp);
 ////////////////////////////////////////////////////////////////////////////////
 
 static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE **fp) {
+    // The API for libyaml returns 0 on failure...
+    int yr = 0;
     int r = INTERNAL_ERROR;
 
     *fp = fopen(filepath, "r");
@@ -37,8 +39,8 @@ static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE 
         goto end;
     }
 
-    r = yaml_parser_initialize(*parser);
-    if (r != 1) {
+    yr = yaml_parser_initialize(*parser);
+    if (yr != 1) {
         MAW_LOGF(MAW_ERROR, "%s: failed to initialize parser", filepath);
         goto end;
     }
@@ -155,7 +157,7 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
             ctx->current_section = MAW_CFG_SECTION_METADATA_ENTRY;
             break;
         case MAW_CFG_SECTION_METADATA_ENTRY:
-            // OK: the next Value should go into the latest Metadata item
+            // OK: next value is a `Metadata` field 
             break;
         case MAW_CFG_SECTION_PLAYLISTS:
         case MAW_CFG_SECTION_PLAYLISTS_ENTRY:
@@ -182,7 +184,6 @@ static int maw_parse_value(MawConfig *cfg,
     MetadataEntry *metadata_entry = NULL;
 
     if (SLIST_EMPTY(&ctx->keys_head)) {
-        r = 0;
         goto end;
     }
     key = SLIST_FIRST(&ctx->keys_head)->value;
@@ -201,9 +202,6 @@ static int maw_parse_value(MawConfig *cfg,
             else {
                 MAW_YAML_WARN(ctx, token, "key", key);
             }
-            // Pop the key
-            MAW_LOGF(MAW_DEBUG, "Popping key: %s", key);
-            SLIST_REMOVE_HEAD(&ctx->keys_head, entry);
             break;
         case MAW_CFG_SECTION_METADATA:
         case MAW_CFG_SECTION_PLAYLISTS:
@@ -217,20 +215,28 @@ static int maw_parse_value(MawConfig *cfg,
             }
             metadata_entry = SLIST_FIRST(&cfg->metadata_head);
             maw_cfg_set_metadata_field(ctx, token, key, &metadata_entry->value, value);
-            // Pop the key
-            MAW_LOGF(MAW_DEBUG, "Popping key: %s", key);
-            SLIST_REMOVE_HEAD(&ctx->keys_head, entry);
             break;
         case MAW_CFG_SECTION_PLAYLISTS_ENTRY:
-            break;
+            goto end; // TODO
     }
 
+    // Always pop the key after parsing a value
+    MAW_LOGF(MAW_DEBUG, "Popping key: %s", key);
+    SLIST_REMOVE_HEAD(&ctx->keys_head, entry);
     r = 0;
 end:
     return r;
 }
 
+/**
+ *
+ * @param [in] filepath
+ * @param [in,out] cfg
+ *
+ * @return 0 on success,
+ */
 int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
+    int yr = 0;
     int r = INTERNAL_ERROR;
     bool done = false;
     yaml_token_t token;
@@ -250,6 +256,7 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
         goto end;
     }
 
+    // Initialize config object
     *cfg = calloc(1, sizeof(MawConfig));
     if (*cfg == NULL) {
         MAW_PERROR("calloc");
@@ -257,8 +264,6 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
     }
     (*cfg)->art_dir = NULL;
     (*cfg)->music_dir = NULL;
-
-    // Initialize linked lists
     SLIST_INIT(&(*cfg)->metadata_head);
     SLIST_INIT(&(*cfg)->playlists_head);
 
@@ -268,10 +273,9 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
     }
 
     while (!done) {
-        r = yaml_parser_scan(parser, &token);
-        if (r != 1) {
+        yr = yaml_parser_scan(parser, &token);
+        if (yr != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Error parsing yaml", ctx.filepath);
-            r = INTERNAL_ERROR;
             goto end;
         }
 
@@ -288,44 +292,44 @@ int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) {
                     (void)maw_parse_value(*cfg, &ctx, &token);
                 }
                 break;
+            case YAML_BLOCK_MAPPING_START_TOKEN:
+                // TODO
+                break;
+            case YAML_BLOCK_END_TOKEN:
+                // End of a block mapping, i.e. end of a `Metadata` entry
+                // Pop the current key and move up one level
+                if (SLIST_EMPTY(&ctx.keys_head)) {
+                    break;
+                }
+                SLIST_REMOVE_HEAD(&ctx.keys_head, entry);
+
+                switch (ctx.current_section) {
+                    case MAW_CFG_SECTION_TOP:
+                        break;
+                    case MAW_CFG_SECTION_METADATA:
+                    case MAW_CFG_SECTION_PLAYLISTS:
+                        ctx.current_section = MAW_CFG_SECTION_TOP;
+                        break;
+                    case MAW_CFG_SECTION_METADATA_ENTRY:
+                        ctx.current_section = MAW_CFG_SECTION_METADATA;
+                        break;
+                    case MAW_CFG_SECTION_PLAYLISTS_ENTRY:
+                        ctx.current_section = MAW_CFG_SECTION_PLAYLISTS;
+                        break;
+                }
+                break;
             case YAML_STREAM_END_TOKEN:
                 done = true;
                 break;
             default:
+                MAW_LOGF(MAW_DEBUG, "Token: %d", token.type);
                 break;
         }
 
         yaml_token_delete(&token);
-
-
-        // NOTE the order:
-        // Scalar event --> Mapping event
-        //
-        // There is no mapping event for scalar->scalar mappings, only for
-        // scalar->map mappings.
-        //
-        // There are a set of keys that are valid at each level
-        // * top
-        //  - metadata
-        //  - playlists
-        //  - art_dir (no mapping event)
-        //  - music_dir  (no mapping event)
-        //
-        // * metadata_entry (key)
-        //  - title (no mapping event)
-        //  ...
-        //
-        // * playlist_entry (key)
-        //    [sequence]
-        //
-        //
-        // onScalar( current_level )
-        //
-        // On scalar event: save the value and match against it in the Mapping
-        // event
-        // On mapping event: change the section state
     }
     r = 0;
+    maw_cfg_ctx_dump(&ctx);
     maw_cfg_dump(*cfg);
 end:
     maw_cfg_yaml_deinit(parser, fp);
@@ -333,6 +337,22 @@ end:
         maw_cfg_deinit(*cfg);
     }
     return r;
+}
+
+void maw_cfg_ctx_dump(YamlContext *ctx) {
+    YamlKey *k;
+    char out[1024];
+
+    out[0] = '\0';
+    SLIST_FOREACH(k, &ctx->keys_head, entry) {
+        (void)strlcat(out, k->value, sizeof(out));
+        (void)strlcat(out, "|", sizeof(out));
+    }
+
+    if (strlen(out) > 0) {
+        out[strlen(out) - 1] = '\0';
+    }
+    MAW_LOGF(MAW_DEBUG, "Yaml context: %s", out);
 }
 
 void maw_cfg_dump(MawConfig *cfg) {

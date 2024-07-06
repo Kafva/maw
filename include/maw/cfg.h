@@ -53,5 +53,6 @@ struct YamlContext {
 
 int maw_cfg_yaml_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
 void maw_cfg_dump(MawConfig *cfg);
+void maw_cfg_ctx_dump(YamlContext *ctx);
 
 #endif // CFG_H

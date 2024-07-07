@@ -39,8 +39,7 @@ struct PlaylistPath {
 
 struct Playlist {
     const char *name;
-    SLIST_HEAD(,PlaylistPath) entries;
-    size_t count;
+    SLIST_HEAD(,PlaylistPath) playlist_paths_head;
 } typedef Playlist;
 
 struct PlaylistEntry {

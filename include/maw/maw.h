@@ -81,6 +81,15 @@ int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
     } \
 } while (0)
 
+#define MAW_STRLCAT(dst, src) do {\
+    size_t __r; \
+    __r = strlcat(dst, src, sizeof(dst)); \
+    if (__r >= sizeof(dst)) { \
+        MAW_LOGF(MAW_ERROR, "strlcat truncation: '%s'", src); \
+        goto end; \
+    } \
+} while (0)
+
 #define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \
     r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, filter_graph); \
     if (r != 0) { \

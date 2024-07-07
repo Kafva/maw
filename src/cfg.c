@@ -1,3 +1,7 @@
+#include <sys/stat.h>
+#include <dirent.h>
+#include <glob.h>
+
 #include "maw/cfg.h"
 #include "maw/log.h"
 #include "maw/maw.h"
@@ -426,7 +430,7 @@ void maw_cfg_free(MawConfig *cfg) {
 /**
  *
  * @param [in] filepath
- * @param [in,out] cfg
+ * @param [in,out] CFG
  *
  * @return 0 on success,
  */
@@ -520,14 +524,104 @@ end:
     return r;
 }
 
+static bool maw_cfg_add_mediafile(MawConfig *cfg,
+                                 const char *filepath,
+                                 MediaFile mediafiles[MAW_MAX_FILES],
+                                 size_t *mediafiles_count) {
+    if (*mediafiles_count > MAW_MAX_FILES) {
+        MAW_LOGF(MAW_ERROR, "Cannot process more than %d file(s)", MAW_MAX_FILES);
+        return false;
+    }
+
+    *mediafiles_count += 1;
+    mediafiles[*mediafiles_count - 1].path = strdup(filepath);
+    MAW_LOGF(MAW_DEBUG, "Added: %s", mediafiles[*mediafiles_count - 1].path);
+
+    return true;
+}
+
+static int maw_cfg_alloc_mediafiles(MawConfig *cfg,
+                                    MetadataEntry *metadata_entry,
+                                    MediaFile mediafiles[MAW_MAX_FILES],
+                                    size_t *mediafiles_count) {
+    int r = MAW_ERR_INTERNAL;
+    DIR *dir = NULL;
+    struct dirent *entry;
+    struct stat s;
+    glob_t glob_result;
+    char complete_pattern[1024];
+    char filepath[1024];
+
+    MAW_STRLCPY(complete_pattern, cfg->music_dir);
+    MAW_STRLCAT(complete_pattern, "/");
+    MAW_STRLCAT(complete_pattern, metadata_entry->pattern);
+
+    if (strchr(complete_pattern, '*') != NULL) {
+        r = glob(complete_pattern, GLOB_TILDE, NULL, &glob_result);
+        if (r != 0) {
+            MAW_PERRORF("glob", complete_pattern);
+            goto end;
+        }
+
+        for(size_t i = 0; i < glob_result.gl_pathc; i++) {
+            if (!maw_cfg_add_mediafile(cfg, glob_result.gl_pathv[i], mediafiles, mediafiles_count))
+                goto end;
+        }
+        globfree(&glob_result);
+    }
+    else {
+        r = stat(complete_pattern, &s);
+        if (r != 0) {
+            MAW_PERRORF("stat", complete_pattern);
+            goto end;
+        }
+
+        if (S_ISREG(s.st_mode)) {
+            if (!maw_cfg_add_mediafile(cfg, complete_pattern, mediafiles, mediafiles_count))
+                goto end;
+        }
+        else if (S_ISDIR(s.st_mode)) {
+            if ((dir = opendir(complete_pattern)) == NULL) {
+                MAW_PERRORF("opendir", complete_pattern);
+                goto end;
+            }
+
+            while ((entry = readdir(dir)) != NULL) {
+                if (entry->d_type == DT_REG) {
+                    MAW_STRLCPY(filepath, cfg->music_dir);
+                    MAW_STRLCAT(filepath, "/");
+                    MAW_STRLCAT(filepath, entry->d_name);
+                    if (!maw_cfg_add_mediafile(cfg, filepath, mediafiles, mediafiles_count))
+                        goto end;
+                }
+            }
+        }
+    }
+
+    r = 0;
+end:
+    if (dir != NULL)
+        (void)closedir(dir);
+    return r;
+}
 
 int maw_cfg_finalize(MawConfig *cfg) {
     int r = MAW_ERR_INTERNAL;
+    MetadataEntry *m;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    size_t mediafiles_count = 0;
+
+    // Given our *cfg, create a MediaFile[] that we can feed to the job launcher
+    STAILQ_FOREACH(m, &(cfg->metadata_head), entry) {
+        r = maw_cfg_alloc_mediafiles(cfg, m, mediafiles, &mediafiles_count);
+        if (r != 0)
+            goto end;
+    }
 
     // Every metadata entry with a '*' needs to be expanded into actual paths
     // Every metadata entry that is a directory needs to be expanded into paths
     // Give precedence to glob matches over directories
-    
+
     r = 0;
 end:
     return r;

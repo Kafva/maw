@@ -113,7 +113,7 @@ bool test_bad_covers(const char *desc) {
         { .cover_path = "./does_not_exist" },
         { .cover_path = "./README.md" },
     };
-    MediaFile mediafile = { 
+    MediaFile mediafile = {
         .path = "./.testenv/unit/keep_all.m4a",
         .metadata = NULL
     };
@@ -331,6 +331,9 @@ bool test_cfg_ok(const char *desc) {
     MawConfig *cfg = NULL;
 
     r = maw_cfg_parse(config_file, &cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_cfg_finalize(cfg);
     MAW_ASSERT_EQ(r, 0, desc);
     maw_cfg_free(cfg);
 

@@ -34,6 +34,10 @@ void maw_log_init(bool verbose, int av_log_level);
    } \
 } while (0)
 
+#define MAW_PERRORF(function, path) do { \
+   MAW_LOGF(MAW_ERROR, "%s: %s: %s", function, strerror(errno), path); \
+} while (0)
+
 // Log the description of an AV_ERROR
 #define MAW_AVERROR(code, msg) do { \
     char errbuf[128] = {0}; \

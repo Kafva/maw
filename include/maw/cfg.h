@@ -22,6 +22,9 @@
 #define MAW_CFG_KEY_COVER_POLICY    "cover_policy"
 #define MAW_CFG_KEY_CLEAN           "clean"
 
+// Maximum number of files to handle in one invocation
+#define MAW_MAX_FILES 1024
+
 #define MAW_CFG_MAX_DEPTH 3
 
 enum YamlKey {

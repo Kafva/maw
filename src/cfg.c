@@ -213,7 +213,7 @@ static int maw_cfg_add_to_playlist(YamlContext *ctx,
     }
 
     ppath->path = strdup(value);
-    SLIST_INSERT_HEAD(&playlist->playlist_paths_head, ppath, entry);
+    STAILQ_INSERT_TAIL(&playlist->playlist_paths_head, ppath, entry);
 
     MAW_LOGF(MAW_DEBUG, ".%s.m3u added: %s", playlist->name, ppath->path);
     r = 0;
@@ -256,7 +256,7 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
                         goto end;
                     }
                     // Intialize the list of paths
-                    SLIST_INIT(&playlist_entry->value.playlist_paths_head);
+                    STAILQ_INIT(&playlist_entry->value.playlist_paths_head);
                     playlist_entry->value.name = strdup(key);
                     SLIST_INSERT_HEAD(&cfg->playlists_head, playlist_entry, entry);
                     break;
@@ -377,7 +377,7 @@ void maw_cfg_dump(MawConfig *cfg) {
     MAW_LOG(MAW_DEBUG, "playlists:");
     SLIST_FOREACH(p, &(cfg->playlists_head), entry) {
         MAW_LOGF(MAW_DEBUG, "  %s:", p->value.name);
-        SLIST_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
+        STAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
             MAW_LOGF(MAW_DEBUG, "    - %s", pp->path);
         }
     }

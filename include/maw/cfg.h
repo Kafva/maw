@@ -34,12 +34,12 @@ enum YamlKey {
 
 struct PlaylistPath {
     const char *path;
-    SLIST_ENTRY(PlaylistPath) entry;
+    STAILQ_ENTRY(PlaylistPath) entry;
 } typedef PlaylistPath;
 
 struct Playlist {
     const char *name;
-    SLIST_HEAD(,PlaylistPath) playlist_paths_head;
+    STAILQ_HEAD(,PlaylistPath) playlist_paths_head;
 } typedef Playlist;
 
 struct PlaylistEntry {

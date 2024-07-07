@@ -525,16 +525,27 @@ end:
 }
 
 static bool maw_cfg_add_mediafile(MawConfig *cfg,
-                                 const char *filepath,
-                                 MediaFile mediafiles[MAW_MAX_FILES],
-                                 size_t *mediafiles_count) {
+                                  const char *filepath,
+                                  Metadata *metadata,
+                                  MediaFile mediafiles[MAW_MAX_FILES],
+                                  size_t *mediafiles_count) {
     if (*mediafiles_count > MAW_MAX_FILES) {
         MAW_LOGF(MAW_ERROR, "Cannot process more than %d file(s)", MAW_MAX_FILES);
         return false;
     }
 
+    // TODO use a set()
+    for (size_t i = 0; i < *mediafiles_count; i++) {
+        if (STR_MATCH(mediafiles[i].path, filepath)) {
+            mediafiles[i].metadata = metadata;
+            MAW_LOGF(MAW_DEBUG, "Replaced: %s", mediafiles[i].path);
+            return true;
+        }
+    }
+
     *mediafiles_count += 1;
     mediafiles[*mediafiles_count - 1].path = strdup(filepath);
+    mediafiles[*mediafiles_count - 1].metadata = metadata;
     MAW_LOGF(MAW_DEBUG, "Added: %s", mediafiles[*mediafiles_count - 1].path);
 
     return true;
@@ -563,8 +574,11 @@ static int maw_cfg_alloc_mediafiles(MawConfig *cfg,
             goto end;
         }
 
-        for(size_t i = 0; i < glob_result.gl_pathc; i++) {
-            if (!maw_cfg_add_mediafile(cfg, glob_result.gl_pathv[i], mediafiles, mediafiles_count))
+        for (size_t i = 0; i < glob_result.gl_pathc; i++) {
+            if (!maw_cfg_add_mediafile(cfg, glob_result.gl_pathv[i],
+                                       &metadata_entry->value,
+                                       mediafiles,
+                                       mediafiles_count))
                 goto end;
         }
         globfree(&glob_result);
@@ -577,7 +591,9 @@ static int maw_cfg_alloc_mediafiles(MawConfig *cfg,
         }
 
         if (S_ISREG(s.st_mode)) {
-            if (!maw_cfg_add_mediafile(cfg, complete_pattern, mediafiles, mediafiles_count))
+            if (!maw_cfg_add_mediafile(cfg, complete_pattern,
+                                       &metadata_entry->value,
+                                       mediafiles, mediafiles_count))
                 goto end;
         }
         else if (S_ISDIR(s.st_mode)) {
@@ -588,10 +604,12 @@ static int maw_cfg_alloc_mediafiles(MawConfig *cfg,
 
             while ((entry = readdir(dir)) != NULL) {
                 if (entry->d_type == DT_REG) {
-                    MAW_STRLCPY(filepath, cfg->music_dir);
+                    MAW_STRLCPY(filepath, complete_pattern);
                     MAW_STRLCAT(filepath, "/");
                     MAW_STRLCAT(filepath, entry->d_name);
-                    if (!maw_cfg_add_mediafile(cfg, filepath, mediafiles, mediafiles_count))
+                    if (!maw_cfg_add_mediafile(cfg, filepath,
+                                               &metadata_entry->value,
+                                               mediafiles, mediafiles_count))
                         goto end;
                 }
             }

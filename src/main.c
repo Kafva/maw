@@ -20,6 +20,7 @@
 static int run_tests(const char *);
 
 #else
+#include "maw/cfg.h"
 static int run_program(const char *);
 
 #endif

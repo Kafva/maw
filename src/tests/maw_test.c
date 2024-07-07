@@ -339,6 +339,7 @@ bool test_cfg_ok(const char *desc) {
     r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
     maw_cfg_free(cfg);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
 
     return true;
 }

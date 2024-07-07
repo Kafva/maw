@@ -798,3 +798,12 @@ end:
     maw_free_context(ctx);
     return r;
 }
+
+void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], size_t count) {
+    for (size_t i = 0; i < count; i++) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+        free((void*)mediafiles[i].path);
+#pragma GCC diagnostic pop
+    }
+}

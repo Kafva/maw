@@ -10,6 +10,9 @@
 #include <libavformat/avformat.h>
 #include <stdbool.h>
 
+// Maximum number of files to handle in one invocation
+#define MAW_MAX_FILES 1024
+
 #define CROP_ACCEPTED_WIDTH 1280
 #define CROP_ACCEPTED_HEIGHT 720
 #define CROP_DESIRED_WIDTH 720
@@ -72,6 +75,7 @@ struct MawContext {
 } typedef MawContext;
 
 int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
+void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], size_t count);
 
 #define MAW_STRLCPY(dst, src) do {\
     size_t __r; \

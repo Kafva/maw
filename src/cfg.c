@@ -406,9 +406,14 @@ void maw_cfg_free(MawConfig *cfg) {
 #pragma GCC diagnostic ignored "-Wcast-qual"
             free((void*)pp->path);
 #pragma GCC diagnostic pop
+            free(pp);
         }
 
         STAILQ_REMOVE_HEAD(&(cfg->playlists_head), entry);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+        free((void*)p->value.name);
+#pragma GCC diagnostic pop
         free(p);
     }
 

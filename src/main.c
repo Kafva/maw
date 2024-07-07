@@ -1,6 +1,5 @@
 #include "maw/maw.h"
 #include "maw/log.h"
-#include "maw/cfg.h"
 
 #include <getopt.h>
 #include <stdlib.h>

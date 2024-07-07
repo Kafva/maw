@@ -26,6 +26,7 @@ bool test_job_ok(const char *);
 bool test_job_error(const char *);
 bool test_cfg_ok(const char *);
 bool test_cfg_error(const char *);
+bool test_hash(const char *);
 
 
 #define DEFINE_TESTCASES \
@@ -44,6 +45,7 @@ bool test_cfg_error(const char *);
         { .desc = "Jobs error",                                       .fn = test_job_error }, \
         { .desc = "Configuration ok",                                 .fn = test_cfg_ok }, \
         { .desc = "Configuration error",                              .fn = test_cfg_error }, \
+        { .desc = "FNV-1a Hash",                                      .fn = test_hash }, \
     }
 #endif
 

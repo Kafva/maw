@@ -4,6 +4,7 @@
 
 #include "maw/cfg.h"
 #include "maw/log.h"
+#include "maw/utils.h"
 #include "maw/maw.h"
 
 #define KEY_LAST(c) c->keypath[c->key_count - 1]
@@ -529,14 +530,17 @@ static bool maw_cfg_add_mediafile(MawConfig *cfg,
                                   Metadata *metadata,
                                   MediaFile mediafiles[MAW_MAX_FILES],
                                   size_t *mediafiles_count) {
+    uint32_t digest;
+
     if (*mediafiles_count > MAW_MAX_FILES) {
         MAW_LOGF(MAW_ERROR, "Cannot process more than %d file(s)", MAW_MAX_FILES);
         return false;
     }
 
-    // TODO use a set()
+    digest = hash(filepath);
+
     for (size_t i = 0; i < *mediafiles_count; i++) {
-        if (STR_MATCH(mediafiles[i].path, filepath)) {
+        if (mediafiles[i].path_digest == digest) {
             mediafiles[i].metadata = metadata;
             MAW_LOGF(MAW_DEBUG, "Replaced: %s", mediafiles[i].path);
             return true;
@@ -545,6 +549,7 @@ static bool maw_cfg_add_mediafile(MawConfig *cfg,
 
     *mediafiles_count += 1;
     mediafiles[*mediafiles_count - 1].path = strdup(filepath);
+    mediafiles[*mediafiles_count - 1].path_digest = hash(filepath);
     mediafiles[*mediafiles_count - 1].metadata = metadata;
     MAW_LOGF(MAW_DEBUG, "Added: %s", mediafiles[*mediafiles_count - 1].path);
 

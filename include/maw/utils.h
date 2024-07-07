@@ -8,12 +8,10 @@ size_t readfile(const char *filepath, char *out, size_t outsize)
        __attribute__((warn_unused_result));
 int movefile(const char *src, const char *dst)
        __attribute__((warn_unused_result));
-bool on_same_device(const char *path1, const char *path2)
-       __attribute__((warn_unused_result));
-bool isfile(const char *path)
-       __attribute__((warn_unused_result));
-bool isdir(const char *path)
-       __attribute__((warn_unused_result));
+bool on_same_device(const char *path1, const char *path2);
+bool isfile(const char *path);
+bool isdir(const char *path);
+uint32_t hash(const char *data);
 
 #endif // UTIL_H
 

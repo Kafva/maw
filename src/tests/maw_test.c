@@ -2,6 +2,7 @@
 #include "maw/cfg.h"
 #include "maw/tests/maw_test.h"
 #include "maw/tests/maw_verify.h"
+#include "maw/utils.h"
 #include "maw/maw.h"
 
 #include <libavutil/error.h>
@@ -352,3 +353,13 @@ bool test_cfg_error(const char *desc) {
     return true;
 }
 
+bool test_hash(const char *desc) {
+    uint32_t digest;
+    const char *data = "ABC";
+    digest = hash(data);
+
+    // Reference value from: go/src/hash/fnv/fnv.go
+    MAW_ASSERT_EQ(digest, 1552166763, desc);
+
+    return true;
+}

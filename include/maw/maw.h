@@ -52,6 +52,7 @@ struct Metadata {
 struct MediaFile {
     const char *path;
     const Metadata *metadata;
+    uint32_t path_digest;
 } typedef MediaFile;
 
 struct MawContext {

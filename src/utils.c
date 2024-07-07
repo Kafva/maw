@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
-
 
 size_t readfile(const char *filepath, char *out, size_t outsize) {
     FILE *fp = NULL;
@@ -116,3 +116,14 @@ bool on_same_device(const char *path1, const char *path2) {
     return stat1.st_dev == stat2.st_dev;
 }
 
+// http://www.isthe.com/chongo/tech/comp/fnv/
+uint32_t hash(const char *str) {
+    uint32_t digest = 2166136261;
+
+    for (size_t i = 0; i < strlen(str); i++) {
+        digest ^= (unsigned char)str[i];
+        digest *= 16777619;
+    }
+
+    return digest;
+}

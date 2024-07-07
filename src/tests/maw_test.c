@@ -272,6 +272,7 @@ bool test_cfg_ok(const char *desc) {
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
+    maw_cfg_free(cfg);
 
     return true;
 }
@@ -283,6 +284,7 @@ bool test_cfg_error(const char *desc) {
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, INTERNAL_ERROR, desc);
+    maw_cfg_free(cfg);
 
     return true;
 }

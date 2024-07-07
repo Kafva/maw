@@ -1,4 +1,3 @@
-
 #include "maw/cfg.h"
 #include "maw/log.h"
 #include "maw/maw.h"
@@ -6,14 +5,6 @@
 #define KEY_LAST(c) c->keypath[c->key_count - 1]
 #define TOSTR(arg) #arg
 #define CASE_RET(a) case a: return TOSTR(a)
-#define MAW_STRLCPY(dst, src) do {\
-    size_t __r; \
-    __r = strlcpy(dst, src, sizeof(dst)); \
-    if (__r >= sizeof(dst)) { \
-        MAW_LOGF(MAW_ERROR, "strlcpy truncation: '%s'", src); \
-        goto end; \
-    } \
-} while (0)
 
 #define MAW_YAML_UNXEXPECTED(level, ctx, token, type, scalar) do { \
     MAW_LOGF(level, "Unexpected %s '%s' at %s:%zu:%zu", \
@@ -77,18 +68,6 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
         default:
             return NULL;
     }
-}
-
-static void maw_cfg_deinit(MawConfig *cfg) {
-    if (cfg == NULL)
-        return;
-
-    free(cfg->music_dir);
-    free(cfg->art_dir);
-
-    // TODO
-
-    free(cfg);
 }
 
 static void maw_cfg_key_push(YamlContext *ctx, const char *key, enum YamlKey mkey) {
@@ -199,9 +178,7 @@ end:
     return r;
 }
 
-static int maw_cfg_add_to_playlist(YamlContext *ctx,
-                                   yaml_token_t *token,
-                                   Playlist *playlist,
+static int maw_cfg_add_to_playlist(Playlist *playlist,
                                    const char *value) {
     int r = INTERNAL_ERROR;
     PlaylistPath *ppath = NULL;
@@ -246,6 +223,9 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
                         goto end;
                     }
                     metadata_entry->value.filepath = strdup(key);
+                    metadata_entry->value.album = NULL;
+                    metadata_entry->value.artist = NULL;
+                    metadata_entry->value.cover_path = NULL;
                     STAILQ_INSERT_TAIL(&cfg->metadata_head, metadata_entry, entry);
                     break;
                 case KEY_PLAYLISTS:
@@ -313,7 +293,7 @@ static int maw_parse_value(MawConfig *cfg,
             // playlists.<name>
             case KEY_PLAYLISTS:
                 playlist = &STAILQ_LAST(&cfg->playlists_head, PlaylistEntry, entry)->value;
-                (void)maw_cfg_add_to_playlist(ctx, token, playlist, value);
+                (void)maw_cfg_add_to_playlist(playlist, value);
                 // XXX: Parent key is popped during YAML_BLOCK_END_TOKEN event
                 break;
             default:
@@ -381,6 +361,52 @@ void maw_cfg_dump(MawConfig *cfg) {
             MAW_LOGF(MAW_DEBUG, "    - %s", pp->path);
         }
     }
+}
+
+void maw_cfg_free(MawConfig *cfg) {
+    MetadataEntry *m;
+    PlaylistEntry *p;
+    PlaylistPath *pp;
+
+    if (cfg == NULL)
+        return;
+
+    free(cfg->music_dir);
+    free(cfg->art_dir);
+
+    while (!STAILQ_EMPTY(&(cfg->metadata_head))) {
+        m = STAILQ_FIRST(&(cfg->metadata_head));
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+        free((void*)m->value.filepath);
+        free((void*)m->value.album);
+        free((void*)m->value.artist);
+        free((void*)m->value.cover_path);
+#pragma GCC diagnostic pop
+
+        STAILQ_REMOVE_HEAD(&(cfg->metadata_head), entry);
+        free(m);
+    }
+
+    while (!STAILQ_EMPTY(&(cfg->playlists_head))) {
+        p = STAILQ_FIRST(&(cfg->playlists_head));
+
+        while (!STAILQ_EMPTY(&(p->value.playlist_paths_head))) {
+            pp = STAILQ_FIRST(&(p->value.playlist_paths_head));
+
+            STAILQ_REMOVE_HEAD(&(p->value.playlist_paths_head), entry);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+            free((void*)pp->path);
+#pragma GCC diagnostic pop
+        }
+
+        STAILQ_REMOVE_HEAD(&(cfg->playlists_head), entry);
+        free(p);
+    }
+
+    free(cfg);
 }
 
 /**
@@ -477,8 +503,5 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     maw_cfg_dump(*cfg);
 end:
     maw_cfg_yaml_deinit(parser, fp);
-    if (r != 0) {
-        maw_cfg_deinit(*cfg);
-    }
     return r;
 }

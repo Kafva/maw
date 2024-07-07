@@ -29,11 +29,13 @@ CFLAGS            += -std=c99
 CFLAGS            += -pthread
 ifeq ($(UNAME),linux)
 CFLAGS            += -D_GNU_SOURCE
+CFLAGS            += -D_FORTIFY_SOURCE=2
 endif
 CFLAGS            += -fstack-protector-all
 CFLAGS            += -I$(CURDIR)/include
 
 # Warnings
+CFLAGS            += -pedantic
 CFLAGS            += -Wall
 CFLAGS            += -Wextra
 CFLAGS            += -Werror
@@ -47,7 +49,6 @@ CFLAGS            += -Wcast-qual
 CFLAGS            += -Wsign-compare
 CFLAGS            += -Wtype-limits
 CFLAGS            += -Wdeclaration-after-statement
-CFLAGS            += -pedantic
 CFLAGS            += -Wformat
 CFLAGS            += -Wuninitialized
 # CFLAGS            += -Wconversion

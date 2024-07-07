@@ -5,8 +5,6 @@
 #include <libavfilter/avfilter.h>
 #include <libavformat/avformat.h>
 #include <stdbool.h>
-#include <sys/queue.h>
-
 
 #define CROP_ACCEPTED_WIDTH 1280
 #define CROP_ACCEPTED_HEIGHT 720
@@ -63,6 +61,15 @@ struct MawContext {
 } typedef MawContext;
 
 int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
+
+#define MAW_STRLCPY(dst, src) do {\
+    size_t __r; \
+    __r = strlcpy(dst, src, sizeof(dst)); \
+    if (__r >= sizeof(dst)) { \
+        MAW_LOGF(MAW_ERROR, "strlcpy truncation: '%s'", src); \
+        goto end; \
+    } \
+} while (0)
 
 #define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \
     r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, filter_graph); \

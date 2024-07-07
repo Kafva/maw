@@ -463,7 +463,7 @@ void maw_cfg_free(MawConfig *cfg) {
 
 // @param [in] filepath
 // @param [in,out] CFG
-// 
+//
 // @return 0 on success,
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     int r = MAW_ERR_INTERNAL;
@@ -625,6 +625,8 @@ int maw_cfg_alloc_mediafiles(MawConfig *cfg,
                             goto end;
                     }
                 }
+                (void)closedir(dir);
+                dir = NULL;
             }
         }
     }

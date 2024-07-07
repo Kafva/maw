@@ -15,6 +15,7 @@
 #define MAW_CFG_KEY_MUSIC           "music_dir"
 #define MAW_CFG_KEY_PLAYLISTS       "playlists"
 #define MAW_CFG_KEY_METADATA        "metadata"
+#define MAW_CFG_KEY_TITLE           "title"
 #define MAW_CFG_KEY_ALBUM           "album"
 #define MAW_CFG_KEY_ARTIST          "artist"
 #define MAW_CFG_KEY_COVER           "cover"
@@ -54,6 +55,7 @@ struct PlaylistEntry {
 } typedef PlaylistEntry;
 
 struct MetadataEntry {
+    const char *pattern;
     Metadata value;
     STAILQ_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;
@@ -76,5 +78,6 @@ struct YamlContext {
 void maw_cfg_dump(MawConfig *cfg);
 void maw_cfg_free(MawConfig *cfg);
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
+int maw_cfg_finalize(MawConfig *cfg) __attribute__((warn_unused_result));
 
 #endif // CFG_H

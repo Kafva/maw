@@ -6,30 +6,33 @@
 
 #include <libavutil/error.h>
 #include <string.h>
+static const Metadata no_metadata = {0};
 
 bool test_dual_audio(const char *desc) {
     int r;
-    const Metadata metadata = {
-        .filepath =  "./.testenv/unit/dual_audio.mp4"
+    const MediaFile mediafile = {
+        .path =  "./.testenv/unit/dual_audio.mp4",
+        .metadata = &no_metadata
     };
     (void)desc;
 
     // Second audio stream should be ignored
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
 
 bool test_no_audio(const char *desc) {
     int r;
-    const Metadata metadata = {
-        .filepath = "./.testenv/art/blue-1.png"
+    const MediaFile mediafile = {
+        .path = "./.testenv/art/blue-1.png",
+        .metadata = &no_metadata
     };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, MAW_ERR_UNSUPPORTED_INPUT_STREAMS, desc);
     return true;
 }
@@ -37,15 +40,18 @@ bool test_no_audio(const char *desc) {
 bool test_dual_video(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath = "./.testenv/unit/dual_video.mp4",
         .title = "dual_video"
+    };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/dual_video.mp4",
+        .metadata = &metadata
     };
     (void)desc;
 
     // Second video stream should be ignored
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
@@ -54,20 +60,23 @@ bool test_dual_video(const char *desc) {
 
 bool test_keep_all(const char *desc) {
     int r;
-    // Default policy: keep everything (except explicitly set metadata fields) as is
+    // Default policy: keep everything (except explicitly set mediafile fields) as is
     const Metadata metadata = {
-        .filepath = "./.testenv/unit/keep_all.m4a",
         .title = "keep_all",
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
         // .cover_policy = COVER_KEEP // (implicit)
     };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/keep_all.m4a",
+        .metadata = &metadata
+    };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
@@ -75,18 +84,21 @@ bool test_keep_all(const char *desc) {
 bool test_clear_non_core_fields(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath =  "./.testenv/unit/clean.m4a",
         .title = "clean",
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
         .clean = true,
     };
+    const MediaFile mediafile = {
+        .path =  "./.testenv/unit/clean.m4a",
+        .metadata = &metadata
+    };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
@@ -96,10 +108,14 @@ bool test_clear_non_core_fields(const char *desc) {
 bool test_bad_covers(const char *desc) {
     int r;
     const Metadata bad_metadata[] = {
-        { .filepath = "./.testenv/unit/keep_all.m4a", .cover_path = "./.testenv/unit/dual_audio.mp4" },
-        { .filepath = "./.testenv/unit/keep_all.m4a", .cover_path = "./.testenv/unit/only_audio.m4a" },
-        { .filepath = "./.testenv/unit/keep_all.m4a", .cover_path = "./does_not_exist" },
-        { .filepath = "./.testenv/unit/keep_all.m4a", .cover_path = "./README.md" },
+        { .cover_path = "./.testenv/unit/dual_audio.mp4" },
+        { .cover_path = "./.testenv/unit/only_audio.m4a" },
+        { .cover_path = "./does_not_exist" },
+        { .cover_path = "./README.md" },
+    };
+    MediaFile mediafile = { 
+        .path = "./.testenv/unit/keep_all.m4a",
+        .metadata = NULL
     };
     int errors[] = {
         MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
@@ -111,7 +127,8 @@ bool test_bad_covers(const char *desc) {
     (void)desc;
 
     for (size_t i = 0; i < sizeof(bad_metadata)/sizeof(Metadata); i++) {
-        r = maw_update(&(bad_metadata[i]));
+        mediafile.metadata = &bad_metadata[i];
+        r = maw_update(&mediafile);
         MAW_ASSERT_EQ(r, errors[i], bad_metadata[i].cover_path);
     }
 
@@ -121,20 +138,23 @@ bool test_bad_covers(const char *desc) {
 bool test_crop_cover(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath =  "./.testenv/unit/crop_cover.m4a",
         .cover_policy = COVER_CROP,
+    };
+    const MediaFile mediafile = {
+        .path =  "./.testenv/unit/crop_cover.m4a",
+        .metadata = &metadata
     };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
 
     // Verify that a second update is idempotent
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
 
     return true;
@@ -143,14 +163,17 @@ bool test_crop_cover(const char *desc) {
 bool test_clear_cover(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath = "./.testenv/unit/clear_cover.m4a",
-        .cover_policy = COVER_CLEAR
+        .cover_policy = COVER_CLEAR,
+    };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/clear_cover.m4a",
+        .metadata = &metadata
     };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
@@ -158,17 +181,20 @@ bool test_clear_cover(const char *desc) {
 bool test_add_cover(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath = "./.testenv/unit/add_cover.m4a",
         .title = "add_cover",
         .album = NULL,
         .artist = NULL,
         .cover_path = "./.testenv/art/blue-1.png",
     };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/add_cover.m4a",
+        .metadata = &metadata
+    };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
@@ -176,17 +202,20 @@ bool test_add_cover(const char *desc) {
 bool test_replace_cover(const char *desc) {
     int r;
     const Metadata metadata = {
-        .filepath = "./.testenv/unit/replace_cover.m4a",
         .title = "replace_cover",
         .album = NULL,
         .artist = NULL,
         .cover_path = "./.testenv/art/blue-1.png",
     };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/replace_cover.m4a",
+        .metadata = &metadata
+    };
     (void)desc;
 
-    r = maw_update(&metadata);
+    r = maw_update(&mediafile);
     MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&metadata);
+    r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
@@ -195,36 +224,51 @@ bool test_replace_cover(const char *desc) {
 
 bool test_job_ok(const char *desc) {
     int r;
-    Metadata arr[] = {
+    Metadata cfg_arr[] = {
         {
-            .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
             .title = "audio_blue_0",
             .album = "New blue",
             .cover_path = "./.testenv/art/blue-1.png",
         },
         {
-            .filepath = ".testenv/albums/red/audio_red_0.m4a",
             .title = "audio_red_0",
             .album = "New red"
         },
         {
-            .filepath = ".testenv/albums/red/audio_red_1.m4a",
             .title = "audio_red_1",
             .album = "New red"
         },
         {
-            .filepath = ".testenv/albums/red/audio_red_2.m4a",
             .title = "audio_red_2",
             .album = "New red"
         },
     };
-    ssize_t arrsize = sizeof(arr) / sizeof(Metadata);
+    MediaFile mediafiles[] = {
+        {
+            .path = ".testenv/albums/blue/audio_blue_0.m4a",
+            .metadata = &cfg_arr[0]
+        },
+        {
+            .path = ".testenv/albums/red/audio_red_0.m4a",
+            .metadata = &cfg_arr[1]
+        },
+        {
+            .path = ".testenv/albums/red/audio_red_1.m4a",
+            .metadata = &cfg_arr[2]
+        },
+        {
+            .path = ".testenv/albums/red/audio_red_2.m4a",
+            .metadata = &cfg_arr[3]
+        },
+    };
 
-    r = maw_job_launch(arr, arrsize, 3);
+    ssize_t mediafiles_count = sizeof(mediafiles) / sizeof(MediaFile);
+
+    r = maw_job_launch(mediafiles, mediafiles_count, 3);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    for (ssize_t i = 0; i < arrsize; i++) {
-        r = maw_verify(&arr[i]);
+    for (ssize_t i = 0; i < mediafiles_count; i++) {
+        r = maw_verify(&mediafiles[i]);
         MAW_ASSERT_EQ(r, true, desc);
     }
 
@@ -233,31 +277,47 @@ bool test_job_ok(const char *desc) {
 
 bool test_job_error(const char *desc) {
     int r;
-    Metadata arr[] = {
+    Metadata cfg_arr[] = {
         {
-            .filepath = ".testenv/albums/blue/audio_blue_0.m4a",
             .title = "audio_blue_0",
             .album = "New blue",
             .cover_path = "./.testenv/art/blue-1.png",
         },
         {
-            // BAD
-            .filepath = "non_existant",
+            .title = "audio_red_0",
+            .album = "New red"
         },
         {
-            .filepath = ".testenv/albums/red/audio_red_1.m4a",
             .title = "audio_red_1",
             .album = "New red"
         },
         {
-            .filepath = ".testenv/albums/red/audio_red_2.m4a",
             .title = "audio_red_2",
             .album = "New red"
         },
     };
-    ssize_t arrsize = sizeof(arr) / sizeof(Metadata);
+    MediaFile mediafiles[] = {
+        {
+            .path = ".testenv/albums/blue/audio_blue_0.m4a",
+            .metadata = &cfg_arr[0],
+        },
+        {
+            // BAD
+            .path = "non_existant",
+            .metadata = &cfg_arr[1]
+        },
+        {
+            .path = ".testenv/albums/red/audio_red_1.m4a",
+            .metadata = &cfg_arr[2]
+        },
+        {
+            .path = ".testenv/albums/red/audio_red_2.m4a",
+            .metadata = &cfg_arr[3]
+        },
+    };
+    ssize_t mediafiles_count = sizeof(cfg_arr) / sizeof(Metadata);
 
-    r = maw_job_launch(arr, arrsize, 2);
+    r = maw_job_launch(mediafiles, mediafiles_count, 2);
     MAW_ASSERT_EQ(r, -1, desc);
 
     return true;

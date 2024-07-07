@@ -4,14 +4,14 @@
 #include "maw/utils.h"
 
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
-                             const Metadata *metadata) {
+                             const MediaFile *mediafile) {
     int r;
     char cover_data[BUFSIZ];
     AVStream *stream = NULL;
     int read_bytes;
     bool ok = false;
 
-    read_bytes = (int)readfile(metadata->cover_path,
+    read_bytes = (int)readfile(mediafile->metadata->cover_path,
                                cover_data,
                                sizeof cover_data);
     if (read_bytes == 0) {
@@ -20,25 +20,25 @@ static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
 
     if (fmt_ctx->nb_streams != 2) {
         MAW_LOGF(MAW_ERROR, "%s: Expected two streams: found %u",
-                 metadata->filepath, fmt_ctx->nb_streams);
+                 mediafile->path, fmt_ctx->nb_streams);
         goto end;
     }
 
     stream = fmt_ctx->streams[1];
     if (stream->attached_pic.data == NULL) {
-        MAW_LOGF(MAW_ERROR, "%s: video stream is empty", metadata->filepath);
+        MAW_LOGF(MAW_ERROR, "%s: video stream is empty", mediafile->path);
         goto end;
     }
     if (stream->attached_pic.size != read_bytes) {
         MAW_LOGF(MAW_ERROR, "%s: incorrect cover size: %d != %d",
-                 metadata->cover_path, stream->attached_pic.size, read_bytes);
+                 mediafile->metadata->cover_path, stream->attached_pic.size, read_bytes);
         goto end;
     }
 
     r = memcmp(stream->attached_pic.data, cover_data, (size_t)read_bytes);
     if (r != 0) {
         MAW_LOGF(MAW_ERROR, "%s: cover data does not match",
-                 metadata->cover_path);
+                 mediafile->metadata->cover_path);
         goto end;
     }
 
@@ -47,37 +47,37 @@ end:
     return ok;
 }
 
-bool maw_verify(const Metadata *metadata) {
+bool maw_verify(const MediaFile *mediafile) {
     bool ok = false;
     int r;
     AVFormatContext *fmt_ctx = NULL;
     const AVDictionaryEntry *entry = NULL;
 
-    if ((r = avformat_open_input(&fmt_ctx, metadata->filepath, NULL, NULL))) {
-        MAW_AVERROR(r, metadata->filepath);
+    if ((r = avformat_open_input(&fmt_ctx, mediafile->path, NULL, NULL))) {
+        MAW_AVERROR(r, mediafile->path);
         goto end;
     }
 
     if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-        MAW_AVERROR(r, metadata->filepath);
+        MAW_AVERROR(r, mediafile->path);
         goto end;
     }
 
     // Verify metadata
     while ((entry = av_dict_iterate(fmt_ctx->metadata, entry))) {
         if (strcmp(entry->key, "title") == 0) {
-            if (!LHS_EMPTY_OR_EQ(metadata->title, entry->value))
+            if (!LHS_EMPTY_OR_EQ(mediafile->metadata->title, entry->value))
                 goto end;
         }
         else if (strcmp(entry->key, "artist") == 0) {
-            if (!LHS_EMPTY_OR_EQ(metadata->artist, entry->value))
+            if (!LHS_EMPTY_OR_EQ(mediafile->metadata->artist, entry->value))
                 goto end;
         }
         else if (strcmp(entry->key, "album") == 0) {
-            if (!LHS_EMPTY_OR_EQ(metadata->album, entry->value))
+            if (!LHS_EMPTY_OR_EQ(mediafile->metadata->album, entry->value))
                 goto end;
         }
-        else if (metadata->clean &&
+        else if (mediafile->metadata->clean &&
                  strcmp(entry->key, "major_brand") != 0 &&
                  strcmp(entry->key, "minor_version") != 0 &&
                  strcmp(entry->key, "compatible_brands") != 0 &&
@@ -87,25 +87,25 @@ bool maw_verify(const Metadata *metadata) {
         }
     }
 
-    if (metadata->cover_path != NULL) {
+    if (mediafile->metadata->cover_path != NULL) {
         // Configured cover should be present
-        if (!maw_verify_cover(fmt_ctx, metadata)) {
+        if (!maw_verify_cover(fmt_ctx, mediafile)) {
             goto end;
         }
     }
-    else if (metadata->cover_policy == COVER_CLEAR) {
+    else if (mediafile->metadata->cover_policy == COVER_CLEAR) {
         // No cover should be present
         if (fmt_ctx->nb_streams != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u",
-                     metadata->filepath, fmt_ctx->nb_streams);
+                     mediafile->path, fmt_ctx->nb_streams);
             goto end;
         }
     }
-    else if (metadata->cover_policy == COVER_CROP && fmt_ctx->nb_streams == 2) {
+    else if (mediafile->metadata->cover_policy == COVER_CROP && fmt_ctx->nb_streams == 2) {
         if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width == CROP_DESIRED_WIDTH &&
               fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
             MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d",
-                     metadata->filepath, fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
+                     mediafile->path, fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
                                          fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height);
             goto end;
         }
@@ -115,7 +115,7 @@ bool maw_verify(const Metadata *metadata) {
         // we only check the stream count, we do not know what the original data looked like
         if (fmt_ctx->nb_streams != 1 && fmt_ctx->nb_streams != 2) {
             MAW_LOGF(MAW_ERROR, "%s: Unexpected number of streams: found %u",
-                     metadata->filepath, fmt_ctx->nb_streams);
+                     mediafile->path, fmt_ctx->nb_streams);
             goto end;
         }
     }

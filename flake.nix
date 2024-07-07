@@ -10,6 +10,7 @@
     outputs = {self, nixpkgs}:
     let
         name = "maw";
+        # TODO: use forAllSystems = nixpkgs.lib.genAttrs = { "x86_64-linux", "aarch64-linux" }
         system = "x86_64-linux";
         pkgs = import nixpkgs { inherit system; };
         nativeBuildInputs = with pkgs; [

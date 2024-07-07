@@ -221,10 +221,11 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
                         MAW_PERROR("calloc");
                         goto end;
                     }
-                    metadata_entry->value.filepath = strdup(key);
+                    metadata_entry->value.title = NULL;
                     metadata_entry->value.album = NULL;
                     metadata_entry->value.artist = NULL;
                     metadata_entry->value.cover_path = NULL;
+                    metadata_entry->pattern = strdup(key);
                     STAILQ_INSERT_TAIL(&cfg->metadata_head, metadata_entry, entry);
                     break;
                 case KEY_PLAYLISTS:
@@ -352,7 +353,8 @@ void maw_cfg_dump(MawConfig *cfg) {
     MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_MUSIC": %s", cfg->music_dir);
     MAW_LOG(MAW_DEBUG, "metadata:");
     STAILQ_FOREACH(m, &(cfg->metadata_head), entry) {
-        MAW_LOGF(MAW_DEBUG, "  %s:", m->value.filepath);
+        MAW_LOGF(MAW_DEBUG, "  %s:", m->pattern);
+        MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_TITLE": %s", m->value.title);
         MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_ALBUM": %s", m->value.album);
         MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_ARTIST": %s", m->value.artist);
         MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_COVER": %s", m->value.cover_path);
@@ -384,7 +386,9 @@ void maw_cfg_free(MawConfig *cfg) {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
-        free((void*)m->value.filepath);
+        free((void*)m->pattern);
+
+        free((void*)m->value.title);
         free((void*)m->value.album);
         free((void*)m->value.artist);
         free((void*)m->value.cover_path);
@@ -513,5 +517,18 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     maw_cfg_dump(*cfg);
 end:
     maw_cfg_yaml_deinit(parser, fp);
+    return r;
+}
+
+
+int maw_cfg_finalize(MawConfig *cfg) {
+    int r = MAW_ERR_INTERNAL;
+
+    // Every metadata entry with a '*' needs to be expanded into actual paths
+    // Every metadata entry that is a directory needs to be expanded into paths
+    // Give precedence to glob matches over directories
+    
+    r = 0;
+end:
     return r;
 }

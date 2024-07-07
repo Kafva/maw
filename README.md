@@ -1,5 +1,5 @@
 # maw
-Music library manager
+Declaratively configure metadata for media files.
 
 ```bash
 # Install dependences

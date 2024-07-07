@@ -24,7 +24,7 @@ static void maw_clock_measure(time_t);
 } while (0) \
 
 // Must be locked before read/write
-static ssize_t next_metadata_index;
+static ssize_t next_mediafiles_index;
 static pthread_mutex_t lock;
 
 static void maw_clock_measure(time_t start_time) {
@@ -60,28 +60,28 @@ static void *maw_job_thread(void *arg) {
     MAW_LOGF(MAW_DEBUG, "Thread #%lu started", tid);
 
     while (true) {
-        if (next_metadata_index < 0) {
+        if (next_mediafiles_index < 0) {
             goto end;
         }
 
-        // Take the next metadata_index
+        // Take the next mediafiles_index
         WITH_LOCK(r, {
-            next_metadata_index--;
-            ctx->metadata_index = next_metadata_index;
+            next_mediafiles_index--;
+            ctx->mediafiles_index = next_mediafiles_index;
         });
 
-        if (ctx->metadata_index < 0) {
+        if (ctx->mediafiles_index < 0) {
             goto end;
         }
 
-        // Do work on current metadata_index
-        r = maw_update((const Metadata*)(&ctx->metadata[ctx->metadata_index]));
+        // Do work on current mediafiles_index
+        r = maw_update((const MediaFile*)(&ctx->mediafiles[ctx->mediafiles_index]));
 
-        // On fail, set next_metadata_index to -1, cancelling other threads
+        // On fail, set next_mediafiles_index to -1, cancelling other threads
         if (r != 0) {
             ctx->status = THREAD_FAILED;
             WITH_LOCK(r, {
-                next_metadata_index = -1;
+                next_mediafiles_index = -1;
             });
         }
         else {
@@ -101,7 +101,7 @@ end:
 }
 
 // @return non-zero if at least one thread fails
-int maw_job_launch(Metadata metadata[], ssize_t size, size_t thread_count) {
+int maw_job_launch(MediaFile mediafiles[], ssize_t size, size_t thread_count) {
     int status = -1;
     int r = MAW_ERR_INTERNAL;
     pthread_t *threads = NULL;
@@ -109,7 +109,7 @@ int maw_job_launch(Metadata metadata[], ssize_t size, size_t thread_count) {
     time_t start_time;
 
     start_time = time(NULL);
-    next_metadata_index = size;
+    next_mediafiles_index = size;
 
     threads = calloc(thread_count, sizeof(pthread_t));
     if (threads == NULL) {
@@ -125,8 +125,8 @@ int maw_job_launch(Metadata metadata[], ssize_t size, size_t thread_count) {
 
     for (size_t i = 0; i < thread_count; i++) {
         thread_ctxs[i].status = THREAD_UNINITIALIZED;
-        thread_ctxs[i].metadata_index = -1;
-        thread_ctxs[i].metadata = metadata;
+        thread_ctxs[i].mediafiles_index = -1;
+        thread_ctxs[i].mediafiles = mediafiles;
     }
 
     r = pthread_mutex_init(&lock, NULL);

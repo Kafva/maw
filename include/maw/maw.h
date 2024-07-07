@@ -41,7 +41,6 @@ enum MawError {
 };
 
 struct Metadata {
-    const char *filepath;
     const char *title;
     const char *album;
     const char *artist;
@@ -50,9 +49,14 @@ struct Metadata {
     bool clean;
 } typedef Metadata;
 
+struct MediaFile {
+    const char *path;
+    const Metadata *metadata;
+} typedef MediaFile;
+
 struct MawContext {
    const char *output_filepath;
-   const Metadata *metadata;
+   const MediaFile *mediafile;
    AVFormatContext *input_fmt_ctx;
    AVFormatContext *cover_fmt_ctx;
    AVFormatContext *output_fmt_ctx;
@@ -66,7 +70,7 @@ struct MawContext {
    AVCodecContext *enc_codec_ctx;
 } typedef MawContext;
 
-int maw_update(const Metadata *metadata) __attribute__((warn_unused_result));
+int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
 
 #define MAW_STRLCPY(dst, src) do {\
     size_t __r; \

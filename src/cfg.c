@@ -22,9 +22,7 @@
     MAW_YAML_UNXEXPECTED(MAW_ERROR, ctx, token, type, scalar);
 
 static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE **fp) {
-    // The API for libyaml returns 0 on failure...
-    int yr = 0;
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
 
     *fp = fopen(filepath, "r");
     if (*fp == NULL) {
@@ -32,8 +30,9 @@ static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE 
         goto end;
     }
 
-    yr = yaml_parser_initialize(*parser);
-    if (yr != 1) {
+    r = yaml_parser_initialize(*parser);
+    if (r != 1) {
+        r = MAW_ERR_YAML;
         MAW_LOGF(MAW_ERROR, "%s: failed to initialize parser", filepath);
         goto end;
     }
@@ -137,7 +136,7 @@ static int maw_cfg_set_metadata_field(YamlContext *ctx,
                                       yaml_token_t *token,
                                       Metadata *metadata,
                                       const char *value) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     switch (ctx->keypath[2]) {
         case KEY_ALBUM:
             metadata->album = strdup(value);
@@ -180,7 +179,7 @@ end:
 
 static int maw_cfg_add_to_playlist(Playlist *playlist,
                                    const char *value) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     PlaylistPath *ppath = NULL;
 
     ppath = calloc(1, sizeof(PlaylistPath));
@@ -200,7 +199,7 @@ end:
 
 // A `YAML_KEY_TOKEN` is not a leaf.
 static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     MetadataEntry *metadata_entry = NULL;
     PlaylistEntry *playlist_entry = NULL;
     const char *key = NULL;
@@ -261,7 +260,7 @@ end:
 static int maw_parse_value(MawConfig *cfg,
                            YamlContext *ctx,
                            yaml_token_t *token) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     const char *value;
     Metadata *metadata = NULL;
     Playlist *playlist = NULL;
@@ -428,8 +427,7 @@ void maw_cfg_free(MawConfig *cfg) {
  * @return 0 on success,
  */
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
-    int yr = 0;
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     bool done = false;
     yaml_token_t token;
     yaml_parser_t *parser;
@@ -465,8 +463,9 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     }
 
     while (!done) {
-        yr = yaml_parser_scan(parser, &token);
-        if (yr != 1) {
+        r = yaml_parser_scan(parser, &token);
+        if (r != 1) {
+            r = MAW_ERR_YAML;
             MAW_LOGF(MAW_ERROR, "%s: Error parsing yaml", ctx.filepath);
             goto end;
         }

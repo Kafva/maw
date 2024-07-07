@@ -28,7 +28,7 @@ static struct MawContext* maw_init_context(const Metadata*, const char*);
 ////////////////////////////////////////////////////////////////////////////////
 
 static int maw_demux_cover(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     enum AVMediaType codec_type;
 
@@ -46,12 +46,12 @@ static int maw_demux_cover(MawContext *ctx) {
 
     if (ctx->cover_fmt_ctx->nb_streams == 0) {
         MAW_LOGF(MAW_ERROR, "%s: cover has no input streams", ctx->metadata->cover_path);
-        r = UNSUPPORTED_INPUT_STREAMS;
+        r = MAW_ERR_UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
     if (ctx->cover_fmt_ctx->nb_streams > 1) {
         MAW_LOGF(MAW_ERROR, "%s: cover has more than one input stream", ctx->metadata->cover_path);
-        r = UNSUPPORTED_INPUT_STREAMS;
+        r = MAW_ERR_UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
     codec_type = ctx->cover_fmt_ctx->streams[0]->codecpar->codec_type;
@@ -59,7 +59,7 @@ static int maw_demux_cover(MawContext *ctx) {
         MAW_LOGF(MAW_ERROR, "%s: cover does not contain a video stream (found %s)",
                  ctx->metadata->cover_path,
                  av_get_media_type_string(codec_type));
-        r = UNSUPPORTED_INPUT_STREAMS;
+        r = MAW_ERR_UNSUPPORTED_INPUT_STREAMS;
         goto end;
     }
 
@@ -80,7 +80,7 @@ end:
 }
 
 static int maw_filter_crop_cover(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     AVFilterContext *filter_crop_ctx = NULL;
     const AVFilter *crop_filter = NULL;
     const AVFilter *buffersrc_filter  = NULL;
@@ -168,7 +168,7 @@ end:
 
 static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
                                     const Metadata *metadata) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     r = av_dict_set(&fmt_ctx->metadata, "title", metadata->title, 0);
     if (r != 0) {
         goto end;
@@ -191,7 +191,7 @@ end:
 
 // @return 0 on success, negative AVERROR code on failure.
 static int maw_set_metadata(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     const AVDictionaryEntry *entry = NULL;
 
     if (ctx->metadata->clean) {
@@ -230,7 +230,7 @@ end:
 
 // Video streams will only be demuxed if they are needed by the current policy
 static int maw_demux(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
     enum AVMediaType codec_type;
@@ -264,7 +264,7 @@ static int maw_demux(MawContext *ctx) {
     }
 
     if (ctx->audio_input_stream_index == -1) {
-        r = UNSUPPORTED_INPUT_STREAMS;
+        r = MAW_ERR_UNSUPPORTED_INPUT_STREAMS;
         MAW_LOGF(MAW_ERROR, "%s: No audio streams", ctx->metadata->filepath);
         goto end;
     }
@@ -326,7 +326,7 @@ end:
 }
 
 static int maw_mux(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     int prev_stream_index = -1;
     int output_stream_index = -1;
     AVStream *output_stream = NULL;
@@ -501,7 +501,7 @@ static int maw_mux(MawContext *ctx) {
         }
 
         if (pkt->stream_index != 0) {
-            r = INTERNAL_ERROR;
+            r = MAW_ERR_INTERNAL;
             MAW_LOGF(MAW_ERROR, "Unexpected packet from cover stream #%d",
                      pkt->stream_index);
             goto end;
@@ -537,7 +537,7 @@ end:
 }
 
 static int maw_init_dec_context(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     const AVCodec *dec_codec = NULL;
 
     dec_codec = avcodec_find_decoder(VIDEO_INPUT_STREAM(ctx)->codecpar->codec_id);
@@ -576,7 +576,7 @@ end:
 }
 
 static int maw_init_enc_context(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     const AVCodec *enc_codec = NULL;
 
     enc_codec = avcodec_find_encoder(VIDEO_INPUT_STREAM(ctx)->codecpar->codec_id);
@@ -613,7 +613,7 @@ end:
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 static int maw_remux(MawContext *ctx) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
 
     // * Find the indices of the video and audio stream and create
     // corresponding output streams
@@ -750,7 +750,7 @@ end:
 }
 
 int maw_update(const Metadata *metadata) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     char tmpfile[] = "/tmp/maw.XXXXXX.m4a";
     int tmphandle = mkstemps(tmpfile, sizeof(".m4a") - 1);
     MawContext *ctx = NULL;

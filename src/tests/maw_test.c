@@ -30,7 +30,7 @@ bool test_no_audio(const char *desc) {
     (void)desc;
 
     r = maw_update(&metadata);
-    MAW_ASSERT_EQ(r, UNSUPPORTED_INPUT_STREAMS, desc);
+    MAW_ASSERT_EQ(r, MAW_ERR_UNSUPPORTED_INPUT_STREAMS, desc);
     return true;
 }
 
@@ -102,8 +102,8 @@ bool test_bad_covers(const char *desc) {
         { .filepath = "./.testenv/unit/keep_all.m4a", .cover_path = "./README.md" },
     };
     int errors[] = {
-        UNSUPPORTED_INPUT_STREAMS,
-        UNSUPPORTED_INPUT_STREAMS,
+        MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
+        MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
         AVERROR(ENOENT),
         AVERROR_INVALIDDATA,
         // UNSUPPORTED_INPUT_STREAMS,
@@ -283,7 +283,7 @@ bool test_cfg_error(const char *desc) {
     MawConfig *cfg = NULL;
 
     r = maw_cfg_parse(config_file, &cfg);
-    MAW_ASSERT_EQ(r, INTERNAL_ERROR, desc);
+    MAW_ASSERT_EQ(r, MAW_ERR_YAML, desc);
     maw_cfg_free(cfg);
 
     return true;

@@ -103,7 +103,7 @@ end:
 // @return non-zero if at least one thread fails
 int maw_job_launch(Metadata metadata[], ssize_t size, size_t thread_count) {
     int status = -1;
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     pthread_t *threads = NULL;
     ThreadContext *thread_ctxs = NULL;
     time_t start_time;

@@ -35,7 +35,7 @@ end:
 }
 
 int movefile(const char *src, const char *dst) {
-    int r = INTERNAL_ERROR;
+    int r = MAW_ERR_INTERNAL;
     size_t read_bytes = 0;
     size_t write_bytes = 0;
     char buffer[BUFSIZ];

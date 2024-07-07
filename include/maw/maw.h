@@ -33,9 +33,11 @@ enum CoverPolicy {
 
 enum MawError {
     // Fallback error code for maw functions
-    INTERNAL_ERROR = 50,
+    MAW_ERR_INTERNAL = 50,
     // Input file has an unsupported set of streams
-    UNSUPPORTED_INPUT_STREAMS = 51,
+    MAW_ERR_UNSUPPORTED_INPUT_STREAMS = 51,
+    // Error encountered in libyaml
+    MAW_ERR_YAML = 52,
 };
 
 struct Metadata {

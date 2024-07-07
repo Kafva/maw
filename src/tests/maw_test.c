@@ -330,11 +330,13 @@ bool test_cfg_ok(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    size_t mediafiles_count = 0;
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_cfg_finalize(cfg);
+    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
     maw_cfg_free(cfg);
 

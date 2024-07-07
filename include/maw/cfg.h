@@ -81,6 +81,8 @@ struct YamlContext {
 void maw_cfg_dump(MawConfig *cfg);
 void maw_cfg_free(MawConfig *cfg);
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
-int maw_cfg_finalize(MawConfig *cfg) __attribute__((warn_unused_result));
+int maw_cfg_alloc_mediafiles(MawConfig *cfg,
+                             MediaFile mediafiles[MAW_MAX_FILES],
+                             size_t *mediafiles_count) __attribute__((warn_unused_result));
 
 #endif // CFG_H

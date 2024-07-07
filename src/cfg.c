@@ -292,7 +292,10 @@ static int maw_parse_value(MawConfig *cfg,
         switch (ctx->keypath[0]) {
             // playlists.<name>
             case KEY_PLAYLISTS:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
                 playlist = &STAILQ_LAST(&cfg->playlists_head, PlaylistEntry, entry)->value;
+#pragma GCC diagnostic pop
                 (void)maw_cfg_add_to_playlist(playlist, value);
                 // XXX: Parent key is popped during YAML_BLOCK_END_TOKEN event
                 break;
@@ -304,7 +307,10 @@ static int maw_parse_value(MawConfig *cfg,
         switch (ctx->keypath[0]) {
             // metadata.<path>.<metadata field>
             case KEY_METADATA:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
                 metadata = &STAILQ_LAST(&cfg->metadata_head, MetadataEntry, entry)->value;
+#pragma GCC diagnostic pop
                 (void)maw_cfg_set_metadata_field(ctx, token, metadata, value);
                 (void)maw_cfg_key_pop(ctx);
                 break;

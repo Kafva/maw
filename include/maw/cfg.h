@@ -3,12 +3,7 @@
 
 #if defined(__linux__)
 // SLIST_LAST() is only defined in BSD versions of sys/queue.h.
-// Defining _DEFAULT_SOURCE instead of _GNU_SOURCE does not get rid of this
-// warning.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
 #include <bsd/sys/queue.h>
-#pragma GCC diagnostic pop
 #else
 #include <sys/queue.h>
 #endif

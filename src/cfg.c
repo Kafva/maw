@@ -246,7 +246,7 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
                         goto end;
                     }
                     metadata_entry->value.filepath = strdup(key);
-                    SLIST_INSERT_HEAD(&cfg->metadata_head, metadata_entry, entry);
+                    STAILQ_INSERT_TAIL(&cfg->metadata_head, metadata_entry, entry);
                     break;
                 case KEY_PLAYLISTS:
                     // New entry under 'playlists'
@@ -258,7 +258,7 @@ static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token) 
                     // Intialize the list of paths
                     STAILQ_INIT(&playlist_entry->value.playlist_paths_head);
                     playlist_entry->value.name = strdup(key);
-                    SLIST_INSERT_HEAD(&cfg->playlists_head, playlist_entry, entry);
+                    STAILQ_INSERT_TAIL(&cfg->playlists_head, playlist_entry, entry);
                     break;
                 default:
                     MAW_LOGF(MAW_ERROR, "Unexpected key at index 0: %s",
@@ -312,7 +312,7 @@ static int maw_parse_value(MawConfig *cfg,
         switch (ctx->keypath[0]) {
             // playlists.<name>
             case KEY_PLAYLISTS:
-                playlist = &SLIST_FIRST(&cfg->playlists_head)->value;
+                playlist = &STAILQ_LAST(&cfg->playlists_head, PlaylistEntry, entry)->value;
                 (void)maw_cfg_add_to_playlist(ctx, token, playlist, value);
                 // XXX: Parent key is popped during YAML_BLOCK_END_TOKEN event
                 break;
@@ -324,7 +324,7 @@ static int maw_parse_value(MawConfig *cfg,
         switch (ctx->keypath[0]) {
             // metadata.<path>.<metadata field>
             case KEY_METADATA:
-                metadata = &SLIST_FIRST(&cfg->metadata_head)->value;
+                metadata = &STAILQ_LAST(&cfg->metadata_head, MetadataEntry, entry)->value;
                 (void)maw_cfg_set_metadata_field(ctx, token, metadata, value);
                 (void)maw_cfg_key_pop(ctx);
                 break;
@@ -366,7 +366,7 @@ void maw_cfg_dump(MawConfig *cfg) {
     MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_ART": %s", cfg->art_dir);
     MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_MUSIC": %s", cfg->music_dir);
     MAW_LOG(MAW_DEBUG, "metadata:");
-    SLIST_FOREACH(m, &(cfg->metadata_head), entry) {
+    STAILQ_FOREACH(m, &(cfg->metadata_head), entry) {
         MAW_LOGF(MAW_DEBUG, "  %s:", m->value.filepath);
         MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_ALBUM": %s", m->value.album);
         MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_ARTIST": %s", m->value.artist);
@@ -375,7 +375,7 @@ void maw_cfg_dump(MawConfig *cfg) {
         MAW_LOGF(MAW_DEBUG, "    "MAW_CFG_KEY_CLEAN": %d", m->value.clean);
     }
     MAW_LOG(MAW_DEBUG, "playlists:");
-    SLIST_FOREACH(p, &(cfg->playlists_head), entry) {
+    STAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
         MAW_LOGF(MAW_DEBUG, "  %s:", p->value.name);
         STAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
             MAW_LOGF(MAW_DEBUG, "    - %s", pp->path);
@@ -419,8 +419,8 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     }
     (*cfg)->art_dir = NULL;
     (*cfg)->music_dir = NULL;
-    SLIST_INIT(&(*cfg)->metadata_head);
-    SLIST_INIT(&(*cfg)->playlists_head);
+    STAILQ_INIT(&(*cfg)->metadata_head);
+    STAILQ_INIT(&(*cfg)->playlists_head);
 
     r = maw_cfg_yaml_init(ctx.filepath, &parser, &fp);
     if (r != 0) {

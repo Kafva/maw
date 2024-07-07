@@ -44,19 +44,19 @@ struct Playlist {
 
 struct PlaylistEntry {
     Playlist value;
-    SLIST_ENTRY(PlaylistEntry) entry;
+    STAILQ_ENTRY(PlaylistEntry) entry;
 } typedef PlaylistEntry;
 
 struct MetadataEntry {
     Metadata value;
-    SLIST_ENTRY(MetadataEntry) entry;
+    STAILQ_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;
 
 struct MawConfig {
     char *art_dir;
     char *music_dir;
-    SLIST_HEAD(, PlaylistEntry) playlists_head;
-    SLIST_HEAD(, MetadataEntry) metadata_head;
+    STAILQ_HEAD(, PlaylistEntry) playlists_head;
+    STAILQ_HEAD(, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
 struct YamlContext {

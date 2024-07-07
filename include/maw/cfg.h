@@ -2,11 +2,13 @@
 #define CFG_H
 
 #if defined(__linux__)
-// SLIST_LAST() is only defined in bsd versions of sys/queue.h
-// This diagnostic error occurs in the header so we cannot disable per line,
-// defining _DEFAULT_SOURCE instead of _GNU_SOURCE does not solve the issue.
+// SLIST_LAST() is only defined in BSD versions of sys/queue.h.
+// Defining _DEFAULT_SOURCE instead of _GNU_SOURCE does not get rid of this
+// warning.
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
 #include <bsd/sys/queue.h>
+#pragma GCC diagnostic pop
 #else
 #include <sys/queue.h>
 #endif
@@ -70,7 +72,7 @@ struct MawConfig {
 
 struct YamlContext {
     const char *filepath;
-    int next_token_type;
+    yaml_token_type_t next_token_type;
     enum YamlKey keypath[MAW_CFG_MAX_DEPTH];
     size_t key_count;
 } typedef YamlContext;

@@ -1,7 +1,11 @@
 #ifndef MAW_H
 #define MAW_H
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
 #include <libavcodec/avcodec.h>
+#pragma GCC diagnostic pop
+
 #include <libavfilter/avfilter.h>
 #include <libavformat/avformat.h>
 #include <stdbool.h>
@@ -50,8 +54,8 @@ struct MawContext {
    AVFormatContext *input_fmt_ctx;
    AVFormatContext *cover_fmt_ctx;
    AVFormatContext *output_fmt_ctx;
-   int audio_input_stream_index;
-   int video_input_stream_index;
+   ssize_t audio_input_stream_index;
+   ssize_t video_input_stream_index;
    // Filtering variables
    AVFilterGraph *filter_graph;
    AVFilterContext *filter_buffersrc_ctx;

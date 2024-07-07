@@ -218,12 +218,12 @@ bool test_job_ok(const char *desc) {
             .album = "New red"
         },
     };
-    size_t arrsize = sizeof(arr) / sizeof(Metadata);
+    ssize_t arrsize = sizeof(arr) / sizeof(Metadata);
 
     r = maw_job_launch(arr, arrsize, 3);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    for (size_t i = 0; i < arrsize; i++) {
+    for (ssize_t i = 0; i < arrsize; i++) {
         r = maw_verify(&arr[i]);
         MAW_ASSERT_EQ(r, true, desc);
     }
@@ -255,7 +255,7 @@ bool test_job_error(const char *desc) {
             .album = "New red"
         },
     };
-    size_t arrsize = sizeof(arr) / sizeof(Metadata);
+    ssize_t arrsize = sizeof(arr) / sizeof(Metadata);
 
     r = maw_job_launch(arr, arrsize, 2);
     MAW_ASSERT_EQ(r, -1, desc);

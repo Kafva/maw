@@ -13,11 +13,11 @@ enum ThreadStatus {
 
 struct ThreadContext {
     const Metadata *metadata;
-    int metadata_index;
+    ssize_t metadata_index;
     ThreadStatus status;
 } typedef ThreadContext;
 
-int maw_job_launch(Metadata metadata[], size_t size, size_t jobs)
+int maw_job_launch(Metadata metadata[], ssize_t size, size_t jobs)
     __attribute__((warn_unused_result));
 
 #endif // JOB_H

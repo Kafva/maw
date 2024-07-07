@@ -51,7 +51,7 @@ CFLAGS            += -Wtype-limits
 CFLAGS            += -Wdeclaration-after-statement
 CFLAGS            += -Wformat
 CFLAGS            += -Wuninitialized
-# CFLAGS            += -Wconversion
+CFLAGS            += -Wconversion
 CFLAGS            += -Wnull-dereference
 
 

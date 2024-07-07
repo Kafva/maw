@@ -2,11 +2,8 @@
 #include "maw/log.h"
 #include "maw/utils.h"
 
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
 #include <libavutil/dict.h>
 #include <libavutil/avassert.h>
-#include <libavfilter/avfilter.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/pixdesc.h>
@@ -241,13 +238,13 @@ static int maw_demux(MawContext *ctx) {
 
     // Always add the audio stream first, i.e. output stream 0 will always be the
     // audio stream!
-    for (unsigned int i = 0; i < ctx->input_fmt_ctx->nb_streams; i++) {
+    for (ssize_t i = 0; i < ctx->input_fmt_ctx->nb_streams; i++) {
         codec_type = ctx->input_fmt_ctx->streams[i]->codecpar->codec_type;
         if (codec_type != AVMEDIA_TYPE_AUDIO) {
             continue;
         }
         if (ctx->audio_input_stream_index != -1) {
-            MAW_LOGF(MAW_WARN, "%s: Audio input stream #%u (ignored)", ctx->metadata->filepath, i);
+            MAW_LOGF(MAW_WARN, "%s: Audio input stream #%ld (ignored)", ctx->metadata->filepath, i);
             continue;
         }
 
@@ -272,7 +269,7 @@ static int maw_demux(MawContext *ctx) {
         goto end;
     }
 
-    for (unsigned int i = 0; i < ctx->input_fmt_ctx->nb_streams; i++) {
+    for (ssize_t i = 0; i < ctx->input_fmt_ctx->nb_streams; i++) {
         input_stream = ctx->input_fmt_ctx->streams[i];
         codec_type = input_stream->codecpar->codec_type;
         is_attached_pic = codec_type == AVMEDIA_TYPE_VIDEO &&
@@ -280,7 +277,7 @@ static int maw_demux(MawContext *ctx) {
         // Skip all streams except video streams with an attached_pic disposition
         if (!is_attached_pic || ctx->video_input_stream_index != -1) {
             if ((int)i != ctx->audio_input_stream_index)
-                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%d",
+                MAW_LOGF(MAW_WARN, "%s: Skipping %s input stream #%ld",
                                     ctx->metadata->filepath, av_get_media_type_string(codec_type), i);
             continue;
         }
@@ -306,16 +303,16 @@ static int maw_demux(MawContext *ctx) {
         output_stream->disposition = input_stream->disposition;
     }
 
-    MAW_LOGF(MAW_DEBUG, "%s: Audio input stream #%d", ctx->metadata->filepath,
+    MAW_LOGF(MAW_DEBUG, "%s: Audio input stream #%ld", ctx->metadata->filepath,
                                                         ctx->audio_input_stream_index);
 
     if (ctx->video_input_stream_index != -1) {
         if (NEEDS_ORIGINAL_COVER(ctx->metadata)) {
-            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d", ctx->metadata->filepath,
+            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%ld", ctx->metadata->filepath,
                                                                 ctx->video_input_stream_index);
         }
         else {
-            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%d (ignored)", ctx->metadata->filepath,
+            MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%ld (ignored)", ctx->metadata->filepath,
                                                                           ctx->video_input_stream_index);
         }
     }
@@ -568,7 +565,7 @@ static int maw_init_dec_context(MawContext *ctx) {
         goto end;
     }
 
-    MAW_LOGF(MAW_DEBUG, "%s: Video stream #%d: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d",
+    MAW_LOGF(MAW_DEBUG, "%s: Video stream #%ld: video_size=%dx%d pix_fmt=%s pixel_aspect=%d/%d",
          ctx->metadata->filepath, ctx->video_input_stream_index,
          ctx->dec_codec_ctx->width, ctx->dec_codec_ctx->height,
          av_get_pix_fmt_name(ctx->dec_codec_ctx->pix_fmt),

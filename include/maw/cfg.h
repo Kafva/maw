@@ -1,13 +1,12 @@
 #ifndef CFG_H
 #define CFG_H
 
-#if defined(__linux__)
-// SLIST_LAST() is only defined in BSD versions of sys/queue.h.
-#include <bsd/sys/queue.h>
-#else
-#include <sys/queue.h>
-#endif
+// TAILQ is used instead of STAILQ to make the code more portable.
+// STAILQ_LAST is only provided by <bsd/sys/queue.h> and generates
+// -Wgnu-statement-expression-from-macro-expansion warnings on Linux,
+// TAILQ_LAST works fine on both Linux and BSD.
 
+#include <sys/queue.h>
 #include <yaml.h>
 #include "maw/maw.h"
 
@@ -41,30 +40,30 @@ enum YamlKey {
 
 struct PlaylistPath {
     const char *path;
-    STAILQ_ENTRY(PlaylistPath) entry;
+    TAILQ_ENTRY(PlaylistPath) entry;
 } typedef PlaylistPath;
 
 struct Playlist {
     const char *name;
-    STAILQ_HEAD(,PlaylistPath) playlist_paths_head;
+    TAILQ_HEAD(,PlaylistPath) playlist_paths_head;
 } typedef Playlist;
 
 struct PlaylistEntry {
     Playlist value;
-    STAILQ_ENTRY(PlaylistEntry) entry;
+    TAILQ_ENTRY(PlaylistEntry) entry;
 } typedef PlaylistEntry;
 
 struct MetadataEntry {
     const char *pattern;
     Metadata value;
-    STAILQ_ENTRY(MetadataEntry) entry;
+    TAILQ_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;
 
 struct MawConfig {
     char *art_dir;
     char *music_dir;
-    STAILQ_HEAD(, PlaylistEntry) playlists_head;
-    STAILQ_HEAD(, MetadataEntry) metadata_head;
+    TAILQ_HEAD(PlaylistEntryHead, PlaylistEntry) playlists_head;
+    TAILQ_HEAD(MetadataEntryHead, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
 struct YamlContext {

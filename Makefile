@@ -143,6 +143,9 @@ $(CURDIR)/deps/libyaml:
 	mkdir -p $(dir $@)
 	git clone --depth 1 https://github.com/yaml/libyaml.git $@
 
+lint:
+	clang-format -i $(SRCS) $(HEADERS)
+
 test:
 	$(CURDIR)/scripts/gendata.rb
 	TESTS=1 $(MAKE) clean all

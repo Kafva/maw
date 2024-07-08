@@ -1,14 +1,14 @@
-#include "maw/maw.h"
 #include "maw/log.h"
+#include "maw/maw.h"
 
 #include <getopt.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h>
 
-#include <libavutil/log.h>
 #include <libavutil/error.h>
+#include <libavutil/log.h>
 
 #ifndef MAW_PROGRAM
 #define MAW_PROGRAM "maw"
@@ -48,7 +48,8 @@ int main(int argc, char *argv[]) {
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}};
 
-    while ((opt = getopt_long(argc, argv, getopt_flags, long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, getopt_flags, long_options, NULL)) !=
+           -1) {
         switch (opt) {
         case 'c':
             config_file = optarg;
@@ -117,15 +118,17 @@ static int run_tests(const char *match_testcase) {
     int i;
     int r;
     bool enable_color = isatty(fileno(stdout)) && isatty(fileno(stderr));
-    FILE* tfd = stdout;
+    FILE *tfd = stdout;
 
     fprintf(tfd, "0..%d\n", total - 1);
     for (i = 0; i < total; i++) {
         if (match_testcase != NULL) {
-            r = strncasecmp(match_testcase, testcases[i].desc, strlen(match_testcase));
+            r = strncasecmp(match_testcase, testcases[i].desc,
+                            strlen(match_testcase));
             if (r != 0) {
                 if (enable_color)
-                    fprintf(tfd, "\033[38;5;246mok\033[0m %d - %s # skip\n", i, testcases[i].desc);
+                    fprintf(tfd, "\033[38;5;246mok\033[0m %d - %s # skip\n", i,
+                            testcases[i].desc);
                 else
                     fprintf(tfd, "ok %d - %s # skip\n", i, testcases[i].desc);
                 continue;
@@ -134,12 +137,15 @@ static int run_tests(const char *match_testcase) {
 
         if (testcases[i].fn(testcases[i].desc)) {
             if (enable_color)
-                fprintf(tfd, "\033[92mok\033[0m %d - %s\n", i, testcases[i].desc);
+                fprintf(tfd, "\033[92mok\033[0m %d - %s\n", i,
+                        testcases[i].desc);
             else
                 fprintf(tfd, "ok %d - %s\n", i, testcases[i].desc);
-        } else {
+        }
+        else {
             if (enable_color)
-                fprintf(tfd, "\033[91mnot ok\033[0m %d - %s\n", i, testcases[i].desc);
+                fprintf(tfd, "\033[91mnot ok\033[0m %d - %s\n", i,
+                        testcases[i].desc);
             else
                 fprintf(tfd, "not ok %d - %s\n", i, testcases[i].desc);
             return EXIT_FAILURE; // XXX

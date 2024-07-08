@@ -2,41 +2,41 @@
 
 #include <libavutil/log.h>
 
-#include <sys/errno.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/errno.h>
+#include <unistd.h>
 
 static bool maw_verbose = false;
 static bool maw_is_tty = true;
 
-static void maw_log_prefix(enum LogLevel level,
-                           const char *filename,
-                           int line,
-                           char *out,
-                           size_t outsize) {
+static void maw_log_prefix(enum LogLevel level, const char *filename, int line,
+                           char *out, size_t outsize) {
     const char *fmt_str;
     switch (level) {
-        case MAW_DEBUG:
-            fmt_str = maw_is_tty ? "\033[94mDEBUG\033[0m [%s:%d] ": "DEBUG [%s:%d] ";
-            break;
-        case MAW_INFO:
-            fmt_str = maw_is_tty ? "\033[92mINFO\033[0m [%s:%d] " : "INFO [%s:%d] ";
-            break;
-        case MAW_WARN:
-            fmt_str = maw_is_tty ? "\033[93mWARN\033[0m [%s:%d] " : "WARN [%s:%d] ";
-            break;
-        case MAW_ERROR:
-            fmt_str = maw_is_tty ? "\033[91mERROR\033[0m [%s:%d] ": "ERROR [%s:%d] ";
-            break;
-        default:
-            fmt_str =  "[%s:%d] ";
+    case MAW_DEBUG:
+        fmt_str =
+            maw_is_tty ? "\033[94mDEBUG\033[0m [%s:%d] " : "DEBUG [%s:%d] ";
+        break;
+    case MAW_INFO:
+        fmt_str = maw_is_tty ? "\033[92mINFO\033[0m [%s:%d] " : "INFO [%s:%d] ";
+        break;
+    case MAW_WARN:
+        fmt_str = maw_is_tty ? "\033[93mWARN\033[0m [%s:%d] " : "WARN [%s:%d] ";
+        break;
+    case MAW_ERROR:
+        fmt_str =
+            maw_is_tty ? "\033[91mERROR\033[0m [%s:%d] " : "ERROR [%s:%d] ";
+        break;
+    default:
+        fmt_str = "[%s:%d] ";
     }
     (void)snprintf(out, outsize, fmt_str, filename, line);
 }
 
 // Newline is automatically added to the end of the message
-void maw_logf(enum LogLevel level, const char *filename, int line, const char *fmt, ...) {
+void maw_logf(enum LogLevel level, const char *filename, int line,
+              const char *fmt, ...) {
     char fmt_full[MAW_LOG_MAX_MSGSIZE];
     va_list args;
 
@@ -66,7 +66,8 @@ void maw_logf(enum LogLevel level, const char *filename, int line, const char *f
 }
 
 // Newline is automatically added to the end of the message
-void maw_log(enum LogLevel level, const char *filename, int line, const char *msg) {
+void maw_log(enum LogLevel level, const char *filename, int line,
+             const char *msg) {
     char fmt_full[MAW_LOG_MAX_MSGSIZE];
 
 #ifdef MAW_TEST
@@ -93,4 +94,3 @@ void maw_log_init(bool verbose, int av_log_level) {
 
     av_log_set_level(av_log_level);
 }
-

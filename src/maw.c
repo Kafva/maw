@@ -1,7 +1,7 @@
 #include "maw/maw.h"
+#include "maw/av.h"
 #include "maw/log.h"
 #include "maw/utils.h"
-#include "maw/av.h"
 
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
@@ -10,13 +10,14 @@ int maw_update(const MediaFile *mediafile) {
     MawContext *ctx = NULL;
 
     if (mediafile->metadata == NULL) {
-        MAW_LOGF(MAW_ERROR, "%s: Invalid metadata configuration", mediafile->path);
+        MAW_LOGF(MAW_ERROR, "%s: Invalid metadata configuration",
+                 mediafile->path);
         goto end;
     }
 
     if (tmphandle < 0) {
-         MAW_PERROR(tmpfile);
-         goto end;
+        MAW_PERROR(tmpfile);
+        goto end;
     }
     (void)close(tmphandle);
 
@@ -34,14 +35,14 @@ int maw_update(const MediaFile *mediafile) {
     if (on_same_device(tmpfile, mediafile->path)) {
         r = rename(tmpfile, mediafile->path);
         if (r != 0) {
-             MAW_PERROR(tmpfile);
-             goto end;
+            MAW_PERROR(tmpfile);
+            goto end;
         }
     }
     else {
         r = movefile(tmpfile, mediafile->path);
         if (r != 0)
-             goto end;
+            goto end;
     }
 
     r = 0;
@@ -55,7 +56,7 @@ void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
     for (ssize_t i = 0; i < count; i++) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
-        free((void*)mediafiles[i].path);
+        free((void *)mediafiles[i].path);
 #pragma GCC diagnostic pop
     }
 }

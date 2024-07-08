@@ -5,7 +5,22 @@ IndentWidth: 4
 BreakStringLiterals: true
 # Do not align '\' in #define macros
 AlignEscapedNewlines: DontAlign
-# '{' on same line as function name etc.
-BreakBeforeBraces: Attach
 AlignConsecutiveMacros: true
 SortIncludes: true
+IndentCaseBlocks: false
+
+# Always keep '{' on same line as function name etc. but put a newline
+# before `else` blocks.
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass:      false
+  AfterControlStatement: false
+  AfterEnum:       false
+  AfterFunction:   false
+  AfterNamespace:  false
+  AfterObjCDeclaration: false
+  AfterStruct:     false
+  AfterUnion:      false
+  BeforeCatch:     false
+  BeforeElse:      true
+  IndentBraces:    false

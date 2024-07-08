@@ -1,11 +1,11 @@
+#include "maw/utils.h"
 #include "maw/log.h"
 #include "maw/maw.h"
-#include "maw/utils.h"
 
-#include <stdio.h>
-#include <fcntl.h>
-#include <string.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
 

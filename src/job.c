@@ -1,27 +1,27 @@
 #include "maw/job.h"
 #include "maw/log.h"
 
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 
 static void *maw_job_thread(void *);
 static void maw_clock_measure(time_t);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define WITH_LOCK(r, expr) do { \
-    r = pthread_mutex_lock(&lock); \
-    if (r != 0) { \
-        MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s", strerror(r)); \
-        goto end; \
-    } \
-    expr \
-    r = pthread_mutex_unlock(&lock); \
-    if (r != 0) { \
-        MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s", strerror(r)); \
-        goto end; \
-    } \
-} while (0) \
+#define WITH_LOCK(r, expr) \
+    do { \
+        r = pthread_mutex_lock(&lock); \
+        if (r != 0) { \
+            MAW_LOGF(MAW_ERROR, "pthread_mutex_lock: %s", strerror(r)); \
+            goto end; \
+        } \
+        expr r = pthread_mutex_unlock(&lock); \
+        if (r != 0) { \
+            MAW_LOGF(MAW_ERROR, "pthread_mutex_unlock: %s", strerror(r)); \
+            goto end; \
+        } \
+    } while (0)
 
 // Must be locked before read/write
 static ssize_t next_mediafiles_index;
@@ -49,7 +49,7 @@ static void maw_clock_measure(time_t start_time) {
 static void *maw_job_thread(void *arg) {
     int r;
     int finished_jobs = 0;
-    ThreadContext *ctx = (ThreadContext*)arg;
+    ThreadContext *ctx = (ThreadContext *)arg;
     unsigned long tid = (unsigned long)pthread_self();
 
     if (ctx->status != THREAD_STARTED) {
@@ -75,14 +75,13 @@ static void *maw_job_thread(void *arg) {
         }
 
         // Do work on current mediafiles_index
-        r = maw_update((const MediaFile*)(&ctx->mediafiles[ctx->mediafiles_index]));
+        r = maw_update(
+            (const MediaFile *)(&ctx->mediafiles[ctx->mediafiles_index]));
 
         // On fail, set next_mediafiles_index to -1, cancelling other threads
         if (r != 0) {
             ctx->status = THREAD_FAILED;
-            WITH_LOCK(r, {
-                next_mediafiles_index = -1;
-            });
+            WITH_LOCK(r, { next_mediafiles_index = -1; });
         }
         else {
             finished_jobs++;
@@ -91,11 +90,11 @@ static void *maw_job_thread(void *arg) {
 end:
     if (ctx->status == THREAD_FAILED) {
         MAW_LOGF(MAW_ERROR, "Thread #%lu: failed [done %d job(s)]", tid,
-                                                               finished_jobs);
+                 finished_jobs);
     }
     else {
         MAW_LOGF(MAW_DEBUG, "Thread #%lu: ok [done %d job(s)]", tid,
-                                                           finished_jobs);
+                 finished_jobs);
     }
     return NULL;
 }
@@ -137,9 +136,8 @@ int maw_job_launch(MediaFile mediafiles[], ssize_t size, size_t thread_count) {
 
     for (size_t i = 0; i < thread_count; i++) {
         thread_ctxs[i].status = THREAD_STARTED;
-        r = pthread_create(&threads[i], NULL,
-                           maw_job_thread,
-                           (void*)(&thread_ctxs[i]));
+        r = pthread_create(&threads[i], NULL, maw_job_thread,
+                           (void *)(&thread_ctxs[i]));
         if (r != 0) {
             MAW_LOGF(MAW_ERROR, "pthread_create: %s", strerror(r));
             goto end;

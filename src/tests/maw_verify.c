@@ -1,6 +1,6 @@
 #include "maw/tests/maw_verify.h"
+#include "maw/av.h"
 #include "maw/log.h"
-#include "maw/maw.h"
 #include "maw/utils.h"
 
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
@@ -87,7 +87,16 @@ bool maw_verify(const MediaFile *mediafile) {
         }
     }
 
-    if (mediafile->metadata->cover_path != NULL) {
+    if (mediafile->metadata->cover_policy == COVER_CROP && fmt_ctx->nb_streams == 2) {
+        if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width == CROP_DESIRED_WIDTH &&
+              fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
+            MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d",
+                     mediafile->path, fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
+                                         fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height);
+            goto end;
+        }
+    }
+    else if (mediafile->metadata->cover_path != NULL) {
         // Configured cover should be present
         if (!maw_verify_cover(fmt_ctx, mediafile)) {
             goto end;
@@ -98,15 +107,6 @@ bool maw_verify(const MediaFile *mediafile) {
         if (fmt_ctx->nb_streams != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u",
                      mediafile->path, fmt_ctx->nb_streams);
-            goto end;
-        }
-    }
-    else if (mediafile->metadata->cover_policy == COVER_CROP && fmt_ctx->nb_streams == 2) {
-        if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width == CROP_DESIRED_WIDTH &&
-              fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
-            MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d",
-                     mediafile->path, fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
-                                         fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height);
             goto end;
         }
     }
@@ -125,5 +125,3 @@ end:
     avformat_close_input(&fmt_ctx);
     return ok;
 }
-
-

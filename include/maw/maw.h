@@ -27,11 +27,13 @@
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
     // Keep original cover art unless a custom `cover_path` is given (default)
-    COVER_KEEP                               = 0x0,
+    COVER_UNSPECIFIED                        = 0,
+    // Explicitly keep the current cover as is
+    COVER_KEEP                               = 1,
     // Remove cover art if present
-    COVER_CLEAR                              = 0x1,
+    COVER_CLEAR                              = 2,
     // Crop 1280x720 covers to 720x720, idempotent for 720x720 covers.
-    COVER_CROP                               = 0x1 << 1,
+    COVER_CROP                               = 3,
 } typedef CoverPolicy;
 
 enum MawError {
@@ -77,23 +79,27 @@ struct MawContext {
 int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
 void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count);
 
-#define MAW_STRLCPY(dst, src) do {\
+#define MAW_STRLCPY_SIZE(dst, src, size) do {\
     size_t __r; \
-    __r = strlcpy(dst, src, sizeof(dst)); \
-    if (__r >= sizeof(dst)) { \
+    __r = strlcpy(dst, src, size); \
+    if (__r >= size) { \
         MAW_LOGF(MAW_ERROR, "strlcpy truncation: '%s'", src); \
         goto end; \
     } \
 } while (0)
 
-#define MAW_STRLCAT(dst, src) do {\
+#define MAW_STRLCPY(dst, src) MAW_STRLCPY_SIZE(dst, src, sizeof(dst))
+
+#define MAW_STRLCAT_SIZE(dst, src, size) do {\
     size_t __r; \
-    __r = strlcat(dst, src, sizeof(dst)); \
-    if (__r >= sizeof(dst)) { \
+    __r = strlcat(dst, src, size); \
+    if (__r >= size) { \
         MAW_LOGF(MAW_ERROR, "strlcat truncation: '%s'", src); \
         goto end; \
     } \
 } while (0)
+
+#define MAW_STRLCAT(dst, src) MAW_STRLCAT_SIZE(dst, src, sizeof(dst))
 
 #define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) do { \
     r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, filter_graph); \
@@ -123,5 +129,9 @@ void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count);
                                 strncmp(target, arg, strlen(arg)) == 0)
 #define STR_CASE_MATCH(target, arg) (strlen(target) == strlen(arg) && \
                                      strncasecmp(target, arg, strlen(arg)) == 0)
+
+#define TOSTR(arg) #arg
+
+#define CASE_RET(a) case a: return TOSTR(a)
 
 #endif // MAW_H

@@ -23,6 +23,8 @@
 
 #define MAW_CFG_MAX_DEPTH 3
 
+#define MAW_CFG_PATH_MAX 1024
+
 enum YamlKey {
     KEY_NONE,
     KEY_INVALID,

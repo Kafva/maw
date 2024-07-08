@@ -67,7 +67,7 @@ bool test_keep_all(const char *desc) {
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        // .cover_policy = COVER_KEEP // (implicit)
+        // .cover_policy = COVER_UNSPECIFIED // (implicit)
     };
     const MediaFile mediafile = {
         .path = "./.testenv/unit/keep_all.m4a",
@@ -339,6 +339,8 @@ bool test_cfg_ok(const char *desc) {
     r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
+    maw_cfg_dump(cfg);
+
     maw_cfg_free(cfg);
     maw_mediafiles_free(mediafiles, mediafiles_count);
 
@@ -380,7 +382,6 @@ bool test_complete(const char *desc) {
 
     r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
-
 
     r = maw_job_launch(mediafiles, mediafiles_count, 3);
     MAW_ASSERT_EQ(r, 0, desc);

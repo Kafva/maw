@@ -72,7 +72,7 @@ int maw_gen_playlists(MawConfig *cfg) {
     char path[MAW_CFG_PATH_MAX];
     int fd = -1;
     DIR *dir = NULL;
-    struct dirent **namelist;
+    struct dirent **namelist = NULL;
     int names_count = -1;
     size_t pathsize;
     struct stat s;
@@ -131,9 +131,11 @@ int maw_gen_playlists(MawConfig *cfg) {
                     MAW_WRITE(fd, path, pathsize);
                     MAW_WRITE(fd, "\n", 1);
 
+                    free(namelist[names_count - 1]);
                     names_count--;
                 }
 
+                free(namelist);
                 (void)closedir(dir);
                 dir = NULL;
             }
@@ -145,6 +147,14 @@ int maw_gen_playlists(MawConfig *cfg) {
 
     r = 0;
 end:
+    if (namelist != NULL) {
+        while (names_count > 0) {
+            if (namelist[names_count - 1] != NULL) {
+                free(namelist[names_count - 1]);
+            }
+            names_count--;
+        }
+    }
     if (dir != NULL)
         (void)closedir(dir);
     if (fd != -1)

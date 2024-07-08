@@ -269,52 +269,6 @@ bool test_job_error(const char *desc) {
     return true;
 }
 
-// Configuration ///////////////////////////////////////////////////////////////
-
-bool test_cfg_ok(const char *desc) {
-    int r;
-    const char *config_file = ".testenv/maw.yml";
-    MawConfig *cfg = NULL;
-    MediaFile mediafiles[MAW_MAX_FILES];
-    ssize_t mediafiles_count = 0;
-
-    r = maw_cfg_parse(config_file, &cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
-
-    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
-    MAW_ASSERT_EQ(r, 0, desc);
-
-    maw_cfg_dump(cfg);
-
-    maw_cfg_free(cfg);
-    maw_mediafiles_free(mediafiles, mediafiles_count);
-
-    return true;
-}
-
-bool test_cfg_error(const char *desc) {
-    int r;
-    const char *config_file = ".testenv/unit/bad.yml";
-    MawConfig *cfg = NULL;
-
-    r = maw_cfg_parse(config_file, &cfg);
-    MAW_ASSERT_EQ(r, MAW_ERR_YAML, desc);
-    maw_cfg_free(cfg);
-
-    return true;
-}
-
-bool test_hash(const char *desc) {
-    uint32_t digest;
-    const char *data = "ABC";
-    digest = hash(data);
-
-    // Reference value from: go/src/hash/fnv/fnv.go
-    MAW_ASSERT_EQ(digest, 1552166763, desc);
-
-    return true;
-}
-
 bool test_complete(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
@@ -338,6 +292,63 @@ bool test_complete(const char *desc) {
 
     maw_cfg_free(cfg);
     maw_mediafiles_free(mediafiles, mediafiles_count);
+
+    return true;
+}
+
+// Configuration ///////////////////////////////////////////////////////////////
+
+bool test_cfg_ok(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/maw.yml";
+    MawConfig *cfg = NULL;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    ssize_t mediafiles_count = 0;
+
+    r = maw_cfg_parse(config_file, &cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    maw_cfg_dump(cfg);
+
+    maw_cfg_free(cfg);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
+
+    return true;
+}
+
+bool test_cfg_playlists(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/maw.yml";
+    MawConfig *cfg = NULL;
+
+    r = maw_cfg_parse(config_file, &cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    return true;
+}
+
+bool test_cfg_error(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/unit/bad.yml";
+    MawConfig *cfg = NULL;
+
+    r = maw_cfg_parse(config_file, &cfg);
+    MAW_ASSERT_EQ(r, MAW_ERR_YAML, desc);
+    maw_cfg_free(cfg);
+
+    return true;
+}
+
+bool test_hash(const char *desc) {
+    uint32_t digest;
+    const char *data = "ABC";
+    digest = hash(data);
+
+    // Reference value from: go/src/hash/fnv/fnv.go
+    MAW_ASSERT_EQ(digest, 1552166763, desc);
 
     return true;
 }

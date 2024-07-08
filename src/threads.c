@@ -1,8 +1,9 @@
 #include "maw/threads.h"
 #include "maw/log.h"
 
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 static void *maw_threads_worker(void *);
 static void maw_clock_measure(time_t);

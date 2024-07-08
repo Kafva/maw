@@ -12,22 +12,23 @@ struct Testcase {
     bool (*fn)(const char *);
 };
 
-bool test_keep_all(const char *);
-bool test_clear_non_core_fields(const char *);
-bool test_clear_cover(const char *);
-bool test_crop_cover(const char *);
-bool test_add_cover(const char *);
-bool test_replace_cover(const char *);
-bool test_bad_covers(const char *);
-bool test_no_audio(const char *);
-bool test_dual_audio(const char *);
-bool test_dual_video(const char *);
-bool test_job_ok(const char *);
-bool test_job_error(const char *);
-bool test_cfg_ok(const char *);
-bool test_cfg_error(const char *);
-bool test_hash(const char *);
-bool test_complete(const char *);
+bool test_keep_all(const char *desc);
+bool test_clear_non_core_fields(const char *desc);
+bool test_clear_cover(const char *desc);
+bool test_crop_cover(const char *desc);
+bool test_add_cover(const char *desc);
+bool test_replace_cover(const char *desc);
+bool test_bad_covers(const char *desc);
+bool test_no_audio(const char *desc);
+bool test_dual_audio(const char *desc);
+bool test_dual_video(const char *desc);
+bool test_job_ok(const char *desc);
+bool test_job_error(const char *desc);
+bool test_complete(const char *desc);
+bool test_cfg_ok(const char *desc);
+bool test_cfg_error(const char *desc);
+bool test_hash(const char *desc);
+bool test_cfg_playlists(const char *desc);
 
 #define DEFINE_TESTCASES \
     struct Testcase testcases[] = { \
@@ -43,11 +44,11 @@ bool test_complete(const char *);
         {.desc = "Crop cover", .fn = test_crop_cover}, \
         {.desc = "Jobs ok", .fn = test_job_ok}, \
         {.desc = "Jobs error", .fn = test_job_error}, \
+        {.desc = "Complete", .fn = test_complete}, \
         {.desc = "Configuration ok", .fn = test_cfg_ok}, \
         {.desc = "Configuration error", .fn = test_cfg_error}, \
         {.desc = "FNV-1a Hash", .fn = test_hash}, \
-        {.desc = "Complete", .fn = test_complete}, \
-    }
+        {.desc = "Playlists", .fn = test_cfg_playlists}}
 #endif
 
 #define MAW_ASSERT_EQ(lhs, rhs, msg) \

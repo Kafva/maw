@@ -1,14 +1,15 @@
 #ifndef MAW_H
 #define MAW_H
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#include <libavcodec/avcodec.h>
-#pragma GCC diagnostic pop
-
-#include <libavfilter/avfilter.h>
-#include <libavformat/avformat.h>
+#include <errno.h>
 #include <stdbool.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+
+// TAILQ is used instead of STAILQ to make the code more portable.
+// STAILQ_LAST is only provided by <bsd/sys/queue.h> and generates
+// -Wgnu-statement-expression-from-macro-expansion warnings on Linux,
+// TAILQ_LAST works fine on both Linux and BSD.
 
 // Maximum number of files to handle in one invocation
 #define MAW_MAX_FILES 1024
@@ -49,23 +50,36 @@ struct MediaFile {
     uint32_t path_digest;
 } typedef MediaFile;
 
-struct MawContext {
-    const char *output_filepath;
-    const MediaFile *mediafile;
-    AVFormatContext *input_fmt_ctx;
-    AVFormatContext *cover_fmt_ctx;
-    AVFormatContext *output_fmt_ctx;
-    ssize_t audio_input_stream_index;
-    ssize_t video_input_stream_index;
-    // Filtering variables
-    AVFilterGraph *filter_graph;
-    AVFilterContext *filter_buffersrc_ctx;
-    AVFilterContext *filter_buffersink_ctx;
-    AVCodecContext *dec_codec_ctx;
-    AVCodecContext *enc_codec_ctx;
-} typedef MawContext;
+struct PlaylistPath {
+    const char *path;
+    TAILQ_ENTRY(PlaylistPath) entry;
+} typedef PlaylistPath;
+
+struct Playlist {
+    const char *name;
+    TAILQ_HEAD(, PlaylistPath) playlist_paths_head;
+} typedef Playlist;
+
+struct PlaylistEntry {
+    Playlist value;
+    TAILQ_ENTRY(PlaylistEntry) entry;
+} typedef PlaylistEntry;
+
+struct MetadataEntry {
+    const char *pattern;
+    Metadata value;
+    TAILQ_ENTRY(MetadataEntry) entry;
+} typedef MetadataEntry;
+
+struct MawConfig {
+    char *art_dir;
+    char *music_dir;
+    TAILQ_HEAD(PlaylistEntryHead, PlaylistEntry) playlists_head;
+    TAILQ_HEAD(MetadataEntryHead, MetadataEntry) metadata_head;
+} typedef MawConfig;
 
 int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
+int maw_gen_playlists(MawConfig *cfg) __attribute__((warn_unused_result));
 void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count);
 
 #define MAW_STRLCPY_SIZE(dst, src, size) \

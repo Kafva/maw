@@ -3,6 +3,14 @@
 #include "maw/log.h"
 #include "maw/utils.h"
 
+int maw_gen_playlists(MawConfig *cfg) {
+    int r = MAW_ERR_INTERNAL;
+
+    r = 0;
+end:
+    return r;
+}
+
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
     char tmpfile[] = "/tmp/maw.XXXXXX.m4a";

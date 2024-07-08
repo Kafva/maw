@@ -1,13 +1,7 @@
 #ifndef CFG_H
 #define CFG_H
 
-// TAILQ is used instead of STAILQ to make the code more portable.
-// STAILQ_LAST is only provided by <bsd/sys/queue.h> and generates
-// -Wgnu-statement-expression-from-macro-expansion warnings on Linux,
-// TAILQ_LAST works fine on both Linux and BSD.
-
 #include "maw/maw.h"
-#include <sys/queue.h>
 #include <yaml.h>
 
 #define MAW_CFG_KEY_ART          "art_dir"
@@ -39,34 +33,6 @@ enum YamlKey {
     KEY_COVER_POLICY,
     KEY_CLEAN,
 };
-
-struct PlaylistPath {
-    const char *path;
-    TAILQ_ENTRY(PlaylistPath) entry;
-} typedef PlaylistPath;
-
-struct Playlist {
-    const char *name;
-    TAILQ_HEAD(, PlaylistPath) playlist_paths_head;
-} typedef Playlist;
-
-struct PlaylistEntry {
-    Playlist value;
-    TAILQ_ENTRY(PlaylistEntry) entry;
-} typedef PlaylistEntry;
-
-struct MetadataEntry {
-    const char *pattern;
-    Metadata value;
-    TAILQ_ENTRY(MetadataEntry) entry;
-} typedef MetadataEntry;
-
-struct MawConfig {
-    char *art_dir;
-    char *music_dir;
-    TAILQ_HEAD(PlaylistEntryHead, PlaylistEntry) playlists_head;
-    TAILQ_HEAD(MetadataEntryHead, MetadataEntry) metadata_head;
-} typedef MawConfig;
 
 struct YamlContext {
     const char *filepath;

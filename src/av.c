@@ -10,18 +10,18 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/rational.h>
 
-static int maw_demux_cover(MawAVContext *);
-static int maw_filter_crop_cover(MawAVContext *);
-static int maw_copy_metadata_fields(AVFormatContext *, const Metadata *);
-static int maw_set_metadata(MawAVContext *);
-static int maw_demux(MawAVContext *);
-static int maw_mux(MawAVContext *);
-static int maw_init_dec_context(MawAVContext *);
-static int maw_init_enc_context(MawAVContext *);
+static int maw_av_demux_cover(MawAVContext *);
+static int maw_av_filter_crop_cover(MawAVContext *);
+static int maw_av_copy_metadata_fields(AVFormatContext *, const Metadata *);
+static int maw_av_set_metadata(MawAVContext *);
+static int maw_av_demux(MawAVContext *);
+static int maw_av_mux(MawAVContext *);
+static int maw_av_init_dec_context(MawAVContext *);
+static int maw_av_init_enc_context(MawAVContext *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static int maw_demux_cover(MawAVContext *ctx) {
+static int maw_av_demux_cover(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     enum AVMediaType codec_type;
@@ -77,7 +77,7 @@ end:
     return r;
 }
 
-static int maw_filter_crop_cover(MawAVContext *ctx) {
+static int maw_av_filter_crop_cover(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVFilterContext *filter_crop_ctx = NULL;
     const AVFilter *crop_filter = NULL;
@@ -170,8 +170,8 @@ end:
     return r;
 }
 
-static int maw_copy_metadata_fields(AVFormatContext *fmt_ctx,
-                                    const Metadata *metadata) {
+static int maw_av_copy_metadata_fields(AVFormatContext *fmt_ctx,
+                                       const Metadata *metadata) {
     int r = MAW_ERR_INTERNAL;
     r = av_dict_set(&fmt_ctx->metadata, "title", metadata->title, 0);
     if (r != 0) {
@@ -194,7 +194,7 @@ end:
 }
 
 // @return 0 on success, negative AVERROR code on failure.
-static int maw_set_metadata(MawAVContext *ctx) {
+static int maw_av_set_metadata(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVDictionaryEntry *entry = NULL;
 
@@ -224,8 +224,8 @@ static int maw_set_metadata(MawAVContext *ctx) {
 
     // Set custom values
     if (ctx->mediafile->metadata != NULL) {
-        r = maw_copy_metadata_fields(ctx->output_fmt_ctx,
-                                     ctx->mediafile->metadata);
+        r = maw_av_copy_metadata_fields(ctx->output_fmt_ctx,
+                                        ctx->mediafile->metadata);
         if (r != 0) {
             goto end;
         }
@@ -237,7 +237,7 @@ end:
 }
 
 // Video streams will only be demuxed if they are needed by the current policy
-static int maw_demux(MawAVContext *ctx) {
+static int maw_av_demux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
@@ -340,7 +340,7 @@ end:
     return r;
 }
 
-static int maw_mux(MawAVContext *ctx) {
+static int maw_av_mux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     int prev_stream_index = -1;
     int output_stream_index = -1;
@@ -379,7 +379,7 @@ static int maw_mux(MawAVContext *ctx) {
     if (should_crop) {
         // Create an encoder context, we need this to translate the output
         // frames from the filtergraph back into packets
-        r = maw_init_enc_context(ctx);
+        r = maw_av_init_enc_context(ctx);
         if (r != 0)
             goto end;
 
@@ -555,7 +555,7 @@ end:
     return r;
 }
 
-static int maw_init_dec_context(MawAVContext *ctx) {
+static int maw_av_init_dec_context(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVCodec *dec_codec = NULL;
 
@@ -599,7 +599,7 @@ end:
     return r;
 }
 
-static int maw_init_enc_context(MawAVContext *ctx) {
+static int maw_av_init_enc_context(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVCodec *enc_codec = NULL;
 
@@ -638,17 +638,17 @@ end:
 }
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
-int maw_remux(MawAVContext *ctx) {
+int maw_av_remux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
 
     // * Find the indices of the video and audio stream and create
     // corresponding output streams
-    r = maw_demux(ctx);
+    r = maw_av_demux(ctx);
     if (r != 0)
         goto end;
 
     if (ctx->mediafile->metadata->cover_policy == COVER_CROP) {
-        r = maw_init_dec_context(ctx);
+        r = maw_av_init_dec_context(ctx);
         if (r != 0)
             goto end;
 
@@ -670,7 +670,7 @@ int maw_remux(MawAVContext *ctx) {
                      ctx->output_filepath);
 
             // * Initialize a filter to crop the existing video stream
-            r = maw_filter_crop_cover(ctx);
+            r = maw_av_filter_crop_cover(ctx);
             if (r != 0)
                 goto end;
         }
@@ -679,20 +679,20 @@ int maw_remux(MawAVContext *ctx) {
              strlen(ctx->mediafile->metadata->cover_path) > 0) {
         // * Find the input stream in the cover and create a corresponding
         // output stream
-        r = maw_demux_cover(ctx);
+        r = maw_av_demux_cover(ctx);
         if (r != 0)
             goto end;
     }
 
     // * Configure metadata
-    r = maw_set_metadata(ctx);
+    r = maw_av_set_metadata(ctx);
     if (r != 0) {
         MAW_AVERROR(r, "Failed to copy metadata");
         goto end;
     }
 
     // * Write the demuxed content back to disk (via filter if applicable)
-    r = maw_mux(ctx);
+    r = maw_av_mux(ctx);
     if (r != 0)
         goto end;
 
@@ -700,7 +700,7 @@ end:
     return r;
 }
 
-void maw_free_context(MawAVContext *ctx) {
+void maw_av_free_context(MawAVContext *ctx) {
     if (ctx == NULL)
         return;
 
@@ -729,8 +729,8 @@ void maw_free_context(MawAVContext *ctx) {
     free(ctx);
 }
 
-MawAVContext *maw_init_context(const MediaFile *mediafile,
-                               const char *output_filepath) {
+MawAVContext *maw_av_init_context(const MediaFile *mediafile,
+                                  const char *output_filepath) {
     int r;
     MawAVContext *ctx = NULL;
     AVFormatContext *input_fmt_ctx = NULL;

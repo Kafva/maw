@@ -3,14 +3,6 @@
 #include "maw/log.h"
 #include "maw/utils.h"
 
-int maw_gen_playlists(MawConfig *cfg) {
-    int r = MAW_ERR_INTERNAL;
-
-    r = 0;
-end:
-    return r;
-}
-
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
     char tmpfile[] = "/tmp/maw.XXXXXX.m4a";
@@ -31,11 +23,11 @@ int maw_update(const MediaFile *mediafile) {
 
     MAW_LOGF(MAW_DEBUG, "%s -> %s", mediafile->path, tmpfile);
 
-    ctx = maw_init_context(mediafile, tmpfile);
+    ctx = maw_av_init_context(mediafile, tmpfile);
     if (ctx == NULL)
         goto end;
 
-    r = maw_remux(ctx);
+    r = maw_av_remux(ctx);
     if (r != 0) {
         goto end;
     }
@@ -56,7 +48,23 @@ int maw_update(const MediaFile *mediafile) {
     r = 0;
 end:
     (void)unlink(tmpfile);
-    maw_free_context(ctx);
+    maw_av_free_context(ctx);
+    return r;
+}
+
+// Create a hidden .m3u playlist under the music_dir for each entry under
+// `playlists`.
+int maw_gen_playlists(MawConfig *cfg) {
+    int r = MAW_ERR_INTERNAL;
+    PlaylistEntry *p = NULL;
+    PlaylistPath *pp = NULL;
+
+    TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
+        TAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {}
+    }
+
+    r = 0;
+end:
     return r;
 }
 

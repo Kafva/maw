@@ -27,10 +27,10 @@ struct MawAVContext {
     AVCodecContext *enc_codec_ctx;
 } typedef MawAVContext;
 
-int maw_remux(MawAVContext *ctx) __attribute__((warn_unused_result));
-void maw_free_context(MawAVContext *ctx);
-MawAVContext *maw_init_context(const MediaFile *mediafile,
-                               const char *output_filepath)
+int maw_av_remux(MawAVContext *ctx) __attribute__((warn_unused_result));
+void maw_av_free_context(MawAVContext *ctx);
+MawAVContext *maw_av_init_context(const MediaFile *mediafile,
+                                  const char *output_filepath)
     __attribute__((warn_unused_result));
 
 #define CROP_ACCEPTED_WIDTH  1280

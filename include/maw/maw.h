@@ -75,7 +75,7 @@ struct MawContext {
 } typedef MawContext;
 
 int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
-void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], size_t count);
+void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count);
 
 #define MAW_STRLCPY(dst, src) do {\
     size_t __r; \

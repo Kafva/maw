@@ -331,13 +331,14 @@ bool test_cfg_ok(const char *desc) {
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
     MediaFile mediafiles[MAW_MAX_FILES];
-    size_t mediafiles_count = 0;
+    ssize_t mediafiles_count = 0;
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
     r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
+
     maw_cfg_free(cfg);
     maw_mediafiles_free(mediafiles, mediafiles_count);
 
@@ -366,3 +367,33 @@ bool test_hash(const char *desc) {
 
     return true;
 }
+
+bool test_complete(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/maw.yml";
+    MawConfig *cfg = NULL;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    ssize_t mediafiles_count = 0;
+
+    r = maw_cfg_parse(config_file, &cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+
+    r = maw_job_launch(mediafiles, mediafiles_count, 3);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    for (ssize_t i = 0; i < mediafiles_count; i++) {
+        r = maw_verify(&mediafiles[i]);
+        MAW_ASSERT_EQ(r, true, desc);
+    }
+
+
+    maw_cfg_free(cfg);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
+
+    return true;
+}
+

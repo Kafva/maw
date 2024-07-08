@@ -7,6 +7,23 @@
 #include "maw/utils.h"
 #include "maw/maw.h"
 
+static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE **fp);
+static void maw_cfg_yaml_deinit(yaml_parser_t *parser, FILE *fp);
+static const char *maw_cfg_key_tostr(enum YamlKey key);
+static void maw_cfg_key_push(YamlContext *ctx, const char *key, enum YamlKey mkey);
+static bool maw_cfg_key_pop(YamlContext *ctx);
+static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx, const char *key);
+static int maw_cfg_set_metadata_field(YamlContext *ctx, yaml_token_t *token,
+                                      Metadata *metadata, const char *value);
+static int maw_cfg_add_to_playlist(Playlist *playlist, const char *value);
+static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token);
+static int maw_parse_value(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token);
+static void maw_cfg_ctx_dump(YamlContext *ctx);
+static bool maw_cfg_add_mediafile(MawConfig *cfg, const char *filepath,
+                                  Metadata *metadata,
+                                  MediaFile mediafiles[MAW_MAX_FILES],
+                                  ssize_t *mediafiles_count);
+
 #define KEY_LAST(c) c->keypath[c->key_count - 1]
 #define TOSTR(arg) #arg
 #define CASE_RET(a) case a: return TOSTR(a)
@@ -25,6 +42,8 @@
 
 #define MAW_YAML_ERROR(ctx, token, type, scalar) \
     MAW_YAML_UNXEXPECTED(MAW_ERROR, ctx, token, type, scalar);
+
+////////////////////////////////////////////////////////////////////////////////
 
 static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser, FILE **fp) {
     int r = MAW_ERR_INTERNAL;
@@ -353,7 +372,7 @@ static bool maw_cfg_add_mediafile(MawConfig *cfg,
                                   const char *filepath,
                                   Metadata *metadata,
                                   MediaFile mediafiles[MAW_MAX_FILES],
-                                  size_t *mediafiles_count) {
+                                  ssize_t *mediafiles_count) {
     uint32_t digest;
 
     if (*mediafiles_count > MAW_MAX_FILES) {
@@ -363,7 +382,7 @@ static bool maw_cfg_add_mediafile(MawConfig *cfg,
 
     digest = hash(filepath);
 
-    for (size_t i = 0; i < *mediafiles_count; i++) {
+    for (ssize_t i = 0; i < *mediafiles_count; i++) {
         if (mediafiles[i].path_digest == digest) {
             mediafiles[i].metadata = metadata;
             MAW_LOGF(MAW_DEBUG, "Replaced: %s", mediafiles[i].path);
@@ -458,8 +477,6 @@ void maw_cfg_free(MawConfig *cfg) {
 
     free(cfg);
 }
-
-
 
 // @param [in] filepath
 // @param [in,out] CFG
@@ -559,7 +576,7 @@ end:
 // Later matches in the config file will take precedence!
 int maw_cfg_alloc_mediafiles(MawConfig *cfg,
                              MediaFile mediafiles[MAW_MAX_FILES],
-                             size_t *mediafiles_count) {
+                             ssize_t *mediafiles_count) {
     int r = MAW_ERR_INTERNAL;
     MetadataEntry *metadata_entry = NULL;
     DIR *dir = NULL;

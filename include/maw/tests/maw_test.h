@@ -27,7 +27,7 @@ bool test_job_error(const char *);
 bool test_cfg_ok(const char *);
 bool test_cfg_error(const char *);
 bool test_hash(const char *);
-
+bool test_complete(const char *);
 
 #define DEFINE_TESTCASES \
     struct Testcase testcases[] = { \
@@ -46,6 +46,7 @@ bool test_hash(const char *);
         { .desc = "Configuration ok",                                 .fn = test_cfg_ok }, \
         { .desc = "Configuration error",                              .fn = test_cfg_error }, \
         { .desc = "FNV-1a Hash",                                      .fn = test_hash }, \
+        { .desc = "Complete",                                         .fn = test_complete }, \
     }
 #endif
 

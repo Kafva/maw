@@ -71,7 +71,7 @@ struct YamlContext {
     const char *filepath;
     yaml_token_type_t next_token_type;
     enum YamlKey keypath[MAW_CFG_MAX_DEPTH];
-    size_t key_count;
+    ssize_t key_count;
 } typedef YamlContext;
 
 
@@ -80,6 +80,6 @@ void maw_cfg_free(MawConfig *cfg);
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
 int maw_cfg_alloc_mediafiles(MawConfig *cfg,
                              MediaFile mediafiles[MAW_MAX_FILES],
-                             size_t *mediafiles_count) __attribute__((warn_unused_result));
+                             ssize_t *mediafiles_count) __attribute__((warn_unused_result));
 
 #endif // CFG_H

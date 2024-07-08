@@ -50,19 +50,19 @@ struct MediaFile {
 } typedef MediaFile;
 
 struct MawContext {
-   const char *output_filepath;
-   const MediaFile *mediafile;
-   AVFormatContext *input_fmt_ctx;
-   AVFormatContext *cover_fmt_ctx;
-   AVFormatContext *output_fmt_ctx;
-   ssize_t audio_input_stream_index;
-   ssize_t video_input_stream_index;
-   // Filtering variables
-   AVFilterGraph *filter_graph;
-   AVFilterContext *filter_buffersrc_ctx;
-   AVFilterContext *filter_buffersink_ctx;
-   AVCodecContext *dec_codec_ctx;
-   AVCodecContext *enc_codec_ctx;
+    const char *output_filepath;
+    const MediaFile *mediafile;
+    AVFormatContext *input_fmt_ctx;
+    AVFormatContext *cover_fmt_ctx;
+    AVFormatContext *output_fmt_ctx;
+    ssize_t audio_input_stream_index;
+    ssize_t video_input_stream_index;
+    // Filtering variables
+    AVFilterGraph *filter_graph;
+    AVFilterContext *filter_buffersrc_ctx;
+    AVFilterContext *filter_buffersink_ctx;
+    AVCodecContext *dec_codec_ctx;
+    AVCodecContext *enc_codec_ctx;
 } typedef MawContext;
 
 int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));

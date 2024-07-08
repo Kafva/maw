@@ -10,8 +10,6 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/rational.h>
 
-#include <unistd.h>
-
 static int maw_demux_cover(MawContext*);
 static int maw_filter_crop_cover(MawContext*);
 static int maw_copy_metadata_fields(AVFormatContext*, const Metadata*);

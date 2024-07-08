@@ -3,10 +3,11 @@
 
 #include "maw/maw.h"
 
-int maw_remux(MawContext *ctx);
+int maw_remux(MawContext *ctx) __attribute__((warn_unused_result));
 void maw_free_context(MawContext *ctx);
 MawContext* maw_init_context(const MediaFile *mediafile,
-                             const char *output_filepath);
+                             const char *output_filepath) 
+            __attribute__((warn_unused_result));
 
 #define CROP_ACCEPTED_WIDTH 1280
 #define CROP_ACCEPTED_HEIGHT 720

@@ -25,8 +25,7 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
 static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
                                yaml_token_t *token);
 static void maw_cfg_ctx_dump(YamlContext *ctx);
-static bool maw_cfg_add_mediafile(MawConfig *cfg, const char *filepath,
-                                  Metadata *metadata,
+static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
                                   MediaFile mediafiles[MAW_MAX_FILES],
                                   ssize_t *mediafiles_count);
 
@@ -418,8 +417,7 @@ static void maw_cfg_merge_metadata(const Metadata *original, Metadata *new) {
     // Always keep the new value for `clean`
 }
 
-static bool maw_cfg_add_mediafile(MawConfig *cfg, const char *filepath,
-                                  Metadata *metadata,
+static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
                                   MediaFile mediafiles[MAW_MAX_FILES],
                                   ssize_t *mediafiles_count) {
     uint32_t digest;
@@ -656,7 +654,7 @@ int maw_cfg_alloc_mediafiles(MawConfig *cfg,
             }
 
             for (size_t i = 0; i < glob_result.gl_pathc; i++) {
-                if (!maw_cfg_add_mediafile(cfg, glob_result.gl_pathv[i],
+                if (!maw_cfg_add_mediafile(glob_result.gl_pathv[i],
                                            &metadata_entry->value, mediafiles,
                                            mediafiles_count))
                     goto end;
@@ -671,7 +669,7 @@ int maw_cfg_alloc_mediafiles(MawConfig *cfg,
             }
 
             if (S_ISREG(s.st_mode)) {
-                if (!maw_cfg_add_mediafile(cfg, complete_pattern,
+                if (!maw_cfg_add_mediafile(complete_pattern,
                                            &metadata_entry->value, mediafiles,
                                            mediafiles_count))
                     goto end;
@@ -688,8 +686,8 @@ int maw_cfg_alloc_mediafiles(MawConfig *cfg,
                         MAW_STRLCAT(filepath, "/");
                         MAW_STRLCAT(filepath, entry->d_name);
                         if (!maw_cfg_add_mediafile(
-                                cfg, filepath, &metadata_entry->value,
-                                mediafiles, mediafiles_count))
+                                filepath, &metadata_entry->value, mediafiles,
+                                mediafiles_count))
                             goto end;
                     }
                 }

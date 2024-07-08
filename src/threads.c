@@ -1,10 +1,10 @@
-#include "maw/job.h"
+#include "maw/threads.h"
 #include "maw/log.h"
 
 #include <time.h>
 #include <unistd.h>
 
-static void *maw_job_thread(void *);
+static void *maw_threads_worker(void *);
 static void maw_clock_measure(time_t);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +46,7 @@ static void maw_clock_measure(time_t start_time) {
     }
 }
 
-static void *maw_job_thread(void *arg) {
+static void *maw_threads_worker(void *arg) {
     int r;
     int finished_jobs = 0;
     ThreadContext *ctx = (ThreadContext *)arg;
@@ -100,7 +100,8 @@ end:
 }
 
 // @return non-zero if at least one thread fails
-int maw_job_launch(MediaFile mediafiles[], ssize_t size, size_t thread_count) {
+int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
+                       size_t thread_count) {
     int status = -1;
     int r = MAW_ERR_INTERNAL;
     pthread_t *threads = NULL;
@@ -136,7 +137,7 @@ int maw_job_launch(MediaFile mediafiles[], ssize_t size, size_t thread_count) {
 
     for (size_t i = 0; i < thread_count; i++) {
         thread_ctxs[i].status = THREAD_STARTED;
-        r = pthread_create(&threads[i], NULL, maw_job_thread,
+        r = pthread_create(&threads[i], NULL, maw_threads_worker,
                            (void *)(&thread_ctxs[i]));
         if (r != 0) {
             MAW_LOGF(MAW_ERROR, "pthread_create: %s", strerror(r));

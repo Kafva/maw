@@ -1,8 +1,8 @@
 #include "maw/tests/maw_test.h"
 #include "maw/cfg.h"
-#include "maw/job.h"
 #include "maw/maw.h"
 #include "maw/tests/maw_verify.h"
+#include "maw/threads.h"
 #include "maw/utils.h"
 
 #include <libavutil/error.h>
@@ -225,7 +225,7 @@ bool test_job_ok(const char *desc) {
 
     ssize_t mediafiles_count = sizeof(mediafiles) / sizeof(MediaFile);
 
-    r = maw_job_launch(mediafiles, mediafiles_count, 3);
+    r = maw_threads_launch(mediafiles, mediafiles_count, 3);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (ssize_t i = 0; i < mediafiles_count; i++) {
@@ -263,7 +263,7 @@ bool test_job_error(const char *desc) {
     };
     ssize_t mediafiles_count = sizeof(cfg_arr) / sizeof(Metadata);
 
-    r = maw_job_launch(mediafiles, mediafiles_count, 2);
+    r = maw_threads_launch(mediafiles, mediafiles_count, 2);
     MAW_ASSERT_EQ(r, -1, desc);
 
     return true;
@@ -328,7 +328,7 @@ bool test_complete(const char *desc) {
     r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_job_launch(mediafiles, mediafiles_count, 3);
+    r = maw_threads_launch(mediafiles, mediafiles_count, 3);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (ssize_t i = 0; i < mediafiles_count; i++) {

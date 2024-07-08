@@ -6,20 +6,20 @@
 // -Wgnu-statement-expression-from-macro-expansion warnings on Linux,
 // TAILQ_LAST works fine on both Linux and BSD.
 
+#include "maw/maw.h"
 #include <sys/queue.h>
 #include <yaml.h>
-#include "maw/maw.h"
 
-#define MAW_CFG_KEY_ART             "art_dir"
-#define MAW_CFG_KEY_MUSIC           "music_dir"
-#define MAW_CFG_KEY_PLAYLISTS       "playlists"
-#define MAW_CFG_KEY_METADATA        "metadata"
-#define MAW_CFG_KEY_TITLE           "title"
-#define MAW_CFG_KEY_ALBUM           "album"
-#define MAW_CFG_KEY_ARTIST          "artist"
-#define MAW_CFG_KEY_COVER           "cover"
-#define MAW_CFG_KEY_COVER_POLICY    "cover_policy"
-#define MAW_CFG_KEY_CLEAN           "clean"
+#define MAW_CFG_KEY_ART          "art_dir"
+#define MAW_CFG_KEY_MUSIC        "music_dir"
+#define MAW_CFG_KEY_PLAYLISTS    "playlists"
+#define MAW_CFG_KEY_METADATA     "metadata"
+#define MAW_CFG_KEY_TITLE        "title"
+#define MAW_CFG_KEY_ALBUM        "album"
+#define MAW_CFG_KEY_ARTIST       "artist"
+#define MAW_CFG_KEY_COVER        "cover"
+#define MAW_CFG_KEY_COVER_POLICY "cover_policy"
+#define MAW_CFG_KEY_CLEAN        "clean"
 
 #define MAW_CFG_MAX_DEPTH 3
 
@@ -47,7 +47,7 @@ struct PlaylistPath {
 
 struct Playlist {
     const char *name;
-    TAILQ_HEAD(,PlaylistPath) playlist_paths_head;
+    TAILQ_HEAD(, PlaylistPath) playlist_paths_head;
 } typedef Playlist;
 
 struct PlaylistEntry {
@@ -75,12 +75,13 @@ struct YamlContext {
     ssize_t key_count;
 } typedef YamlContext;
 
-
 void maw_cfg_dump(MawConfig *cfg);
 void maw_cfg_free(MawConfig *cfg);
-int maw_cfg_parse(const char *filepath, MawConfig **cfg) __attribute__((warn_unused_result));
+int maw_cfg_parse(const char *filepath, MawConfig **cfg)
+    __attribute__((warn_unused_result));
 int maw_cfg_alloc_mediafiles(MawConfig *cfg,
                              MediaFile mediafiles[MAW_MAX_FILES],
-                             ssize_t *mediafiles_count) __attribute__((warn_unused_result));
+                             ssize_t *mediafiles_count)
+    __attribute__((warn_unused_result));
 
 #endif // CFG_H

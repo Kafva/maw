@@ -3,4 +3,9 @@
 ColumnLimit: 80
 IndentWidth: 4
 BreakStringLiterals: true
-SortIncludes: false
+# Do not align '\' in #define macros
+AlignEscapedNewlines: DontAlign
+# '{' on same line as function name etc.
+BreakBeforeBraces: Attach
+AlignConsecutiveMacros: true
+SortIncludes: true

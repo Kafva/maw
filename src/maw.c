@@ -120,22 +120,23 @@ int maw_gen_playlists(MawConfig *cfg) {
                     goto end;
                 }
 
-                while (names_count > 0) {
+                for (int i = 0; i < names_count; i++) {
                     // XXX: Overwrite the full-path of the playlist entry
                     // with the path to the current entry
                     MAW_STRLCPY(path, pp->path);
                     MAW_STRLCAT(path, "/");
-                    MAW_STRLCAT(path, namelist[names_count - 1]->d_name);
+                    MAW_STRLCAT(path, namelist[i]->d_name);
 
                     pathsize = strlen(path);
                     MAW_WRITE(fd, path, pathsize);
                     MAW_WRITE(fd, "\n", 1);
 
-                    free(namelist[names_count - 1]);
-                    names_count--;
+                    free(namelist[i]);
+                    namelist[i] = NULL;
                 }
-
                 free(namelist);
+                namelist = NULL;
+
                 (void)closedir(dir);
                 dir = NULL;
             }
@@ -148,12 +149,12 @@ int maw_gen_playlists(MawConfig *cfg) {
     r = 0;
 end:
     if (namelist != NULL) {
-        while (names_count > 0) {
-            if (namelist[names_count - 1] != NULL) {
-                free(namelist[names_count - 1]);
+        for (int i = 0; i < names_count; i++) {
+            if (namelist[i] != NULL) {
+                free(namelist[i]);
             }
-            names_count--;
         }
+        free(namelist);
     }
     if (dir != NULL)
         (void)closedir(dir);

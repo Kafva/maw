@@ -11,7 +11,7 @@
 #include <libavfilter/avfilter.h>
 #include <libavformat/avformat.h>
 
-struct MawContext {
+struct MawAVContext {
     const char *output_filepath;
     const MediaFile *mediafile;
     AVFormatContext *input_fmt_ctx;
@@ -25,12 +25,12 @@ struct MawContext {
     AVFilterContext *filter_buffersink_ctx;
     AVCodecContext *dec_codec_ctx;
     AVCodecContext *enc_codec_ctx;
-} typedef MawContext;
+} typedef MawAVContext;
 
-int maw_remux(MawContext *ctx) __attribute__((warn_unused_result));
-void maw_free_context(MawContext *ctx);
-MawContext *maw_init_context(const MediaFile *mediafile,
-                             const char *output_filepath)
+int maw_remux(MawAVContext *ctx) __attribute__((warn_unused_result));
+void maw_free_context(MawAVContext *ctx);
+MawAVContext *maw_init_context(const MediaFile *mediafile,
+                               const char *output_filepath)
     __attribute__((warn_unused_result));
 
 #define CROP_ACCEPTED_WIDTH  1280

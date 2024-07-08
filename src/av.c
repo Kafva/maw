@@ -10,18 +10,18 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/rational.h>
 
-static int maw_demux_cover(MawContext *);
-static int maw_filter_crop_cover(MawContext *);
+static int maw_demux_cover(MawAVContext *);
+static int maw_filter_crop_cover(MawAVContext *);
 static int maw_copy_metadata_fields(AVFormatContext *, const Metadata *);
-static int maw_set_metadata(MawContext *);
-static int maw_demux(MawContext *);
-static int maw_mux(MawContext *);
-static int maw_init_dec_context(MawContext *);
-static int maw_init_enc_context(MawContext *);
+static int maw_set_metadata(MawAVContext *);
+static int maw_demux(MawAVContext *);
+static int maw_mux(MawAVContext *);
+static int maw_init_dec_context(MawAVContext *);
+static int maw_init_enc_context(MawAVContext *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static int maw_demux_cover(MawContext *ctx) {
+static int maw_demux_cover(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     enum AVMediaType codec_type;
@@ -77,7 +77,7 @@ end:
     return r;
 }
 
-static int maw_filter_crop_cover(MawContext *ctx) {
+static int maw_filter_crop_cover(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVFilterContext *filter_crop_ctx = NULL;
     const AVFilter *crop_filter = NULL;
@@ -194,7 +194,7 @@ end:
 }
 
 // @return 0 on success, negative AVERROR code on failure.
-static int maw_set_metadata(MawContext *ctx) {
+static int maw_set_metadata(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVDictionaryEntry *entry = NULL;
 
@@ -237,7 +237,7 @@ end:
 }
 
 // Video streams will only be demuxed if they are needed by the current policy
-static int maw_demux(MawContext *ctx) {
+static int maw_demux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     AVStream *input_stream = NULL;
@@ -340,7 +340,7 @@ end:
     return r;
 }
 
-static int maw_mux(MawContext *ctx) {
+static int maw_mux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     int prev_stream_index = -1;
     int output_stream_index = -1;
@@ -555,7 +555,7 @@ end:
     return r;
 }
 
-static int maw_init_dec_context(MawContext *ctx) {
+static int maw_init_dec_context(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVCodec *dec_codec = NULL;
 
@@ -599,7 +599,7 @@ end:
     return r;
 }
 
-static int maw_init_enc_context(MawContext *ctx) {
+static int maw_init_enc_context(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVCodec *enc_codec = NULL;
 
@@ -638,7 +638,7 @@ end:
 }
 
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
-int maw_remux(MawContext *ctx) {
+int maw_remux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
 
     // * Find the indices of the video and audio stream and create
@@ -700,7 +700,7 @@ end:
     return r;
 }
 
-void maw_free_context(MawContext *ctx) {
+void maw_free_context(MawAVContext *ctx) {
     if (ctx == NULL)
         return;
 
@@ -729,10 +729,10 @@ void maw_free_context(MawContext *ctx) {
     free(ctx);
 }
 
-MawContext *maw_init_context(const MediaFile *mediafile,
-                             const char *output_filepath) {
+MawAVContext *maw_init_context(const MediaFile *mediafile,
+                               const char *output_filepath) {
     int r;
-    MawContext *ctx = NULL;
+    MawAVContext *ctx = NULL;
     AVFormatContext *input_fmt_ctx = NULL;
     AVFormatContext *output_fmt_ctx = NULL;
 
@@ -758,7 +758,7 @@ MawContext *maw_init_context(const MediaFile *mediafile,
         goto end;
     }
 
-    ctx = calloc(1, sizeof(MawContext));
+    ctx = calloc(1, sizeof(MawAVContext));
     if (ctx == NULL) {
         r = AVERROR(ENOMEM);
         MAW_AVERROR(r, "Failed to allocate context");

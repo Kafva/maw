@@ -5,8 +5,8 @@
 #include <string.h>
 #include <time.h>
 
-static void *maw_threads_worker(void *);
 static void maw_clock_measure(time_t);
+static void *maw_threads_worker(void *);
 
 ////////////////////////////////////////////////////////////////////////////////
 

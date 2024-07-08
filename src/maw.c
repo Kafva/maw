@@ -15,7 +15,7 @@ int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
     char tmpfile[] = "/tmp/maw.XXXXXX.m4a";
     int tmphandle = mkstemps(tmpfile, sizeof(".m4a") - 1);
-    MawContext *ctx = NULL;
+    MawAVContext *ctx = NULL;
 
     if (mediafile->metadata == NULL) {
         MAW_LOGF(MAW_ERROR, "%s: Invalid metadata configuration",

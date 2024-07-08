@@ -43,6 +43,7 @@ struct YamlContext {
 
 void maw_cfg_dump(MawConfig *cfg);
 void maw_cfg_free(MawConfig *cfg);
+int maw_playlist_path(MawConfig *cfg, const char *name, char *out, size_t size);
 int maw_cfg_parse(const char *filepath, MawConfig **cfg)
     __attribute__((warn_unused_result));
 int maw_cfg_alloc_mediafiles(MawConfig *cfg,

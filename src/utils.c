@@ -37,7 +37,6 @@ end:
 int movefile(const char *src, const char *dst) {
     int r = MAW_ERR_INTERNAL;
     size_t read_bytes = 0;
-    size_t write_bytes = 0;
     char buffer[BUFSIZ];
     FILE *fp_src = NULL;
     FILE *fp_dst = NULL;
@@ -55,11 +54,7 @@ int movefile(const char *src, const char *dst) {
     }
 
     while ((read_bytes = fread(buffer, 1, BUFSIZ, fp_src)) > 0) {
-        write_bytes = fwrite(buffer, 1, read_bytes, fp_dst);
-        if (write_bytes != read_bytes) {
-            MAW_LOGF(MAW_ERROR, "fwrite short write: %zu byte(s)", write_bytes);
-            goto end;
-        }
+        MAW_WRITE(fileno(fp_dst), buffer, read_bytes);
     }
 
     fclose(fp_src);

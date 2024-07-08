@@ -104,6 +104,19 @@ void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count);
         } \
     } while (0)
 
+#define MAW_WRITE(fd, data, datasize) \
+    do { \
+        ssize_t write_bytes = write(fd, data, datasize); \
+        if (write_bytes < 0) { \
+            MAW_PERROR("write"); \
+            goto end; \
+        } \
+        else if (write_bytes != (ssize_t)datasize) { \
+            MAW_LOGF(MAW_ERROR, "short write: %zu byte(s)", write_bytes); \
+            goto end; \
+        } \
+    } while (0)
+
 #define MAW_STRLCAT(dst, src) MAW_STRLCAT_SIZE(dst, src, sizeof(dst))
 
 #define STR_MATCH(target, arg) \

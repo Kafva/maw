@@ -1,7 +1,12 @@
 #include "maw/maw.h"
 #include "maw/av.h"
+#include "maw/cfg.h"
 #include "maw/log.h"
 #include "maw/utils.h"
+
+#include <dirent.h>
+#include <sys/fcntl.h>
+#include <sys/stat.h>
 
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
@@ -58,13 +63,79 @@ int maw_gen_playlists(MawConfig *cfg) {
     int r = MAW_ERR_INTERNAL;
     PlaylistEntry *p = NULL;
     PlaylistPath *pp = NULL;
+    char playlistfile[MAW_CFG_PATH_MAX];
+    char path[MAW_CFG_PATH_MAX];
+    int fd = -1;
+    DIR *dir = NULL;
+    struct dirent *entry = NULL;
+    size_t pathsize;
+    struct stat s;
 
     TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
-        TAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {}
+        r = maw_playlist_path(cfg, p->value.name, playlistfile,
+                              sizeof(playlistfile));
+        if (r != 0) {
+            goto end;
+        }
+
+        fd = open(playlistfile, O_CREAT | O_WRONLY, 0644);
+        if (fd <= 0) {
+            MAW_PERRORF("open", playlistfile);
+            goto end;
+        }
+
+        TAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
+
+            MAW_STRLCPY(path, cfg->music_dir);
+            MAW_STRLCAT(path, "/");
+            MAW_STRLCAT(path, pp->path);
+
+            r = stat(path, &s);
+            if (r != 0) {
+                MAW_PERRORF("stat", path);
+                goto end;
+            }
+
+            if (S_ISREG(s.st_mode)) {
+                pathsize = strlen(pp->path);
+                MAW_WRITE(fd, pp->path, pathsize);
+                MAW_WRITE(fd, "\n", 1);
+            }
+            else if (S_ISDIR(s.st_mode)) {
+                if ((dir = opendir(path)) == NULL) {
+                    MAW_PERRORF("opendir", path);
+                    goto end;
+                }
+
+                while ((entry = readdir(dir)) != NULL) {
+                    if (entry->d_type != DT_REG) {
+                        continue;
+                    }
+                    // XXX: Overwrite the full-path of the playlist entry
+                    // with the path to the current entry
+                    MAW_STRLCPY(path, pp->path);
+                    MAW_STRLCAT(path, "/");
+                    MAW_STRLCAT(path, entry->d_name);
+
+                    pathsize = strlen(path);
+                    MAW_WRITE(fd, path, pathsize);
+                    MAW_WRITE(fd, "\n", 1);
+                }
+                (void)closedir(dir);
+                dir = NULL;
+            }
+        }
+
+        MAW_LOGF(MAW_DEBUG, "Generated: %s", playlistfile);
+        (void)close(fd);
     }
 
     r = 0;
 end:
+    if (dir != NULL)
+        (void)closedir(dir);
+    if (fd != -1)
+        (void)close(fd);
     return r;
 }
 

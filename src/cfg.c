@@ -102,6 +102,29 @@ static const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
     }
 }
 
+static int maw_cfg_glob(const char *instr, char **outstr) {
+    int r = MAW_ERR_INTERNAL;
+    glob_t glob_result;
+
+    r = glob(instr, 0, NULL, &glob_result);
+    if (r != 0) {
+        MAW_PERRORF("glob", instr);
+        goto end;
+    }
+    if (glob_result.gl_pathc != 1) {
+        MAW_LOGF(MAW_ERROR, "glob(%s): no exact match", instr);
+        goto end;
+    }
+
+    *outstr = strdup(glob_result.gl_pathv[0]);
+
+    globfree(&glob_result);
+
+    r = 0;
+end:
+    return r;
+}
+
 static void maw_cfg_key_push(YamlContext *ctx, const char *key,
                              enum YamlKey mkey) {
     const char *ctxstr = maw_cfg_key_tostr(ctx->keypath[ctx->key_count - 1]);
@@ -331,11 +354,17 @@ static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
     case 1:
         switch (ctx->keypath[0]) {
         case KEY_ART:
-            cfg->art_dir = strdup(value);
+            r = maw_cfg_glob(value, &cfg->art_dir);
+            if (r != 0)
+                goto end;
+
             (void)maw_cfg_key_pop(ctx);
             break;
         case KEY_MUSIC:
-            cfg->music_dir = strdup(value);
+            r = maw_cfg_glob(value, &cfg->music_dir);
+            if (r != 0)
+                goto end;
+
             (void)maw_cfg_key_pop(ctx);
             break;
         default:
@@ -529,10 +558,6 @@ void maw_cfg_free(MawConfig *cfg) {
     free(cfg);
 }
 
-// @param [in] filepath
-// @param [in,out] CFG
-//
-// @return 0 on success,
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     int r = MAW_ERR_INTERNAL;
     bool done = false;
@@ -622,6 +647,18 @@ end:
     return r;
 }
 
+int maw_playlist_path(MawConfig *cfg, const char *name, char *out,
+                      size_t size) {
+    int r = MAW_ERR_INTERNAL;
+    MAW_STRLCPY_SIZE(out, cfg->music_dir, size);
+    MAW_STRLCAT_SIZE(out, "/.", size);
+    MAW_STRLCAT_SIZE(out, name, size);
+    MAW_STRLCAT_SIZE(out, ".m3u", size);
+    r = 0;
+end:
+    return r;
+}
+
 // Given our *cfg, create a MediaFile[] that we can feed to the job launcher
 // Later matches in the config file will take precedence!
 int maw_cfg_alloc_mediafiles(MawConfig *cfg,
@@ -681,14 +718,15 @@ int maw_cfg_alloc_mediafiles(MawConfig *cfg,
                 }
 
                 while ((entry = readdir(dir)) != NULL) {
-                    if (entry->d_type == DT_REG) {
-                        MAW_STRLCPY(filepath, complete_pattern);
-                        MAW_STRLCAT(filepath, "/");
-                        MAW_STRLCAT(filepath, entry->d_name);
-                        if (!maw_cfg_add_mediafile(
-                                filepath, &metadata_entry->value, mediafiles,
-                                mediafiles_count))
-                            goto end;
+                    if (entry->d_type != DT_REG) {
+                        continue;
+                    }
+                    MAW_STRLCPY(filepath, complete_pattern);
+                    MAW_STRLCAT(filepath, "/");
+                    MAW_STRLCAT(filepath, entry->d_name);
+                    if (!maw_cfg_add_mediafile(filepath, &metadata_entry->value,
+                                               mediafiles, mediafiles_count)) {
+                        goto end;
                     }
                 }
                 (void)closedir(dir);

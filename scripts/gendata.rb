@@ -214,11 +214,11 @@ def setup
         music_dir: #{MUSIC_ROOT}
         playlists:
             first:
-              - red/red1.mp4
-              - red/red2.mp4
+              - red/audio_red_1.m4a
+              - red/audio_red_2.m4a
             second:
-              - blue/blue1.m4a
-              - blue/blue2.m4a
+              - blue/audio_blue_1.m4a
+              - blue/audio_blue_2.m4a
               - red
         metadata:
             red:

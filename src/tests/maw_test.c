@@ -323,9 +323,24 @@ bool test_cfg_playlists(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
+    const char *playlist = ".testenv/albums/.second.m3u";
+    const char *expected = "blue/audio_blue_1.m4a\n"
+                           "blue/audio_blue_2.m4a\n"
+                           "red/audio_red_1.m4a\n"
+                           "red/audio_red_0.m4a\n"
+                           "red/audio_red_2.m4a\n"
+                           "red/audio_red_3.m4a\n";
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_gen_playlists(cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_verify_file(playlist, expected);
+    MAW_ASSERT_EQ(r, true, desc);
+
+    maw_cfg_free(cfg);
 
     return true;
 }

@@ -8,6 +8,11 @@
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 
+// Return zero if the directory entry should be excluded
+static int select_files(const struct dirent *entry) {
+    return (entry->d_type == DT_REG && entry->d_name[0] != '.');
+}
+
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
     char tmpfile[] = "/tmp/maw.XXXXXX.m4a";
@@ -55,11 +60,6 @@ end:
     (void)unlink(tmpfile);
     maw_av_free_context(ctx);
     return r;
-}
-
-// Return zero if the directory entry should be excluded
-static int select_files(const struct dirent *entry) {
-    return (entry->d_type == DT_REG && entry->d_name[0] != '.');
 }
 
 // Create a hidden .m3u playlist under the music_dir for each entry under

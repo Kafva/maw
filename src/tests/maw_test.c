@@ -7,9 +7,10 @@
 
 #include <libavutil/error.h>
 #include <string.h>
+
 static const Metadata no_metadata = {0};
 
-bool test_dual_audio(const char *desc) {
+static bool test_dual_audio(const char *desc) {
     int r;
     const MediaFile mediafile = {.path = "./.testenv/unit/dual_audio.mp4",
                                  .metadata = &no_metadata};
@@ -23,7 +24,7 @@ bool test_dual_audio(const char *desc) {
     return true;
 }
 
-bool test_no_audio(const char *desc) {
+static bool test_no_audio(const char *desc) {
     int r;
     const MediaFile mediafile = {.path = "./.testenv/art/blue-1.png",
                                  .metadata = &no_metadata};
@@ -34,7 +35,7 @@ bool test_no_audio(const char *desc) {
     return true;
 }
 
-bool test_dual_video(const char *desc) {
+static bool test_dual_video(const char *desc) {
     int r;
     const Metadata metadata = {.title = "dual_video"};
     const MediaFile mediafile = {.path = "./.testenv/unit/dual_video.mp4",
@@ -51,7 +52,7 @@ bool test_dual_video(const char *desc) {
 
 // Metadata ////////////////////////////////////////////////////////////////////
 
-bool test_keep_all(const char *desc) {
+static bool test_keep_all(const char *desc) {
     int r;
     // Default policy: keep everything (except explicitly set mediafile fields)
     // as is
@@ -73,7 +74,7 @@ bool test_keep_all(const char *desc) {
     return true;
 }
 
-bool test_clear_non_core_fields(const char *desc) {
+static bool test_clear_non_core_fields(const char *desc) {
     int r;
     const Metadata metadata = {
         .title = "clean",
@@ -95,7 +96,7 @@ bool test_clear_non_core_fields(const char *desc) {
 
 // Covers //////////////////////////////////////////////////////////////////////
 
-bool test_bad_covers(const char *desc) {
+static bool test_bad_covers(const char *desc) {
     int r;
     const Metadata bad_metadata[] = {
         {.cover_path = "./.testenv/unit/dual_audio.mp4"},
@@ -121,7 +122,7 @@ bool test_bad_covers(const char *desc) {
     return true;
 }
 
-bool test_crop_cover(const char *desc) {
+static bool test_crop_cover(const char *desc) {
     int r;
     const Metadata metadata = {
         .cover_policy = COVER_CROP,
@@ -144,7 +145,7 @@ bool test_crop_cover(const char *desc) {
     return true;
 }
 
-bool test_clear_cover(const char *desc) {
+static bool test_clear_cover(const char *desc) {
     int r;
     const Metadata metadata = {
         .cover_policy = COVER_CLEAR,
@@ -160,7 +161,7 @@ bool test_clear_cover(const char *desc) {
     return true;
 }
 
-bool test_add_cover(const char *desc) {
+static bool test_add_cover(const char *desc) {
     int r;
     const Metadata metadata = {
         .title = "add_cover",
@@ -179,7 +180,7 @@ bool test_add_cover(const char *desc) {
     return true;
 }
 
-bool test_replace_cover(const char *desc) {
+static bool test_replace_cover(const char *desc) {
     int r;
     const Metadata metadata = {
         .title = "replace_cover",
@@ -200,7 +201,7 @@ bool test_replace_cover(const char *desc) {
 
 // Jobs ////////////////////////////////////////////////////////////////////////
 
-bool test_job_ok(const char *desc) {
+static bool test_job_ok(const char *desc) {
     int r;
     Metadata cfg_arr[] = {
         {
@@ -236,7 +237,7 @@ bool test_job_ok(const char *desc) {
     return true;
 }
 
-bool test_job_error(const char *desc) {
+static bool test_job_error(const char *desc) {
     int r;
     Metadata cfg_arr[] = {
         {
@@ -269,7 +270,7 @@ bool test_job_error(const char *desc) {
     return true;
 }
 
-bool test_complete(const char *desc) {
+static bool test_complete(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
@@ -298,7 +299,7 @@ bool test_complete(const char *desc) {
 
 // Configuration ///////////////////////////////////////////////////////////////
 
-bool test_cfg_ok(const char *desc) {
+static bool test_cfg_ok(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
@@ -319,7 +320,7 @@ bool test_cfg_ok(const char *desc) {
     return true;
 }
 
-bool test_cfg_playlists(const char *desc) {
+static bool test_cfg_playlists(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
@@ -345,7 +346,7 @@ bool test_cfg_playlists(const char *desc) {
     return true;
 }
 
-bool test_cfg_error(const char *desc) {
+static bool test_cfg_error(const char *desc) {
     int r;
     const char *config_file = ".testenv/unit/bad.yml";
     MawConfig *cfg = NULL;
@@ -357,7 +358,7 @@ bool test_cfg_error(const char *desc) {
     return true;
 }
 
-bool test_hash(const char *desc) {
+static bool test_hash(const char *desc) {
     uint32_t digest;
     const char *data = "ABC";
     digest = hash(data);
@@ -366,4 +367,67 @@ bool test_hash(const char *desc) {
     MAW_ASSERT_EQ(digest, 1552166763, desc);
 
     return true;
+}
+
+// Runner //////////////////////////////////////////////////////////////////////
+
+static struct Testcase testcases[] = {
+    {.desc = "Keep metadata and cover", .fn = test_keep_all},
+    {.desc = "Clear non core fields", .fn = test_clear_non_core_fields},
+    {.desc = "Clear cover", .fn = test_clear_cover},
+    {.desc = "Add cover", .fn = test_add_cover},
+    {.desc = "Replace cover", .fn = test_replace_cover},
+    {.desc = "Bad covers", .fn = test_bad_covers},
+    {.desc = "No audio streams", .fn = test_no_audio},
+    {.desc = "Dual audio streams", .fn = test_dual_audio},
+    {.desc = "Dual video streams", .fn = test_dual_video},
+    {.desc = "Crop cover", .fn = test_crop_cover},
+    {.desc = "Jobs ok", .fn = test_job_ok},
+    {.desc = "Jobs error", .fn = test_job_error},
+    {.desc = "Complete", .fn = test_complete},
+    {.desc = "Configuration ok", .fn = test_cfg_ok},
+    {.desc = "Configuration error", .fn = test_cfg_error},
+    {.desc = "FNV-1a Hash", .fn = test_hash},
+    {.desc = "Playlists", .fn = test_cfg_playlists}};
+
+int run_tests(const char *match_testcase) {
+    int total = sizeof(testcases) / sizeof(struct Testcase);
+    int i;
+    int r;
+    bool enable_color = isatty(fileno(stdout)) && isatty(fileno(stderr));
+    FILE *tfd = stdout;
+
+    fprintf(tfd, "0..%d\n", total - 1);
+    for (i = 0; i < total; i++) {
+        if (match_testcase != NULL) {
+            r = strncasecmp(match_testcase, testcases[i].desc,
+                            strlen(match_testcase));
+            if (r != 0) {
+                if (enable_color)
+                    fprintf(tfd, "\033[38;5;246mok\033[0m %d - %s # skip\n", i,
+                            testcases[i].desc);
+                else
+                    fprintf(tfd, "ok %d - %s # skip\n", i, testcases[i].desc);
+                continue;
+            }
+        }
+
+        if (testcases[i].fn(testcases[i].desc)) {
+            if (enable_color)
+                fprintf(tfd, "\033[92mok\033[0m %d - %s\n", i,
+                        testcases[i].desc);
+            else
+                fprintf(tfd, "ok %d - %s\n", i, testcases[i].desc);
+        }
+        else {
+            if (enable_color)
+                fprintf(tfd, "\033[91mnot ok\033[0m %d - %s\n", i,
+                        testcases[i].desc);
+            else
+                fprintf(tfd, "not ok %d - %s\n", i, testcases[i].desc);
+            return EXIT_FAILURE; // XXX
+        }
+    }
+
+    return EXIT_SUCCESS;
 }

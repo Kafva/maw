@@ -14,18 +14,39 @@
 #define MAW_PROGRAM "maw"
 #endif
 
+#define _MAW_OPTS "c:j:l:hv"
+
 #ifdef MAW_TEST
-
 #include "maw/tests/maw_test.h"
-static int run_tests(const char *);
-
+#define MAW_OPTS "m:" _MAW_OPTS
 #else
 #include "maw/cfg.h"
+#define MAW_OPTS _MAW_OPTS
 static int run_program(const char *);
-
 #endif
 
 static void usage(void);
+
+static const struct option long_options[] = {
+    {"config", required_argument, NULL, 'c'},
+    {"jobs", optional_argument, NULL, 'j'},
+    {"verbose", no_argument, NULL, 'v'},
+    {"log", optional_argument, NULL, 'l'},
+#ifdef MAW_TEST
+    {"match", optional_argument, NULL, 'm'},
+#endif
+    {"help", no_argument, NULL, 'h'},
+    {NULL, 0, NULL, 0}};
+
+static const char *long_options_usage[] = {"YAML configuration file to use",
+                                           "Number of parrallel jobs to run",
+                                           "Verbose logging",
+                                           "Log level for libav backend",
+#ifdef MAW_TEST
+                                           "Testcase to run",
+#endif
+                                           "Show this help message",
+                                           NULL};
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -33,22 +54,10 @@ int main(int argc, char *argv[]) {
     bool verbose = false;
     char *config_file = NULL;
 #ifdef MAW_TEST
-    const char *getopt_flags = "m:c:l:hv";
     const char *match_testcase = NULL;
-#else
-    const char *getopt_flags = "c:l:hv";
 #endif
 
-    static struct option long_options[] = {
-        {"log", optional_argument, NULL, 'l'},
-        {"verbose", no_argument, NULL, 'v'},
-#ifdef MAW_TEST
-        {"match", optional_argument, NULL, 'm'},
-#endif
-        {"help", no_argument, NULL, 'h'},
-        {NULL, 0, NULL, 0}};
-
-    while ((opt = getopt_long(argc, argv, getopt_flags, long_options, NULL)) !=
+    while ((opt = getopt_long(argc, argv, MAW_OPTS, long_options, NULL)) !=
            -1) {
         switch (opt) {
         case 'c':
@@ -100,75 +109,47 @@ int main(int argc, char *argv[]) {
 }
 
 static void usage(void) {
-    fprintf(stderr, "usage: " MAW_PROGRAM " [flags]\n");
-    fprintf(stderr, "   --verbose         Verbose logging\n");
-    fprintf(stderr, "   --log <level>     Log level for libav backend\n");
-    fprintf(stderr, "   --simple-log      Print logs normally on stderr\n");
-#ifdef MAW_TEST
-    fprintf(stderr, "   --match <pattern> Testcase to run\n");
-#endif
-    fprintf(stderr, "   --help            Show this help message\n");
-}
+    size_t optcount = (sizeof(long_options) / sizeof(struct option)) - 1;
+    char *arg = NULL;
 
-#ifdef MAW_TEST
+    ASSERT((sizeof(long_options) / sizeof(struct option)) ==
+           sizeof(long_options_usage) / sizeof(char *));
 
-static int run_tests(const char *match_testcase) {
-    DEFINE_TESTCASES;
-    int total = sizeof(testcases) / sizeof(struct Testcase);
-    int i;
-    int r;
-    bool enable_color = isatty(fileno(stdout)) && isatty(fileno(stderr));
-    FILE *tfd = stdout;
+    fprintf(stderr, "usage: " MAW_PROGRAM " [flags] <cmd>\n\n");
+    fprintf(stderr, "COMMANDS: \n");
+    fprintf(stderr, "    up [path]            Update metadata according to "
+                    "config, optionally limited to [path]\n");
+    fprintf(stderr, "    generate             Generate playlists\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "OPTIONS: \n");
 
-    fprintf(tfd, "0..%d\n", total - 1);
-    for (i = 0; i < total; i++) {
-        if (match_testcase != NULL) {
-            r = strncasecmp(match_testcase, testcases[i].desc,
-                            strlen(match_testcase));
-            if (r != 0) {
-                if (enable_color)
-                    fprintf(tfd, "\033[38;5;246mok\033[0m %d - %s # skip\n", i,
-                            testcases[i].desc);
-                else
-                    fprintf(tfd, "ok %d - %s # skip\n", i, testcases[i].desc);
-                continue;
-            }
-        }
-
-        if (testcases[i].fn(testcases[i].desc)) {
-            if (enable_color)
-                fprintf(tfd, "\033[92mok\033[0m %d - %s\n", i,
-                        testcases[i].desc);
-            else
-                fprintf(tfd, "ok %d - %s\n", i, testcases[i].desc);
-        }
-        else {
-            if (enable_color)
-                fprintf(tfd, "\033[91mnot ok\033[0m %d - %s\n", i,
-                        testcases[i].desc);
-            else
-                fprintf(tfd, "not ok %d - %s\n", i, testcases[i].desc);
-            return EXIT_FAILURE; // XXX
-        }
+    for (size_t i = 0; i < optcount; i++) {
+        arg = long_options[i].has_arg ? " <arg> " : "       ";
+        fprintf(stderr, "    --%-18s%s%-30s\n", long_options[i].name, arg,
+                long_options_usage[i]);
     }
-
-    return EXIT_SUCCESS;
 }
 
-#else
+#ifndef MAW_TEST
 
 static int run_program(const char *config_file) {
+    int r = EXIT_FAILURE;
     MawConfig *cfg = NULL;
 
     if (config_file == NULL) {
-        MAW_LOG(MAW_ERROR, "Missing required options");
+        fprintf(stderr, "No config file provided\n");
         usage();
         return EXIT_FAILURE;
     }
 
-    (void)maw_cfg_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_file, &cfg);
+    if (r != 0) {
+        goto end;
+    }
 
-    return EXIT_SUCCESS;
+    r = EXIT_SUCCESS;
+end:
+    return r;
 }
 
 #endif

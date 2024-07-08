@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 #include <unistd.h>
+#ifdef __linux__
+#include <stdint.h>
+#endif
 
 size_t readfile(const char *filepath, char *out, size_t outsize)
     __attribute__((warn_unused_result));

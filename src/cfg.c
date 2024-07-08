@@ -13,7 +13,7 @@ static const char *maw_cfg_key_tostr(enum YamlKey key);
 static void maw_cfg_key_push(YamlContext *ctx, const char *key, enum YamlKey mkey);
 static bool maw_cfg_key_pop(YamlContext *ctx);
 static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx, const char *key);
-static int maw_cfg_set_metadata_field(YamlContext *ctx, yaml_token_t *token,
+static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token,
                                       Metadata *metadata, const char *value);
 static int maw_cfg_add_to_playlist(Playlist *playlist, const char *value);
 static int maw_parse_key(MawConfig *cfg, YamlContext *ctx, yaml_token_t *token);
@@ -156,11 +156,14 @@ static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx, const char *key)
     return KEY_INVALID;
 }
 
-static int maw_cfg_set_metadata_field(YamlContext *ctx,
+static int maw_cfg_set_metadata_field(MawConfig *cfg,
+                                      YamlContext *ctx,
                                       yaml_token_t *token,
                                       Metadata *metadata,
                                       const char *value) {
     int r = MAW_ERR_INTERNAL;
+    char *cover_path = NULL;
+
     switch (ctx->keypath[2]) {
         case KEY_ALBUM:
             metadata->album = strdup(value);
@@ -169,8 +172,20 @@ static int maw_cfg_set_metadata_field(YamlContext *ctx,
             metadata->artist = strdup(value);
             break;
         case KEY_COVER:
-            // TODO prepend art_dir
-            metadata->cover_path = strdup(value);
+            if (cfg->art_dir == NULL) {
+                MAW_LOGF(MAW_ERROR, "%s: an art_dir must be configured before setting a cover_path",
+                         value);
+                goto end;
+            }
+            cover_path = calloc(1, sizeof(1024));
+            if (cover_path == NULL) {
+                perror("calloc");
+                goto end;
+            }
+            MAW_STRLCPY(cover_path, cfg->art_dir);
+            MAW_STRLCAT(cover_path, "/");
+            MAW_STRLCAT(cover_path, value);
+            metadata->cover_path = cover_path;
             break;
         case KEY_COVER_POLICY:
             if (STR_CASE_MATCH("keep", value)) {
@@ -335,7 +350,7 @@ static int maw_parse_value(MawConfig *cfg,
 #pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
                 metadata = &STAILQ_LAST(&cfg->metadata_head, MetadataEntry, entry)->value;
 #pragma GCC diagnostic pop
-                (void)maw_cfg_set_metadata_field(ctx, token, metadata, value);
+                (void)maw_cfg_set_metadata_field(cfg, ctx, token, metadata, value);
                 (void)maw_cfg_key_pop(ctx);
                 break;
             default:

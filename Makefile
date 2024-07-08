@@ -17,7 +17,7 @@ HEADERS           += $(wildcard include/tests/*.h)
 SRCS_PATTERN      = $(CURDIR)/src/**%.c
 PROGRAM           = $(PROGRAM_TEST)
 else
-SRCS_PATTERN       = $(CURDIR)/src/%.c
+SRCS_PATTERN      = $(CURDIR)/src/%.c
 PROGRAM           = maw
 endif
 
@@ -113,8 +113,6 @@ compile_commands.json: $(BUILD)/$(PROGRAM)
 	@echo [ > $@
 	@cat $(BUILD)/.*.json >> $@
 	@echo ] >> $@
-
-################################################################################
 
 # For DEBUG builds, download and build dependencies from source
 dep: $(BUILD)/deps/lib/libavfilter.a $(BUILD)/deps/lib/libyaml.a

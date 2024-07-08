@@ -142,7 +142,7 @@ int maw_gen_playlists(MawConfig *cfg) {
             }
         }
 
-        MAW_LOGF(MAW_DEBUG, "Generated: %s", playlistfile);
+        MAW_LOGF(MAW_INFO, "Generated: %s", playlistfile);
         (void)close(fd);
     }
 

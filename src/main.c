@@ -1,5 +1,6 @@
 #include "maw/log.h"
 #include "maw/maw.h"
+#include "maw/threads.h"
 
 #include <getopt.h>
 #include <stdio.h>
@@ -22,7 +23,9 @@
 #else
 #include "maw/cfg.h"
 #define MAW_OPTS _MAW_OPTS
-static int run_program(const char *);
+static int run_program(int argc, char *argv[], const char *config_file,
+                       ssize_t thread_count);
+
 #endif
 
 static void usage(void);
@@ -52,6 +55,7 @@ int main(int argc, char *argv[]) {
     int opt;
     int av_log_level = AV_LOG_QUIET;
     bool verbose = false;
+    ssize_t thread_count = 1;
     char *config_file = NULL;
 #ifdef MAW_TEST
     const char *match_testcase = NULL;
@@ -70,6 +74,13 @@ int main(int argc, char *argv[]) {
 #endif
         case 'v':
             verbose = true;
+            break;
+        case 'j':
+            thread_count = strtol(optarg, NULL, 10);
+            if (thread_count <= 0) {
+                fprintf(stderr, "Invalid argument for job count: %s\n", optarg);
+                return EXIT_FAILURE;
+            }
             break;
         case 'l':
             if (STR_CASE_MATCH("debug", optarg)) {
@@ -104,7 +115,7 @@ int main(int argc, char *argv[]) {
     (void)config_file;
     return run_tests(match_testcase);
 #else
-    return run_program(config_file);
+    return run_program(argc, argv, config_file, (ssize_t)thread_count);
 #endif
 }
 
@@ -117,8 +128,8 @@ static void usage(void) {
 
     fprintf(stderr, "usage: " MAW_PROGRAM " [flags] <cmd>\n\n");
     fprintf(stderr, "COMMANDS: \n");
-    fprintf(stderr, "    up [path]            Update metadata according to "
-                    "config, optionally limited to [path]\n");
+    fprintf(stderr, "    up [paths]           Update metadata according to "
+                    "config, optionally limited to [paths]\n");
     fprintf(stderr, "    generate             Generate playlists\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "OPTIONS: \n");
@@ -132,23 +143,39 @@ static void usage(void) {
 
 #ifndef MAW_TEST
 
-static int run_program(const char *config_file) {
+static int run_program(int argc, char *argv[], const char *config_file,
+                       ssize_t thread_count) {
     int r = EXIT_FAILURE;
     MawConfig *cfg = NULL;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    ssize_t mediafiles_count = 0;
 
     if (config_file == NULL) {
         fprintf(stderr, "No config file provided\n");
-        usage();
         return EXIT_FAILURE;
     }
 
     r = maw_cfg_parse(config_file, &cfg);
-    if (r != 0) {
+    if (r != 0)
         goto end;
-    }
+
+    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
+    if (r != 0)
+        goto end;
+
+    r = maw_gen_playlists(cfg);
+    if (r != 0)
+        goto end;
+
+    // TODO limit to path
+    r = maw_threads_launch(mediafiles, mediafiles_count, (size_t)thread_count);
+    if (r != 0)
+        goto end;
 
     r = EXIT_SUCCESS;
 end:
+    maw_cfg_free(cfg);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
     return r;
 }
 

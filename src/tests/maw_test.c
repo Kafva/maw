@@ -326,10 +326,10 @@ bool test_cfg_playlists(const char *desc) {
     const char *playlist = ".testenv/albums/.second.m3u";
     const char *expected = "blue/audio_blue_1.m4a\n"
                            "blue/audio_blue_2.m4a\n"
-                           "red/audio_red_1.m4a\n"
-                           "red/audio_red_0.m4a\n"
+                           "red/audio_red_3.m4a\n"
                            "red/audio_red_2.m4a\n"
-                           "red/audio_red_3.m4a\n";
+                           "red/audio_red_1.m4a\n"
+                           "red/audio_red_0.m4a\n";
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);

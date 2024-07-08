@@ -19,7 +19,6 @@ bool maw_verify_file(const char *path, const char *expected_content) {
         MAW_LOGF(MAW_ERROR, "Unexpected content in %s", path);
         goto end;
     }
-
 end:
     return ok;
 }

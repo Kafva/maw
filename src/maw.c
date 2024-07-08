@@ -57,6 +57,11 @@ end:
     return r;
 }
 
+// Return zero if the directory entry should be excluded
+static int select_files(const struct dirent *entry) {
+    return (entry->d_type == DT_REG && entry->d_name[0] != '.');
+}
+
 // Create a hidden .m3u playlist under the music_dir for each entry under
 // `playlists`.
 int maw_gen_playlists(MawConfig *cfg) {
@@ -67,7 +72,8 @@ int maw_gen_playlists(MawConfig *cfg) {
     char path[MAW_CFG_PATH_MAX];
     int fd = -1;
     DIR *dir = NULL;
-    struct dirent *entry = NULL;
+    struct dirent **namelist;
+    int names_count = -1;
     size_t pathsize;
     struct stat s;
 
@@ -107,20 +113,27 @@ int maw_gen_playlists(MawConfig *cfg) {
                     goto end;
                 }
 
-                while ((entry = readdir(dir)) != NULL) {
-                    if (entry->d_type != DT_REG) {
-                        continue;
-                    }
+                // Scan the directory contents alphabetically
+                names_count = scandir(path, &namelist, select_files, alphasort);
+                if (names_count <= 0) {
+                    MAW_PERRORF("scandir", path);
+                    goto end;
+                }
+
+                while (names_count > 0) {
                     // XXX: Overwrite the full-path of the playlist entry
                     // with the path to the current entry
                     MAW_STRLCPY(path, pp->path);
                     MAW_STRLCAT(path, "/");
-                    MAW_STRLCAT(path, entry->d_name);
+                    MAW_STRLCAT(path, namelist[names_count - 1]->d_name);
 
                     pathsize = strlen(path);
                     MAW_WRITE(fd, path, pathsize);
                     MAW_WRITE(fd, "\n", 1);
+
+                    names_count--;
                 }
+
                 (void)closedir(dir);
                 dir = NULL;
             }

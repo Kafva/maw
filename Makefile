@@ -144,7 +144,8 @@ $(CURDIR)/deps/libyaml:
 	git clone --depth 1 https://github.com/yaml/libyaml.git $@
 
 lint:
-	clang-format -i $(SRCS) $(HEADERS)
+	clang-format -i $(shell find $(CURDIR)/src -type f -name '*.c') \
+		$(shell find $(CURDIR)/include -type f -name '*.h')
 
 test:
 	$(CURDIR)/scripts/gendata.rb

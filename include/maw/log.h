@@ -25,7 +25,8 @@ void maw_log_init(bool verbose, int av_log_level);
     do { \
         if (msg != NULL) { \
             MAW_LOGF(MAW_ERROR, "%s: %s", msg, strerror(errno)); \
-        } else { \
+        } \
+        else { \
             MAW_LOGF(MAW_ERROR, "%s", strerror(errno)); \
         } \
     } while (0)
@@ -42,13 +43,16 @@ void maw_log_init(bool verbose, int av_log_level);
         if (av_strerror(code, errbuf, sizeof errbuf) != 0) { \
             if (msg != NULL) { \
                 MAW_LOGF(MAW_ERROR, "%s: Unknown error", msg); \
-            } else { \
+            } \
+            else { \
                 MAW_LOG(MAW_ERROR, "Unknown error"); \
             } \
-        } else { \
+        } \
+        else { \
             if (msg != NULL) { \
                 MAW_LOGF(MAW_ERROR, "%s: %s", msg, errbuf); \
-            } else { \
+            } \
+            else { \
                 MAW_LOG(MAW_ERROR, errbuf); \
             } \
         } \

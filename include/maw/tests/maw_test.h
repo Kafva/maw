@@ -31,31 +31,31 @@ bool test_complete(const char *);
 
 #define DEFINE_TESTCASES \
     struct Testcase testcases[] = { \
-        { .desc = "Keep metadata and cover",                          .fn = test_keep_all }, \
-        { .desc = "Clear non core fields",                            .fn = test_clear_non_core_fields }, \
-        { .desc = "Clear cover",                                      .fn = test_clear_cover },  \
-        { .desc = "Add cover",                                        .fn = test_add_cover },  \
-        { .desc = "Replace cover",                                    .fn = test_replace_cover }, \
-        { .desc = "Bad covers",                                       .fn = test_bad_covers }, \
-        { .desc = "No audio streams",                                 .fn = test_no_audio   }, \
-        { .desc = "Dual audio streams",                               .fn = test_dual_audio }, \
-        { .desc = "Dual video streams",                               .fn = test_dual_video }, \
-        { .desc = "Crop cover",                                       .fn = test_crop_cover }, \
-        { .desc = "Jobs ok",                                          .fn = test_job_ok }, \
-        { .desc = "Jobs error",                                       .fn = test_job_error }, \
-        { .desc = "Configuration ok",                                 .fn = test_cfg_ok }, \
-        { .desc = "Configuration error",                              .fn = test_cfg_error }, \
-        { .desc = "FNV-1a Hash",                                      .fn = test_hash }, \
-        { .desc = "Complete",                                         .fn = test_complete }, \
+        {.desc = "Keep metadata and cover", .fn = test_keep_all}, \
+        {.desc = "Clear non core fields", .fn = test_clear_non_core_fields}, \
+        {.desc = "Clear cover", .fn = test_clear_cover}, \
+        {.desc = "Add cover", .fn = test_add_cover}, \
+        {.desc = "Replace cover", .fn = test_replace_cover}, \
+        {.desc = "Bad covers", .fn = test_bad_covers}, \
+        {.desc = "No audio streams", .fn = test_no_audio}, \
+        {.desc = "Dual audio streams", .fn = test_dual_audio}, \
+        {.desc = "Dual video streams", .fn = test_dual_video}, \
+        {.desc = "Crop cover", .fn = test_crop_cover}, \
+        {.desc = "Jobs ok", .fn = test_job_ok}, \
+        {.desc = "Jobs error", .fn = test_job_error}, \
+        {.desc = "Configuration ok", .fn = test_cfg_ok}, \
+        {.desc = "Configuration error", .fn = test_cfg_error}, \
+        {.desc = "FNV-1a Hash", .fn = test_hash}, \
+        {.desc = "Complete", .fn = test_complete}, \
     }
 #endif
 
-
-#define MAW_ASSERT_EQ(lhs, rhs, msg) do {\
-   if (lhs != rhs) { \
-        MAW_LOGF(MAW_ERROR, "%s: got %d, expected %d", msg, lhs, rhs); \
-        return false; \
-   } \
-} while (0)
+#define MAW_ASSERT_EQ(lhs, rhs, msg) \
+    do { \
+        if (lhs != rhs) { \
+            MAW_LOGF(MAW_ERROR, "%s: got %d, expected %d", msg, lhs, rhs); \
+            return false; \
+        } \
+    } while (0)
 
 #endif // TESTS_MAW_TEST_H

@@ -13,14 +13,14 @@ IndentCaseBlocks: false
 # before `else` blocks.
 BreakBeforeBraces: Custom
 BraceWrapping:
-  AfterClass:      false
-  AfterControlStatement: false
-  AfterEnum:       false
-  AfterFunction:   false
-  AfterNamespace:  false
-  AfterObjCDeclaration: false
-  AfterStruct:     false
-  AfterUnion:      false
-  BeforeCatch:     false
-  BeforeElse:      true
-  IndentBraces:    false
+    AfterClass:      false
+    AfterControlStatement: false
+    AfterEnum:       false
+    AfterFunction:   false
+    AfterNamespace:  false
+    AfterObjCDeclaration: false
+    AfterStruct:     false
+    AfterUnion:      false
+    BeforeCatch:     false
+    BeforeElse:      true
+    IndentBraces:    false

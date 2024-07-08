@@ -11,8 +11,7 @@ static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
     int read_bytes;
     bool ok = false;
 
-    read_bytes = (int)readfile(mediafile->metadata->cover_path,
-                               cover_data,
+    read_bytes = (int)readfile(mediafile->metadata->cover_path, cover_data,
                                sizeof cover_data);
     if (read_bytes == 0) {
         goto end;
@@ -31,7 +30,8 @@ static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
     }
     if (stream->attached_pic.size != read_bytes) {
         MAW_LOGF(MAW_ERROR, "%s: incorrect cover size: %d != %d",
-                 mediafile->metadata->cover_path, stream->attached_pic.size, read_bytes);
+                 mediafile->metadata->cover_path, stream->attached_pic.size,
+                 read_bytes);
         goto end;
     }
 
@@ -87,12 +87,17 @@ bool maw_verify(const MediaFile *mediafile) {
         }
     }
 
-    if (mediafile->metadata->cover_policy == COVER_CROP && fmt_ctx->nb_streams == 2) {
-        if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width == CROP_DESIRED_WIDTH &&
-              fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height == CROP_ACCEPTED_HEIGHT)) {
-            MAW_LOGF(MAW_ERROR, "%s: Expected cropped cover: found %dx%d",
-                     mediafile->path, fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
-                                         fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height);
+    if (mediafile->metadata->cover_policy == COVER_CROP &&
+        fmt_ctx->nb_streams == 2) {
+        if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width ==
+                  CROP_DESIRED_WIDTH &&
+              fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height ==
+                  CROP_ACCEPTED_HEIGHT)) {
+            MAW_LOGF(
+                MAW_ERROR, "%s: Expected cropped cover: found %dx%d",
+                mediafile->path,
+                fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width,
+                fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height);
             goto end;
         }
     }
@@ -112,7 +117,8 @@ bool maw_verify(const MediaFile *mediafile) {
     }
     else {
         // Original cover should still be present (this could mean no cover)
-        // we only check the stream count, we do not know what the original data looked like
+        // we only check the stream count, we do not know what the original data
+        // looked like
         if (fmt_ctx->nb_streams != 1 && fmt_ctx->nb_streams != 2) {
             MAW_LOGF(MAW_ERROR, "%s: Unexpected number of streams: found %u",
                      mediafile->path, fmt_ctx->nb_streams);

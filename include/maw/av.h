@@ -30,7 +30,8 @@ MawContext *maw_init_context(const MediaFile *mediafile,
         } \
         if (args == NULL) { \
             MAW_LOGF(MAW_DEBUG, "Created %s filter: (no arguments)", name); \
-        } else { \
+        } \
+        else { \
             MAW_LOGF(MAW_DEBUG, "Created %s filter: %s", name, args); \
         } \
     } while (0)

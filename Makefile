@@ -75,12 +75,10 @@ ifeq ($(UNAME),darwin)
 CFLAGS            += -O0
 # Use newer llvm with "support" for leak sanitizer
 # https://discourse.llvm.org/t/does-leaksanitizer-not-work-on-macos-13-apple-silicon/73148/2
-# TODO set PATH
 LDFLAGS           += -Wl,-rpath,/opt/homebrew/opt/llvm/lib
 LDFLAGS           += -L/opt/homebrew/opt/llvm/lib
-# https://stackoverflow.com/a/70209891/9033629
-export MallocNanoZone=0
-export ASAN_OPTIONS=detect_leaks=1
+# XXX: PATH needs to be manually updated with /opt/homebrew/opt/llvm/bin/
+# to compile with a matching $(CC).
 else
 CFLAGS            += -Og
 endif

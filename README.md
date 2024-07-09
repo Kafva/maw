@@ -8,7 +8,7 @@ art_dir: ~/Pictures/art
 # Directory with media files
 music_dir: ~/Music
 
-# Each entry under `metadata` corresponds to a path (or glob expression) 
+# Each entry under `metadata` corresponds to a path (or glob expression)
 # relative to `music_dir`
 metadata:
   # A directory entry will match all files underneath it
@@ -33,7 +33,7 @@ metadata:
     cover_policy: CLEAR
 
 playlists:
-  # Define a .m3u playlist with the files below, 
+  # Define a .m3u playlist with the files below,
   # folders and glob expressions allowed
   playlist1:
     - red/track01.m4a
@@ -63,9 +63,6 @@ maw -c maw.yml generate
 ```bash
 brew install libyaml ffmpeg nasm
 make install
-
-# For coverage tests
-brew install llvm
 ```
 
 ### NixOS
@@ -83,6 +80,10 @@ nix build
 make
 ./build/maw --help
 
+# XXX: When building DEBUG on macOS, do not use the system clang.
+# The system default version does not work well with sanitizers.
+brew install llvm
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 
 # Run all tests
 make test
@@ -91,7 +92,14 @@ make test
 make coverage
 
 # Debug a specific test case
-./scripts/gendata.rb &&
-    DEBUG=1 TESTS=1 make &&
+./scripts/gendata.rb && DEBUG=1 TESTS=1 make &&
     lldb -o run ./build/maw_test -- -v -l quiet -m $TESTCASE
+
+# Check for memory leaks on macOS
+# https://stackoverflow.com/a/70209891/9033629
+export MallocNanoZone=0
+export ASAN_OPTIONS=detect_leaks=1
+
+./scripts/gendata.rb && DEBUG=1 TESTS=1 make &&
+    ./build/maw_test -v -l quiet -m $TESTCASE
 ```

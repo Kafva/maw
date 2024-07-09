@@ -378,44 +378,46 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     }
 
     // Push the frame into the filter graph
-    r = av_buffersrc_add_frame_flags(ctx->filter_buffersrc_ctx, frame,
-                                     AV_BUFFERSRC_FLAG_KEEP_REF);
+    r = av_buffersrc_add_frame(ctx->filter_buffersrc_ctx, frame);
     if (r != 0) {
         MAW_AVERROR(r, "Error feeding the filtergraph");
         goto end;
     }
+    av_frame_free(&frame);
 
     // Pull filtered frames from the filtergraph
-    while (true) {
-        r = av_buffersink_get_frame(ctx->filter_buffersink_ctx, filtered_frame);
-        if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
-            break;
-        }
-        else if (r != 0) {
-            MAW_AVERROR(r, "Failed to read filtered frame");
-            goto end;
-        }
+    r = av_buffersink_get_frame(ctx->filter_buffersink_ctx, filtered_frame);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to read filtered frame");
+        goto end;
+    }
 
-        // Encode the frame into a packet
-        r = avcodec_send_frame(ctx->enc_codec_ctx, filtered_frame);
-        if (r != 0) {
-            MAW_AVERROR(r, "Error sending frame to encoder");
-            goto end;
-        }
-        // Read back the encoded packet
-        r = avcodec_receive_packet(ctx->enc_codec_ctx, pkt);
-        if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
-            break;
-        }
-        else if (r != 0) {
-            MAW_AVERROR(r, "Failed to read filtered packet");
-            goto end;
-        }
+    // Encode the frame into a packet
+    r = avcodec_send_frame(ctx->enc_codec_ctx, filtered_frame);
+    if (r != 0) {
+        MAW_AVERROR(r, "Error sending frame to encoder");
+        goto end;
+    }
+    av_frame_free(&filtered_frame);
 
-        // Write the encoded packet to the output stream
-        pkt->pos = -1;
-        pkt->pts = AV_NOPTS_VALUE;
-        pkt->stream_index = 1;
+    // Read back the encoded packet
+    av_packet_unref(pkt);
+    r = avcodec_receive_packet(ctx->enc_codec_ctx, pkt);
+    if (r != 0) {
+        MAW_AVERROR(r, "Failed to read filtered packet");
+        goto end;
+    }
+
+    // Write the encoded packet to the output stream
+    pkt->pos = -1;
+    pkt->pts = AV_NOPTS_VALUE;
+    pkt->stream_index = 1;
+
+    // Verify that there are not more filtered frames to process
+    r = av_buffersink_get_frame(ctx->filter_buffersink_ctx, filtered_frame);
+    if (r != AVERROR(EAGAIN)) {
+        MAW_LOG(MAW_ERROR, "Did not read all frames from stream");
+        goto end;
     }
 
     r = 0;

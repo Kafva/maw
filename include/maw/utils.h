@@ -14,8 +14,6 @@ size_t readfile(const char *filepath, char *out, size_t outsize)
 int movefile(const char *src, const char *dst)
     __attribute__((warn_unused_result));
 bool on_same_device(const char *path1, const char *path2);
-bool isfile(const char *path);
-bool isdir(const char *path);
 uint32_t hash(const char *data);
 
 #endif // MAW_UTILS_H

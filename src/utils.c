@@ -74,26 +74,6 @@ end:
     return r;
 }
 
-bool isdir(const char *path) {
-    struct stat s;
-
-    if (stat(path, &s) != 0) {
-        return false;
-    }
-
-    return S_ISDIR(s.st_mode);
-}
-
-bool isfile(const char *path) {
-    struct stat s;
-
-    if (stat(path, &s) != 0) {
-        return false;
-    }
-
-    return S_ISREG(s.st_mode);
-}
-
 bool on_same_device(const char *path1, const char *path2) {
     struct stat stat1, stat2;
 

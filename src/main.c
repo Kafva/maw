@@ -25,8 +25,8 @@
 #define MAW_OPTS "m:" _MAW_OPTS
 #else
 #include "maw/cfg.h"
-#include "maw/playlists.h"
 #include "maw/mediafiles.h"
+#include "maw/playlists.h"
 #include "maw/update.h"
 #define MAW_OPTS _MAW_OPTS
 static int run_update(MawArguments *args, MawConfig *cfg);
@@ -203,7 +203,8 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
         }
     }
     else {
-        r = maw_threads_launch(mediafiles, mediafiles_count, args->thread_count);
+        r = maw_threads_launch(mediafiles, mediafiles_count,
+                               args->thread_count);
         if (r != 0)
             goto end;
     }

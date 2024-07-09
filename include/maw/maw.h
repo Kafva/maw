@@ -89,6 +89,7 @@ struct MawArguments {
     char *config_file;
     size_t thread_count;
     bool verbose;
+    bool dry_run;
     int av_log_level;
 #ifdef MAW_TEST
     char *match_testcase;

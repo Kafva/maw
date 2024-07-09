@@ -40,10 +40,7 @@ static void maw_clock_measure(time_t start_time) {
     minutes = elapsed / 60;
     seconds = elapsed % 60;
 
-    if (minutes == 0 && seconds == 0) {
-        MAW_LOG(MAW_INFO, "Done");
-    }
-    else {
+    if (minutes > 0 || seconds > 0) {
         MAW_LOGF(MAW_INFO, "Done: %02ld:%02ld", minutes, seconds);
     }
 }

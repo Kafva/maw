@@ -18,7 +18,7 @@
 #define OPT_COLOR    "\033[32m"
 #define NO_COLOR     "\033[0m"
 
-#define _MAW_OPTS "c:j:l:hv"
+#define _MAW_OPTS "c:j:l:hvn"
 
 #ifdef MAW_TEST
 #include "maw/tests/maw_test.h"
@@ -26,6 +26,7 @@
 #else
 #include "maw/cfg.h"
 #include "maw/playlists.h"
+#include "maw/mediafiles.h"
 #include "maw/update.h"
 #define MAW_OPTS _MAW_OPTS
 static int run_update(MawArguments *args, MawConfig *cfg);
@@ -39,6 +40,7 @@ static const struct option long_options[] = {
     {"config", required_argument, NULL, 'c'},
     {"jobs", optional_argument, NULL, 'j'},
     {"verbose", no_argument, NULL, 'v'},
+    {"dry-run", no_argument, NULL, 'n'},
     {"log", optional_argument, NULL, 'l'},
 #ifdef MAW_TEST
     {"match", optional_argument, NULL, 'm'},
@@ -51,6 +53,7 @@ static const char *long_options_usage[] = {
     "YAML configuration file to use",
     "Number of parrallel jobs to run",
     "Verbose logging",
+    "Do not make any changes to media files",
     "Log level for libav backend",
 #ifdef MAW_TEST
     "Testcase to run",
@@ -66,6 +69,7 @@ int main(int argc, char *argv[]) {
     MawArguments args = {
         .config_file = NULL,
         .verbose = false,
+        .dry_run = false,
         .thread_count = 1,
         .av_log_level = AV_LOG_QUIET,
 #ifdef MAW_TEST
@@ -90,6 +94,9 @@ int main(int argc, char *argv[]) {
 #endif
         case 'v':
             args.verbose = true;
+            break;
+        case 'n':
+            args.dry_run = true;
             break;
         case 'j':
             thread_count = strtol(optarg, NULL, 10);
@@ -167,7 +174,7 @@ static void usage(void) {
         if (long_options[i].has_arg) {
             (void)strlcat(buf, " <arg>", sizeof buf);
         }
-        fprintf(stderr, OPT_COLOR "    -%c, %-18s" NO_COLOR "%-30s\n",
+        fprintf(stderr, OPT_COLOR "    -%c, --%-18s" NO_COLOR "%-30s\n",
                 long_options[i].val, buf, long_options_usage[i]);
     }
 }
@@ -179,18 +186,32 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
 
-    r = maw_cfg_mediafiles_alloc(cfg, args, mediafiles, &mediafiles_count);
+    r = maw_mediafiles_alloc(cfg, args, mediafiles, &mediafiles_count);
     if (r != 0)
         goto end;
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, args->thread_count);
-    if (r != 0)
+    if (mediafiles_count == 0) {
+        fprintf(stderr, "No media files matched\n");
+        fflush(stderr);
         goto end;
+    }
+
+    if (args->dry_run) {
+        MAW_LOG(MAW_INFO, "~ Matches ~");
+        for (int i = 0; i < mediafiles_count; i++) {
+            MAW_LOGF(MAW_INFO, "  %s", mediafiles[i].path);
+        }
+    }
+    else {
+        r = maw_threads_launch(mediafiles, mediafiles_count, args->thread_count);
+        if (r != 0)
+            goto end;
+    }
 
     r = 0;
 
 end:
-    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
     return r;
 }
 
@@ -221,6 +242,7 @@ static int run_program(MawArguments *args) {
         r = maw_cfg_parse(args->config_file, &cfg);
         if (r != 0)
             goto end;
+
         r = run_update(args, cfg);
         if (r != 0)
             goto end;

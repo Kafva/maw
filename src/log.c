@@ -61,6 +61,7 @@ void maw_logf(enum LogLevel level, const char *filename, int line,
     (void)strlcat(fmt_full, "\n", sizeof fmt_full);
 
     (void)vfprintf(MAW_LOG_FP, fmt_full, args);
+    (void)fflush(MAW_LOG_FP);
 
     va_end(args);
 }

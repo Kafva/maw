@@ -214,6 +214,12 @@ static int run_program(MawArguments args) {
 
     if (args.config_file == NULL) {
         fprintf(stderr, "No config file provided\n");
+        usage();
+        return EXIT_FAILURE;
+    }
+    if (args.cmd == NULL) {
+        fprintf(stderr, "No command provided\n");
+        usage();
         return EXIT_FAILURE;
     }
 

@@ -28,6 +28,8 @@ static void maw_cfg_ctx_dump(YamlContext *ctx);
 static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
                                   MediaFile mediafiles[MAW_MAX_FILES],
                                   ssize_t *mediafiles_count);
+static bool maw_cfg_should_alloc_mediafiles(MawArguments *args,
+                                            MetadataEntry *metadata_entry);
 
 #define MAW_YAML_UNXEXPECTED(level, ctx, token, type, scalar) \
     do { \
@@ -152,16 +154,16 @@ static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx,
                                               const char *key) {
     switch (ctx->key_count) {
     case 0:
-        if (STR_MATCH(MAW_CFG_KEY_METADATA, key)) {
+        if (STR_EQ(MAW_CFG_KEY_METADATA, key)) {
             return KEY_METADATA;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_PLAYLISTS, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_PLAYLISTS, key)) {
             return KEY_PLAYLISTS;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_MUSIC, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_MUSIC, key)) {
             return KEY_MUSIC;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_ART, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_ART, key)) {
             return KEY_ART;
         }
         break;
@@ -169,19 +171,19 @@ static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx,
         // Name of 'playlists' or 'metadata' entry
         return KEY_ARBITRARY;
     case 2:
-        if (STR_MATCH(MAW_CFG_KEY_ALBUM, key)) {
+        if (STR_EQ(MAW_CFG_KEY_ALBUM, key)) {
             return KEY_ALBUM;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_ARTIST, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_ARTIST, key)) {
             return KEY_ARTIST;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_COVER, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_COVER, key)) {
             return KEY_COVER;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_COVER_POLICY, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_COVER_POLICY, key)) {
             return KEY_COVER_POLICY;
         }
-        else if (STR_MATCH(MAW_CFG_KEY_CLEAN, key)) {
+        else if (STR_EQ(MAW_CFG_KEY_CLEAN, key)) {
             return KEY_CLEAN;
         }
         break;
@@ -226,13 +228,13 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
         metadata->cover_path = cover_path;
         break;
     case KEY_COVER_POLICY:
-        if (STR_CASE_MATCH("keep", value)) {
+        if (STR_CASE_EQ("keep", value)) {
             metadata->cover_policy = COVER_KEEP;
         }
-        else if (STR_CASE_MATCH("crop", value)) {
+        else if (STR_CASE_EQ("crop", value)) {
             metadata->cover_policy = COVER_CROP;
         }
-        else if (STR_CASE_MATCH("clear", value)) {
+        else if (STR_CASE_EQ("clear", value)) {
             metadata->cover_policy = COVER_CLEAR;
         }
         else {
@@ -449,6 +451,7 @@ static void maw_cfg_merge_metadata(const Metadata *original, Metadata *new) {
 static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
                                   MediaFile mediafiles[MAW_MAX_FILES],
                                   ssize_t *mediafiles_count) {
+    MediaFile *latest;
     uint32_t digest;
 
     if (*mediafiles_count > MAW_MAX_FILES) {
@@ -469,10 +472,11 @@ static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
     }
 
     *mediafiles_count += 1;
-    mediafiles[*mediafiles_count - 1].path = strdup(filepath);
-    mediafiles[*mediafiles_count - 1].path_digest = hash(filepath);
-    mediafiles[*mediafiles_count - 1].metadata = metadata;
-    MAW_LOGF(MAW_DEBUG, "Added: %s", mediafiles[*mediafiles_count - 1].path);
+    latest = &mediafiles[*mediafiles_count - 1];
+    latest->path = strdup(filepath);
+    latest->path_digest = hash(filepath);
+    latest->metadata = metadata;
+    MAW_LOGF(MAW_DEBUG, "Added: %s", latest->path);
 
     return true;
 }
@@ -647,9 +651,39 @@ end:
     return r;
 }
 
+// If paths were provided on the command line, only add the sections
+// that have a matching prefix
+static bool maw_cfg_should_alloc_mediafiles(MawArguments *args,
+                                            MetadataEntry *metadata_entry) {
+    size_t patlen;
+    size_t arglen;
+
+    // Include all entries by default
+    if (args->cmd_args_count == 0) {
+        return true;
+    }
+
+    patlen = strlen(metadata_entry->pattern);
+
+    for (int i = 0; i < args->cmd_args_count; i++) {
+        // The exact path provided on the command line
+        if (STR_EQ(metadata_entry->pattern, args->cmd_args[i]))
+            return true;
+
+        // A path *beneath* the path provided on the command line
+        if (STR_HAS_PREFIX(metadata_entry->pattern, args->cmd_args[i])) {
+            arglen = strlen(args->cmd_args[i]);
+            if (patlen > arglen && metadata_entry->pattern[arglen] == '/')
+                return true;
+        }
+    }
+
+    return false;
+}
+
 // Given our *cfg, create a MediaFile[] that we can feed to the job launcher
 // Later matches in the config file will take precedence!
-int maw_cfg_mediafiles_alloc(MawConfig *cfg,
+int maw_cfg_mediafiles_alloc(MawConfig *cfg, MawArguments *args,
                              MediaFile mediafiles[MAW_MAX_FILES],
                              ssize_t *mediafiles_count) {
     int r = MAW_ERR_INTERNAL;
@@ -661,12 +695,19 @@ int maw_cfg_mediafiles_alloc(MawConfig *cfg,
     char complete_pattern[MAW_CFG_PATH_MAX];
     char filepath[MAW_CFG_PATH_MAX];
     size_t music_dir_idx;
+    bool ok;
 
     MAW_STRLCPY(complete_pattern, cfg->music_dir);
     MAW_STRLCAT(complete_pattern, "/");
     music_dir_idx = strlen(complete_pattern);
 
     TAILQ_FOREACH(metadata_entry, &(cfg->metadata_head), entry) {
+        ok = maw_cfg_should_alloc_mediafiles(args, metadata_entry);
+        if (!ok) {
+            MAW_LOGF(MAW_DEBUG, "Skipping: %s", metadata_entry->pattern);
+            continue;
+        }
+
         // Keep the leading path across iterations and append the new pattern
         complete_pattern[music_dir_idx] = '\0';
         MAW_STRLCAT(complete_pattern, metadata_entry->pattern);

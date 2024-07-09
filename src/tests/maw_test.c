@@ -203,7 +203,7 @@ static bool test_replace_cover(const char *desc) {
 
 // Jobs ////////////////////////////////////////////////////////////////////////
 
-static bool test_job_ok(const char *desc) {
+static bool test_threads_ok(const char *desc) {
     int r;
     Metadata cfg_arr[] = {
         {
@@ -239,7 +239,7 @@ static bool test_job_ok(const char *desc) {
     return true;
 }
 
-static bool test_job_error(const char *desc) {
+static bool test_threads_error(const char *desc) {
     int r;
     Metadata cfg_arr[] = {
         {
@@ -272,20 +272,34 @@ static bool test_job_error(const char *desc) {
     return true;
 }
 
-static bool test_complete(const char *desc) {
+static bool test_update(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
+    char *folders[] = {"red"};
+    size_t music_dir_pathlen;
+    MawArguments args = {
+        .cmd_args = folders,
+        .cmd_args_count = 1,
+        .thread_count = 3,
+    };
 
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_cfg_mediafiles_alloc(cfg, mediafiles, &mediafiles_count);
+    r = maw_cfg_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, 3);
+    // Only paths starting with 'red' should have been included
+    music_dir_pathlen = strlen(cfg->music_dir) + 1;
+    for (int i = 0; i < mediafiles_count; i++) {
+        r = STR_HAS_PREFIX(mediafiles[i].path + music_dir_pathlen, "red");
+        MAW_ASSERT_EQ(r, true, desc);
+    }
+
+    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (ssize_t i = 0; i < mediafiles_count; i++) {
@@ -299,30 +313,7 @@ static bool test_complete(const char *desc) {
     return true;
 }
 
-// Configuration ///////////////////////////////////////////////////////////////
-
-static bool test_cfg_ok(const char *desc) {
-    int r;
-    const char *config_file = ".testenv/maw.yml";
-    MawConfig *cfg = NULL;
-    MediaFile mediafiles[MAW_MAX_FILES];
-    ssize_t mediafiles_count = 0;
-
-    r = maw_cfg_parse(config_file, &cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
-
-    r = maw_cfg_mediafiles_alloc(cfg, mediafiles, &mediafiles_count);
-    MAW_ASSERT_EQ(r, 0, desc);
-
-    maw_cfg_dump(cfg);
-
-    maw_cfg_free(cfg);
-    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
-
-    return true;
-}
-
-static bool test_cfg_playlists(const char *desc) {
+static bool test_playlists(const char *desc) {
     int r;
     const char *config_file = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
@@ -344,6 +335,30 @@ static bool test_cfg_playlists(const char *desc) {
     MAW_ASSERT_EQ(r, true, desc);
 
     maw_cfg_free(cfg);
+
+    return true;
+}
+
+// Configuration ///////////////////////////////////////////////////////////////
+
+static bool test_cfg_ok(const char *desc) {
+    int r;
+    const char *config_file = ".testenv/maw.yml";
+    MawConfig *cfg = NULL;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    ssize_t mediafiles_count = 0;
+    MawArguments args = {0};
+
+    r = maw_cfg_parse(config_file, &cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_cfg_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    maw_cfg_dump(cfg);
+
+    maw_cfg_free(cfg);
+    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
 
     return true;
 }
@@ -384,13 +399,13 @@ static struct Testcase testcases[] = {
     {.desc = "Dual audio streams", .fn = test_dual_audio},
     {.desc = "Dual video streams", .fn = test_dual_video},
     {.desc = "Crop cover", .fn = test_crop_cover},
-    {.desc = "Jobs ok", .fn = test_job_ok},
-    {.desc = "Jobs error", .fn = test_job_error},
-    {.desc = "Complete", .fn = test_complete},
+    {.desc = "Jobs ok", .fn = test_threads_ok},
+    {.desc = "Jobs error", .fn = test_threads_error},
     {.desc = "Configuration ok", .fn = test_cfg_ok},
     {.desc = "Configuration error", .fn = test_cfg_error},
     {.desc = "FNV-1a Hash", .fn = test_hash},
-    {.desc = "Playlists", .fn = test_cfg_playlists}};
+    {.desc = "Update command", .fn = test_update},
+    {.desc = "Playlists command", .fn = test_playlists}};
 
 int run_tests(const char *match_testcase) {
     int total = sizeof(testcases) / sizeof(struct Testcase);

@@ -95,7 +95,7 @@ end:
                  finished_jobs);
     }
     else {
-        MAW_LOGF(MAW_DEBUG, "Thread #%lu: ok [done %d job(s)]", tid,
+        MAW_LOGF(MAW_INFO, "Thread #%lu: ok [done %d job(s)]", tid,
                  finished_jobs);
     }
     return NULL;

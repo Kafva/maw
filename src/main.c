@@ -21,19 +21,6 @@
 
 #define _MAW_OPTS "c:j:l:hv"
 
-struct MawArguments {
-    char *config_file;
-    size_t thread_count;
-    bool verbose;
-    int av_log_level;
-#ifdef MAW_TEST
-    char *match_testcase;
-#endif
-    char *cmd;
-    char **cmd_args;
-    int cmd_args_count;
-} typedef MawArguments;
-
 #ifdef MAW_TEST
 #include "maw/tests/maw_test.h"
 #define MAW_OPTS "m:" _MAW_OPTS
@@ -42,8 +29,8 @@ struct MawArguments {
 #include "maw/playlists.h"
 #include "maw/update.h"
 #define MAW_OPTS _MAW_OPTS
-static int run_update(MawArguments args, MawConfig *cfg);
-static int run_program(MawArguments args);
+static int run_update(MawArguments *args, MawConfig *cfg);
+static int run_program(MawArguments *args);
 
 #endif
 
@@ -114,19 +101,19 @@ int main(int argc, char *argv[]) {
             args.thread_count = (size_t)thread_count;
             break;
         case 'l':
-            if (STR_CASE_MATCH("debug", optarg)) {
+            if (STR_CASE_EQ("debug", optarg)) {
                 args.av_log_level = AV_LOG_DEBUG;
             }
-            else if (STR_CASE_MATCH("warning", optarg)) {
+            else if (STR_CASE_EQ("warning", optarg)) {
                 args.av_log_level = AV_LOG_WARNING;
             }
-            else if (STR_CASE_MATCH("info", optarg)) {
+            else if (STR_CASE_EQ("info", optarg)) {
                 args.av_log_level = AV_LOG_INFO;
             }
-            else if (STR_CASE_MATCH("error", optarg)) {
+            else if (STR_CASE_EQ("error", optarg)) {
                 args.av_log_level = AV_LOG_ERROR;
             }
-            else if (STR_CASE_MATCH("quiet", optarg)) {
+            else if (STR_CASE_EQ("quiet", optarg)) {
                 args.av_log_level = AV_LOG_QUIET;
             }
             else {
@@ -155,7 +142,7 @@ int main(int argc, char *argv[]) {
 #ifdef MAW_TEST
     return run_tests(args.match_testcase);
 #else
-    return run_program(args);
+    return run_program(&args);
 #endif
 }
 
@@ -188,16 +175,16 @@ static void usage(void) {
 
 #ifndef MAW_TEST
 
-static int run_update(MawArguments args, MawConfig *cfg) {
+static int run_update(MawArguments *args, MawConfig *cfg) {
     int r = EXIT_FAILURE;
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
 
-    r = maw_cfg_mediafiles_alloc(cfg, mediafiles, &mediafiles_count);
+    r = maw_cfg_mediafiles_alloc(cfg, args, mediafiles, &mediafiles_count);
     if (r != 0)
         goto end;
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
+    r = maw_threads_launch(mediafiles, mediafiles_count, args->thread_count);
     if (r != 0)
         goto end;
 
@@ -208,31 +195,31 @@ end:
     return r;
 }
 
-static int run_program(MawArguments args) {
+static int run_program(MawArguments *args) {
     int r = EXIT_FAILURE;
     MawConfig *cfg = NULL;
 
-    if (args.config_file == NULL) {
+    if (args->config_file == NULL) {
         fprintf(stderr, "No config file provided\n");
         usage();
         return EXIT_FAILURE;
     }
-    if (args.cmd == NULL) {
+    if (args->cmd == NULL) {
         fprintf(stderr, "No command provided\n");
         usage();
         return EXIT_FAILURE;
     }
 
-    if (STR_MATCH("gen", args.cmd) || STR_MATCH("generate", args.cmd)) {
-        r = maw_cfg_parse(args.config_file, &cfg);
+    if (STR_EQ("gen", args->cmd) || STR_EQ("generate", args->cmd)) {
+        r = maw_cfg_parse(args->config_file, &cfg);
         if (r != 0)
             goto end;
         r = maw_playlists_gen(cfg);
         if (r != 0)
             goto end;
     }
-    else if (STR_MATCH("up", args.cmd) || STR_MATCH("update", args.cmd)) {
-        r = maw_cfg_parse(args.config_file, &cfg);
+    else if (STR_EQ("up", args->cmd) || STR_EQ("update", args->cmd)) {
+        r = maw_cfg_parse(args->config_file, &cfg);
         if (r != 0)
             goto end;
         r = run_update(args, cfg);
@@ -240,7 +227,7 @@ static int run_program(MawArguments args) {
             goto end;
     }
     else {
-        fprintf(stderr, "Unknown command: '%s'\n", args.cmd);
+        fprintf(stderr, "Unknown command: '%s'\n", args->cmd);
         goto end;
     }
 

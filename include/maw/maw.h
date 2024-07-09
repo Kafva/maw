@@ -81,6 +81,20 @@ struct MawConfig {
     TAILQ_HEAD(MetadataEntryHead, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
+// CLI arguments
+struct MawArguments {
+    char *config_file;
+    size_t thread_count;
+    bool verbose;
+    int av_log_level;
+#ifdef MAW_TEST
+    char *match_testcase;
+#endif
+    char *cmd;
+    char **cmd_args;
+    int cmd_args_count;
+} typedef MawArguments;
+
 // Compile time assertion magic
 // If condition holds:
 //      (void)1;
@@ -125,9 +139,14 @@ struct MawConfig {
 
 #define MAW_STRLCAT(dst, src) MAW_STRLCAT_SIZE(dst, src, sizeof(dst))
 
-#define STR_MATCH(target, arg) \
+#define STR_HAS_PREFIX(s, prefix) \
+    (STR_HAS_PREFIX_SIZE(s, prefix, strlen(prefix)))
+#define STR_HAS_PREFIX_SIZE(s, prefix, prefix_size) \
+    (strncmp(s, prefix, prefix_size) == 0)
+
+#define STR_EQ(target, arg) \
     (strlen(target) == strlen(arg) && strncmp(target, arg, strlen(arg)) == 0)
-#define STR_CASE_MATCH(target, arg) \
+#define STR_CASE_EQ(target, arg) \
     (strlen(target) == strlen(arg) && \
      strncasecmp(target, arg, strlen(arg)) == 0)
 

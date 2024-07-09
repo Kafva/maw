@@ -100,7 +100,7 @@ static int maw_cfg_glob(const char *instr, char **outstr) {
     int r = MAW_ERR_INTERNAL;
     glob_t glob_result;
 
-    r = glob(instr, 0, NULL, &glob_result);
+    r = glob(instr, GLOB_TILDE, 0, &glob_result);
     if (r != 0) {
         MAW_PERRORF("glob", instr);
         goto end;

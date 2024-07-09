@@ -136,7 +136,7 @@ int maw_mediafiles_alloc(MawConfig *cfg, MawArguments *args,
         MAW_STRLCAT(complete_pattern, metadata_entry->pattern);
 
         if (strchr(complete_pattern, '*') != NULL) {
-            r = glob(complete_pattern, 0, NULL, &glob_result);
+            r = glob(complete_pattern, GLOB_TILDE, NULL, &glob_result);
             if (r != 0) {
                 MAW_PERRORF("glob", complete_pattern);
                 goto end;

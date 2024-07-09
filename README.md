@@ -1,6 +1,6 @@
 # maw
-Maw provides a way to declaratively configure metadata for media files based on a config.
-Example configuration, read by default from `~/.config/maw/maw.yml`:
+Maw provides a way to declaratively configure metadata for media files based on
+a config. Example configuration, read by default from `~/.config/maw/maw.yml`:
 
 ```yaml
 # Directory with custom thumbnail artwork
@@ -24,10 +24,10 @@ metadata:
     # Should all other metadata fields, composer etc. be cleared?
     clean: true
 
-  # This entry also matches files under 'red/', matches later in the configuration
+  # This entry also matches files under `red/`, matches later in the configuration
   # take precedence!
   red/*no_cover.m4a:
-    # What to do with thumbnails when no 'cover' is provided?
+    # What to do with thumbnails when no `cover` is provided?
     # Possible values CLEAR|KEEP|CROP, default is KEEP.
     # CROP will crop from 1280x720 -> 720x720
     cover_policy: CLEAR

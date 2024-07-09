@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <libavutil/error.h>
@@ -29,6 +30,7 @@
 #include "maw/playlists.h"
 #include "maw/update.h"
 #define MAW_OPTS _MAW_OPTS
+static int set_config(MawArguments *args, char *config_path, size_t size);
 static int run_update(MawArguments *args, MawConfig *cfg);
 static int run_program(MawArguments *args);
 
@@ -67,7 +69,7 @@ int main(int argc, char *argv[]) {
     ssize_t thread_count;
     // clang-format off
     MawArguments args = {
-        .config_file = NULL,
+        .config_path = NULL,
         .verbose = false,
         .dry_run = false,
         .thread_count = 1,
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]) {
            -1) {
         switch (opt) {
         case 'c':
-            args.config_file = optarg;
+            args.config_path = optarg;
             break;
 #ifdef MAW_TEST
         case 'm':
@@ -181,6 +183,48 @@ static void usage(void) {
 
 #ifndef MAW_TEST
 
+static int set_config(MawArguments *args, char *config_path, size_t size) {
+    int r = MAW_ERR_INTERNAL;
+    struct stat s;
+    char *envvar = NULL;
+
+    // Use provided configuration
+    if (args->config_path != NULL) {
+        MAW_STRLCPY_SIZE(config_path, args->config_path, size);
+        r = 0;
+        goto end;
+    }
+
+    envvar = getenv("XDG_CONFIG_HOME");
+    if (envvar == NULL) {
+        envvar = getenv("HOME");
+        if (envvar == NULL) {
+            MAW_LOG(MAW_ERROR, "HOME is unset");
+            goto end;
+        }
+        MAW_STRLCPY_SIZE(config_path, envvar, size);
+        MAW_STRLCAT_SIZE(config_path, "/.config/maw/maw.yml", size);
+    }
+    else {
+        MAW_STRLCPY_SIZE(config_path, envvar, size);
+        MAW_STRLCAT_SIZE(config_path, "/maw/maw.yml", size);
+    }
+
+    if (stat(config_path, &s) < 0) {
+        if (errno == ENOENT) {
+            fprintf(stderr, "No config file provided\n");
+        }
+        else {
+            MAW_PERROR("stat");
+        }
+        goto end;
+    }
+
+    r = 0;
+end:
+    return r;
+}
+
 static int run_update(MawArguments *args, MawConfig *cfg) {
     int r = EXIT_FAILURE;
     MediaFile mediafiles[MAW_MAX_FILES];
@@ -219,9 +263,10 @@ end:
 static int run_program(MawArguments *args) {
     int r = EXIT_FAILURE;
     MawConfig *cfg = NULL;
+    char config_path[MAW_PATH_MAX];
 
-    if (args->config_file == NULL) {
-        fprintf(stderr, "No config file provided\n");
+    r = set_config(args, config_path, sizeof config_path);
+    if (r != 0) {
         usage();
         return EXIT_FAILURE;
     }
@@ -232,7 +277,7 @@ static int run_program(MawArguments *args) {
     }
 
     if (STR_EQ("gen", args->cmd) || STR_EQ("generate", args->cmd)) {
-        r = maw_cfg_parse(args->config_file, &cfg);
+        r = maw_cfg_parse(config_path, &cfg);
         if (r != 0)
             goto end;
         r = maw_playlists_gen(cfg);
@@ -240,7 +285,7 @@ static int run_program(MawArguments *args) {
             goto end;
     }
     else if (STR_EQ("up", args->cmd) || STR_EQ("update", args->cmd)) {
-        r = maw_cfg_parse(args->config_file, &cfg);
+        r = maw_cfg_parse(config_path, &cfg);
         if (r != 0)
             goto end;
 

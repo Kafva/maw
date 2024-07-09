@@ -86,7 +86,7 @@ struct MawConfig {
 
 // CLI arguments
 struct MawArguments {
-    char *config_file;
+    char *config_path;
     size_t thread_count;
     bool verbose;
     bool dry_run;

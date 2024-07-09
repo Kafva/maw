@@ -274,7 +274,7 @@ static bool test_threads_error(const char *desc) {
 
 static bool test_update(const char *desc) {
     int r;
-    const char *config_file = ".testenv/maw.yml";
+    const char *config_path = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
@@ -286,7 +286,7 @@ static bool test_update(const char *desc) {
         .thread_count = 3,
     };
 
-    r = maw_cfg_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
     r = maw_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
@@ -315,7 +315,7 @@ static bool test_update(const char *desc) {
 
 static bool test_playlists(const char *desc) {
     int r;
-    const char *config_file = ".testenv/maw.yml";
+    const char *config_path = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
     const char *playlist = ".testenv/albums/.second.m3u";
     const char *expected = "blue/audio_blue_1.m4a\n"
@@ -325,7 +325,7 @@ static bool test_playlists(const char *desc) {
                            "red/audio_red_2.m4a\n"
                            "red/audio_red_3.m4a\n";
 
-    r = maw_cfg_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
     r = maw_playlists_gen(cfg);
@@ -343,13 +343,13 @@ static bool test_playlists(const char *desc) {
 
 static bool test_cfg_ok(const char *desc) {
     int r;
-    const char *config_file = ".testenv/maw.yml";
+    const char *config_path = ".testenv/maw.yml";
     MawConfig *cfg = NULL;
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
     MawArguments args = {0};
 
-    r = maw_cfg_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
     r = maw_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
@@ -365,10 +365,10 @@ static bool test_cfg_ok(const char *desc) {
 
 static bool test_cfg_error(const char *desc) {
     int r;
-    const char *config_file = ".testenv/unit/bad.yml";
+    const char *config_path = ".testenv/unit/bad.yml";
     MawConfig *cfg = NULL;
 
-    r = maw_cfg_parse(config_file, &cfg);
+    r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, MAW_ERR_YAML, desc);
     maw_cfg_free(cfg);
 

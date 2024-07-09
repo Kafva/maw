@@ -462,7 +462,6 @@ static int maw_av_mux(MawAVContext *ctx) {
     }
 
     // Mux streams from input file
-    // TODO seems to be a leak here...
     while (av_read_frame(ctx->input_fmt_ctx, pkt) == 0) {
         if (pkt->stream_index < 0 ||
             pkt->stream_index >= (int)ctx->input_fmt_ctx->nb_streams) {
@@ -495,6 +494,7 @@ static int maw_av_mux(MawAVContext *ctx) {
                              input_stream->codecpar->codec_type),
                          pkt->stream_index);
             prev_stream_index = pkt->stream_index;
+            av_packet_unref(pkt);
             continue;
         }
 
@@ -751,6 +751,7 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
     AVFormatContext *output_fmt_ctx = NULL;
 
     // Create context for input file
+    // TODO: leak during 'Replace cover'
     r = avformat_open_input(&input_fmt_ctx, mediafile->path, NULL, NULL);
     if (r != 0) {
         MAW_AVERROR(r, mediafile->path);

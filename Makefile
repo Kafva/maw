@@ -84,6 +84,7 @@ CFLAGS            += -Og
 endif
 CFLAGS            += -Wno-unused
 CFLAGS            += -Wno-unused-parameter
+# XXX: Disable this if using valgrind
 CFLAGS            += -fsanitize=address
 # Use the libraries that we build from source
 CFLAGS            += -I$(BUILD)/deps/include

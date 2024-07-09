@@ -17,6 +17,7 @@ metadata:
     #   title
     #   album
     #   artist
+    # The title defaults to the filename (without extension) for each file.
     album: Red album
     artist: Red artist
     # Path relative to `art_dir` with thumbnail artwork to set

@@ -200,10 +200,9 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
         break;
     case KEY_COVER:
         if (cfg->art_dir == NULL) {
-            MAW_LOGF(
-                MAW_ERROR,
-                "%s: an art_dir must be configured before setting a cover_path",
-                value);
+            MAW_LOGF(MAW_ERROR,
+                     "%s: an art_dir must be configured before setting a cover",
+                     value);
             goto end;
         }
 
@@ -372,7 +371,9 @@ static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
         case KEY_PLAYLISTS:
             playlist =
                 &TAILQ_LAST(&cfg->playlists_head, PlaylistEntryHead)->value;
-            (void)maw_cfg_add_to_playlist(playlist, value);
+            r = maw_cfg_add_to_playlist(playlist, value);
+            if (r != 0)
+                goto end;
             // XXX: Parent key is popped during YAML_BLOCK_END_TOKEN event
             break;
         default:
@@ -385,7 +386,10 @@ static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
         case KEY_METADATA:
             metadata =
                 &TAILQ_LAST(&cfg->metadata_head, MetadataEntryHead)->value;
-            (void)maw_cfg_set_metadata_field(cfg, ctx, token, metadata, value);
+            r = maw_cfg_set_metadata_field(cfg, ctx, token, metadata, value);
+            if (r != 0)
+                goto end;
+
             (void)maw_cfg_key_pop(ctx);
             break;
         default:
@@ -550,11 +554,13 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
             break;
         case YAML_SCALAR_TOKEN:
             if (ctx.next_token_type == YAML_KEY_TOKEN) {
-                (void)maw_cfg_parse_key(*cfg, &ctx, &token);
+                r = maw_cfg_parse_key(*cfg, &ctx, &token);
             }
             else {
-                (void)maw_cfg_parse_value(*cfg, &ctx, &token);
+                r = maw_cfg_parse_value(*cfg, &ctx, &token);
             }
+            if (r != 0)
+                goto end;
             break;
         case YAML_BLOCK_SEQUENCE_START_TOKEN:
             MAW_LOG(MAW_DEBUG, "BEGIN sequence");

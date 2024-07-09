@@ -647,21 +647,9 @@ end:
     return r;
 }
 
-int maw_playlist_path(MawConfig *cfg, const char *name, char *out,
-                      size_t size) {
-    int r = MAW_ERR_INTERNAL;
-    MAW_STRLCPY_SIZE(out, cfg->music_dir, size);
-    MAW_STRLCAT_SIZE(out, "/.", size);
-    MAW_STRLCAT_SIZE(out, name, size);
-    MAW_STRLCAT_SIZE(out, ".m3u", size);
-    r = 0;
-end:
-    return r;
-}
-
 // Given our *cfg, create a MediaFile[] that we can feed to the job launcher
 // Later matches in the config file will take precedence!
-int maw_cfg_alloc_mediafiles(MawConfig *cfg,
+int maw_cfg_mediafiles_alloc(MawConfig *cfg,
                              MediaFile mediafiles[MAW_MAX_FILES],
                              ssize_t *mediafiles_count) {
     int r = MAW_ERR_INTERNAL;
@@ -740,4 +728,14 @@ end:
     if (dir != NULL)
         (void)closedir(dir);
     return r;
+}
+
+void maw_cfg_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES],
+                             ssize_t count) {
+    for (ssize_t i = 0; i < count; i++) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+        free((void *)mediafiles[i].path);
+#pragma GCC diagnostic pop
+    }
 }

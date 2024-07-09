@@ -1,5 +1,6 @@
 #include "maw/threads.h"
 #include "maw/log.h"
+#include "maw/update.h"
 
 #include <stdlib.h>
 #include <string.h>

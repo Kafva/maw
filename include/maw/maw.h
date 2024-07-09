@@ -81,10 +81,6 @@ struct MawConfig {
     TAILQ_HEAD(MetadataEntryHead, MetadataEntry) metadata_head;
 } typedef MawConfig;
 
-int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
-int maw_gen_playlists(MawConfig *cfg) __attribute__((warn_unused_result));
-void maw_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count);
-
 // Compile time assertion magic
 // If condition holds:
 //      (void)1;

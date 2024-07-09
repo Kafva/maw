@@ -21,14 +21,29 @@
 
 #define _MAW_OPTS "c:j:l:hv"
 
+struct MawArguments {
+    char *config_file;
+    size_t thread_count;
+    bool verbose;
+    int av_log_level;
+#ifdef MAW_TEST
+    char *match_testcase;
+#endif
+    char *cmd;
+    char **cmd_args;
+    int cmd_args_count;
+} typedef MawArguments;
+
 #ifdef MAW_TEST
 #include "maw/tests/maw_test.h"
 #define MAW_OPTS "m:" _MAW_OPTS
 #else
 #include "maw/cfg.h"
+#include "maw/playlists.h"
+#include "maw/update.h"
 #define MAW_OPTS _MAW_OPTS
-static int run_program(int argc, char *argv[], const char *config_file,
-                       ssize_t thread_count);
+static int run_update(MawArguments args, MawConfig *cfg);
+static int run_program(MawArguments args);
 
 #endif
 
@@ -60,27 +75,35 @@ static const char *long_options_usage[] = {
 
 int main(int argc, char *argv[]) {
     int opt;
-    int av_log_level = AV_LOG_QUIET;
-    bool verbose = false;
-    ssize_t thread_count = 1;
-    char *config_file = NULL;
+    ssize_t thread_count;
+    // clang-format off
+    MawArguments args = {
+        .config_file = NULL,
+        .verbose = false,
+        .thread_count = 1,
+        .av_log_level = AV_LOG_QUIET,
 #ifdef MAW_TEST
-    const char *match_testcase = NULL;
+        .match_testcase = NULL,
 #endif
+        .cmd = NULL,
+        .cmd_args = NULL,
+        .cmd_args_count = 0
+    };
+    // clang-format on
 
     while ((opt = getopt_long(argc, argv, MAW_OPTS, long_options, NULL)) !=
            -1) {
         switch (opt) {
         case 'c':
-            config_file = optarg;
+            args.config_file = optarg;
             break;
 #ifdef MAW_TEST
         case 'm':
-            match_testcase = optarg;
+            args.match_testcase = optarg;
             break;
 #endif
         case 'v':
-            verbose = true;
+            args.verbose = true;
             break;
         case 'j':
             thread_count = strtol(optarg, NULL, 10);
@@ -88,22 +111,23 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Invalid argument for job count: %s\n", optarg);
                 return EXIT_FAILURE;
             }
+            args.thread_count = (size_t)thread_count;
             break;
         case 'l':
             if (STR_CASE_MATCH("debug", optarg)) {
-                av_log_level = AV_LOG_DEBUG;
+                args.av_log_level = AV_LOG_DEBUG;
             }
             else if (STR_CASE_MATCH("warning", optarg)) {
-                av_log_level = AV_LOG_WARNING;
+                args.av_log_level = AV_LOG_WARNING;
             }
             else if (STR_CASE_MATCH("info", optarg)) {
-                av_log_level = AV_LOG_INFO;
+                args.av_log_level = AV_LOG_INFO;
             }
             else if (STR_CASE_MATCH("error", optarg)) {
-                av_log_level = AV_LOG_ERROR;
+                args.av_log_level = AV_LOG_ERROR;
             }
             else if (STR_CASE_MATCH("quiet", optarg)) {
-                av_log_level = AV_LOG_QUIET;
+                args.av_log_level = AV_LOG_QUIET;
             }
             else {
                 fprintf(stderr, "Invalid log level\n");
@@ -116,13 +140,22 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    maw_log_init(verbose, av_log_level);
+    // Shift out parsed options from argv
+    argc -= optind;
+    argv += optind;
+
+    args.cmd = argv[0];
+    if (argc > 0) {
+        args.cmd_args = argv + 1;
+        args.cmd_args_count = argc - 1;
+    }
+
+    maw_log_init(args.verbose, args.av_log_level);
 
 #ifdef MAW_TEST
-    (void)config_file;
-    return run_tests(match_testcase);
+    return run_tests(args.match_testcase);
 #else
-    return run_program(argc, argv, config_file, (ssize_t)thread_count);
+    return run_program(args);
 #endif
 }
 
@@ -144,7 +177,6 @@ static void usage(void) {
     // clang-format on
 
     for (size_t i = 0; i < optcount; i++) {
-
         (void)strlcpy(buf, long_options[i].name, sizeof buf);
         if (long_options[i].has_arg) {
             (void)strlcat(buf, " <arg>", sizeof buf);
@@ -156,39 +188,59 @@ static void usage(void) {
 
 #ifndef MAW_TEST
 
-static int run_program(int argc, char *argv[], const char *config_file,
-                       ssize_t thread_count) {
+static int run_update(MawArguments args, MawConfig *cfg) {
     int r = EXIT_FAILURE;
-    MawConfig *cfg = NULL;
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
 
-    if (config_file == NULL) {
+    r = maw_cfg_mediafiles_alloc(cfg, mediafiles, &mediafiles_count);
+    if (r != 0)
+        goto end;
+
+    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
+    if (r != 0)
+        goto end;
+
+    r = 0;
+
+end:
+    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
+    return r;
+}
+
+static int run_program(MawArguments args) {
+    int r = EXIT_FAILURE;
+    MawConfig *cfg = NULL;
+
+    if (args.config_file == NULL) {
         fprintf(stderr, "No config file provided\n");
         return EXIT_FAILURE;
     }
 
-    r = maw_cfg_parse(config_file, &cfg);
-    if (r != 0)
+    if (STR_MATCH("gen", args.cmd) || STR_MATCH("generate", args.cmd)) {
+        r = maw_cfg_parse(args.config_file, &cfg);
+        if (r != 0)
+            goto end;
+        r = maw_playlists_gen(cfg);
+        if (r != 0)
+            goto end;
+    }
+    else if (STR_MATCH("up", args.cmd) || STR_MATCH("update", args.cmd)) {
+        r = maw_cfg_parse(args.config_file, &cfg);
+        if (r != 0)
+            goto end;
+        r = run_update(args, cfg);
+        if (r != 0)
+            goto end;
+    }
+    else {
+        fprintf(stderr, "Unknown command: '%s'\n", args.cmd);
         goto end;
-
-    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
-    if (r != 0)
-        goto end;
-
-    r = maw_gen_playlists(cfg);
-    if (r != 0)
-        goto end;
-
-    // TODO limit to path
-    r = maw_threads_launch(mediafiles, mediafiles_count, (size_t)thread_count);
-    if (r != 0)
-        goto end;
+    }
 
     r = EXIT_SUCCESS;
 end:
     maw_cfg_free(cfg);
-    maw_mediafiles_free(mediafiles, mediafiles_count);
     return r;
 }
 

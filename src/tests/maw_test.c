@@ -1,8 +1,10 @@
 #include "maw/tests/maw_test.h"
 #include "maw/cfg.h"
 #include "maw/maw.h"
+#include "maw/playlists.h"
 #include "maw/tests/maw_verify.h"
 #include "maw/threads.h"
+#include "maw/update.h"
 #include "maw/utils.h"
 
 #include <libavutil/error.h>
@@ -280,7 +282,7 @@ static bool test_complete(const char *desc) {
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
+    r = maw_cfg_mediafiles_alloc(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     r = maw_threads_launch(mediafiles, mediafiles_count, 3);
@@ -292,7 +294,7 @@ static bool test_complete(const char *desc) {
     }
 
     maw_cfg_free(cfg);
-    maw_mediafiles_free(mediafiles, mediafiles_count);
+    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
 
     return true;
 }
@@ -309,13 +311,13 @@ static bool test_cfg_ok(const char *desc) {
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_cfg_alloc_mediafiles(cfg, mediafiles, &mediafiles_count);
+    r = maw_cfg_mediafiles_alloc(cfg, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     maw_cfg_dump(cfg);
 
     maw_cfg_free(cfg);
-    maw_mediafiles_free(mediafiles, mediafiles_count);
+    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
 
     return true;
 }
@@ -335,7 +337,7 @@ static bool test_cfg_playlists(const char *desc) {
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_gen_playlists(cfg);
+    r = maw_playlists_gen(cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
     r = maw_verify_file(playlist, expected);

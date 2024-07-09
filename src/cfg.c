@@ -282,7 +282,7 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
     case KEY_INVALID:
         goto end;
     case KEY_ARBITRARY:
-        // All keys are valid under 'metadata' and 'playlists'
+        // All keys are valid *directly under* 'metadata' and 'playlists'
         switch (ctx->keypath[0]) {
         case KEY_METADATA:
             // New entry under 'metadata'
@@ -307,7 +307,7 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
                 MAW_PERROR("calloc");
                 goto end;
             }
-            // Intialize the list of paths
+            // Initialize the list of paths
             TAILQ_INIT(&playlist_entry->value.playlist_paths_head);
             playlist_entry->value.name = strdup(key);
             TAILQ_INSERT_TAIL(&cfg->playlists_head, playlist_entry, entry);

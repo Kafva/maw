@@ -5,4 +5,4 @@
 
 int maw_update(const MediaFile *mediafile) __attribute__((warn_unused_result));
 
-#endif
+#endif // MAW_UPDATE_H

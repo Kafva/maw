@@ -1,5 +1,5 @@
-#ifndef LOG_H
-#define LOG_H
+#ifndef MAW_LOG_H
+#define MAW_LOG_H
 
 #include <stdbool.h>
 
@@ -58,4 +58,4 @@ void maw_log_init(bool verbose, int av_log_level);
         } \
     } while (0)
 
-#endif // LOG_H
+#endif // MAW_LOG_H

@@ -1,5 +1,5 @@
-#ifndef JOB_H
-#define JOB_H
+#ifndef MAW_THREADS_H
+#define MAW_THREADS_H
 
 #include "maw/maw.h"
 
@@ -20,4 +20,4 @@ struct ThreadContext {
 int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
                        size_t thread_count) __attribute__((warn_unused_result));
 
-#endif // JOB_H
+#endif // MAW_THREADS_H

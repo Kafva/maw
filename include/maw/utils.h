@@ -1,5 +1,7 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef MAW_UTILS_H
+#define MAW_UTILS_H
+
+#include "maw/maw.h"
 
 #include <stdbool.h>
 #include <unistd.h>
@@ -16,4 +18,4 @@ bool isfile(const char *path);
 bool isdir(const char *path);
 uint32_t hash(const char *data);
 
-#endif // UTIL_H
+#endif // MAW_UTILS_H

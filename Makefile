@@ -1,5 +1,7 @@
 CC                := clang
 UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+# Default install location
+PREFIX            ?= $(HOME)/.local
 
 SRCS              = $(wildcard src/*.c)
 HEADERS           = $(wildcard include/*.h)
@@ -159,6 +161,9 @@ coverage:
 		-instr-profile=$(LLVM_PROFDATA) \
 		--ignore-filename-regex='include/*' \
 		--ignore-filename-regex='deps/*'
+
+install: $(BUILD)/$(PROGRAM)
+	install $< $(PREFIX)/bin
 
 clean:
 	rm -rf $(BUILD)/*.o $(BUILD)/.*.json $(BUILD)/tests $(BUILD)/maw*

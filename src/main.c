@@ -15,6 +15,10 @@
 #define MAW_PROGRAM "maw"
 #endif
 
+#define HEADER_COLOR "\033[33m"
+#define OPT_COLOR    "\033[32m"
+#define NO_COLOR     "\033[0m"
+
 #define _MAW_OPTS "c:j:l:hv"
 
 #ifdef MAW_TEST
@@ -41,15 +45,18 @@ static const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {NULL, 0, NULL, 0}};
 
-static const char *long_options_usage[] = {"YAML configuration file to use",
-                                           "Number of parrallel jobs to run",
-                                           "Verbose logging",
-                                           "Log level for libav backend",
+// clang-format off
+static const char *long_options_usage[] = {
+    "YAML configuration file to use",
+    "Number of parrallel jobs to run",
+    "Verbose logging",
+    "Log level for libav backend",
 #ifdef MAW_TEST
-                                           "Testcase to run",
+    "Testcase to run",
 #endif
-                                           "Show this help message",
-                                           NULL};
+    "Show this help message",
+    NULL};
+// clang-format on
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -121,23 +128,29 @@ int main(int argc, char *argv[]) {
 
 static void usage(void) {
     size_t optcount = (sizeof(long_options) / sizeof(struct option)) - 1;
-    char *arg = NULL;
+    char buf[1024];
 
     ASSERT((sizeof(long_options) / sizeof(struct option)) ==
            sizeof(long_options_usage) / sizeof(char *));
 
-    fprintf(stderr, "usage: " MAW_PROGRAM " [flags] <cmd>\n\n");
-    fprintf(stderr, "COMMANDS: \n");
-    fprintf(stderr, "    up [paths]           Update metadata according to "
-                    "config, optionally limited to [paths]\n");
-    fprintf(stderr, "    generate             Generate playlists\n");
+    // clang-format off
+    fprintf(stderr, HEADER_COLOR"USAGE:"NO_COLOR"\n");
+    fprintf(stderr, MAW_PROGRAM " [OPTIONS] <COMMAND>\n\n");
+    fprintf(stderr, HEADER_COLOR"COMMANDS:"NO_COLOR"\n");
+    fprintf(stderr, OPT_COLOR"    up [paths]"NO_COLOR"            Update metadata in [paths] according to config\n");
+    fprintf(stderr, OPT_COLOR"    generate"NO_COLOR"              Generate playlists\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "OPTIONS: \n");
+    fprintf(stderr, HEADER_COLOR"OPTIONS:"NO_COLOR"\n");
+    // clang-format on
 
     for (size_t i = 0; i < optcount; i++) {
-        arg = long_options[i].has_arg ? " <arg> " : "       ";
-        fprintf(stderr, "    --%-18s%s%-30s\n", long_options[i].name, arg,
-                long_options_usage[i]);
+
+        (void)strlcpy(buf, long_options[i].name, sizeof buf);
+        if (long_options[i].has_arg) {
+            (void)strlcat(buf, " <arg>", sizeof buf);
+        }
+        fprintf(stderr, OPT_COLOR "    -%c, %-18s" NO_COLOR "%-30s\n",
+                long_options[i].val, buf, long_options_usage[i]);
     }
 }
 

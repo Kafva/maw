@@ -63,6 +63,9 @@ maw -c maw.yml generate
 ```bash
 brew install libyaml ffmpeg nasm
 make install
+
+# For coverage tests
+brew install llvm
 ```
 
 ### NixOS

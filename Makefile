@@ -73,6 +73,14 @@ ifeq ($(DEBUG),1)
 CFLAGS            += -g
 ifeq ($(UNAME),darwin)
 CFLAGS            += -O0
+# Use newer llvm with "support" for leak sanitizer
+# https://discourse.llvm.org/t/does-leaksanitizer-not-work-on-macos-13-apple-silicon/73148/2
+# TODO set PATH
+LDFLAGS           += -Wl,-rpath,/opt/homebrew/opt/llvm/lib
+LDFLAGS           += -L/opt/homebrew/opt/llvm/lib
+# https://stackoverflow.com/a/70209891/9033629
+export MallocNanoZone=0
+export ASAN_OPTIONS=detect_leaks=1
 else
 CFLAGS            += -Og
 endif
@@ -108,6 +116,7 @@ $(BUILD)/%.o: $(SRCS_PATTERN) $(HEADERS)
 	$(CC) $(CFLAGS) -MJ $(dir $@)/.$(notdir $@).json $< -c -o $@
 
 $(BUILD)/$(PROGRAM): $(OBJS)
+	@$(CC) --version
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
 
 compile_commands.json: $(BUILD)/$(PROGRAM)

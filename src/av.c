@@ -393,6 +393,7 @@ static int maw_av_mux(MawAVContext *ctx) {
     }
 
     // Mux streams from input file
+    // TODO seems to be a leak here...
     while (av_read_frame(ctx->input_fmt_ctx, pkt) == 0) {
         if (pkt->stream_index < 0 ||
             pkt->stream_index >= (int)ctx->input_fmt_ctx->nb_streams) {
@@ -441,6 +442,8 @@ static int maw_av_mux(MawAVContext *ctx) {
                 MAW_AVERROR(r, "Failed to send packet to decoder");
                 goto end;
             }
+            av_packet_unref(pkt);
+
             // Read the decoded frame
             r = avcodec_receive_frame(ctx->dec_codec_ctx, frame);
             if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
@@ -458,7 +461,7 @@ static int maw_av_mux(MawAVContext *ctx) {
                 MAW_AVERROR(r, "Error feeding the filtergraph");
                 goto end;
             }
-            av_frame_unref(frame);
+            av_frame_free(&frame);
 
             // Pull filtered frames from the filtergraph
             while (true) {
@@ -478,6 +481,7 @@ static int maw_av_mux(MawAVContext *ctx) {
                     MAW_AVERROR(r, "Error sending frame to encoder");
                     goto end;
                 }
+                av_frame_free(&filtered_frame);
                 // Read back the encoded packet
                 r = avcodec_receive_packet(ctx->enc_codec_ctx, pkt);
                 if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {

@@ -86,6 +86,7 @@ void maw_log(enum LogLevel level, const char *filename, int line,
     (void)strlcat(fmt_full, "\n", sizeof fmt_full);
 
     (void)write(fileno(MAW_LOG_FP), fmt_full, strlen(fmt_full));
+    (void)fflush(MAW_LOG_FP);
 }
 
 void maw_log_init(bool verbose, int av_log_level) {

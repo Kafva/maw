@@ -1,5 +1,4 @@
 #include "maw/log.h"
-#include "maw/maw.h"
 #include "maw/threads.h"
 
 #include <getopt.h>

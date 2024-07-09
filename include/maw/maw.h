@@ -17,6 +17,9 @@
 // Maximum number of files to handle in one invocation
 #define MAW_MAX_FILES 1024
 
+// Maximum length of paths in configuration file etc.
+#define MAW_PATH_MAX 1024
+
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
     // Keep original cover art unless a custom `cover_path` is given (default)

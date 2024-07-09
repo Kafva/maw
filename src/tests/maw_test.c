@@ -1,6 +1,6 @@
 #include "maw/tests/maw_test.h"
 #include "maw/cfg.h"
-#include "maw/maw.h"
+#include "maw/mediafiles.h"
 #include "maw/playlists.h"
 #include "maw/tests/maw_verify.h"
 #include "maw/threads.h"
@@ -289,7 +289,7 @@ static bool test_update(const char *desc) {
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_cfg_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
+    r = maw_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     // Only paths starting with 'red' should have been included
@@ -308,7 +308,7 @@ static bool test_update(const char *desc) {
     }
 
     maw_cfg_free(cfg);
-    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
 
     return true;
 }
@@ -352,13 +352,13 @@ static bool test_cfg_ok(const char *desc) {
     r = maw_cfg_parse(config_file, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_cfg_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
+    r = maw_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     maw_cfg_dump(cfg);
 
     maw_cfg_free(cfg);
-    maw_cfg_mediafiles_free(mediafiles, mediafiles_count);
+    maw_mediafiles_free(mediafiles, mediafiles_count);
 
     return true;
 }

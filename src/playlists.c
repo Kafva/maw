@@ -30,8 +30,8 @@ int maw_playlists_gen(MawConfig *cfg) {
     int r = MAW_ERR_INTERNAL;
     PlaylistEntry *p = NULL;
     PlaylistPath *pp = NULL;
-    char playlistfile[MAW_CFG_PATH_MAX];
-    char path[MAW_CFG_PATH_MAX];
+    char playlistfile[MAW_PATH_MAX];
+    char path[MAW_PATH_MAX];
     int fd = -1;
     DIR *dir = NULL;
     struct dirent **namelist = NULL;

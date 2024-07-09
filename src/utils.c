@@ -1,6 +1,5 @@
 #include "maw/utils.h"
 #include "maw/log.h"
-#include "maw/maw.h"
 
 #include <arpa/inet.h>
 #include <fcntl.h>

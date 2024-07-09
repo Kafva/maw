@@ -1,10 +1,7 @@
-#include <dirent.h>
 #include <glob.h>
-#include <sys/stat.h>
 
 #include "maw/cfg.h"
 #include "maw/log.h"
-#include "maw/maw.h"
 #include "maw/utils.h"
 
 static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser,
@@ -25,11 +22,6 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
 static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
                                yaml_token_t *token);
 static void maw_cfg_ctx_dump(YamlContext *ctx);
-static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
-                                  MediaFile mediafiles[MAW_MAX_FILES],
-                                  ssize_t *mediafiles_count);
-static bool maw_cfg_should_alloc_mediafiles(MawArguments *args,
-                                            MetadataEntry *metadata_entry);
 
 #define MAW_YAML_UNXEXPECTED(level, ctx, token, type, scalar) \
     do { \
@@ -215,15 +207,15 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
             goto end;
         }
 
-        cover_path = calloc(MAW_CFG_PATH_MAX, sizeof(char));
+        cover_path = calloc(MAW_PATH_MAX, sizeof(char));
         if (cover_path == NULL) {
             MAW_PERROR("calloc");
             goto end;
         }
 
-        MAW_STRLCPY_SIZE(cover_path, cfg->art_dir, (size_t)MAW_CFG_PATH_MAX);
-        MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_CFG_PATH_MAX);
-        MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_CFG_PATH_MAX);
+        MAW_STRLCPY_SIZE(cover_path, cfg->art_dir, (size_t)MAW_PATH_MAX);
+        MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_PATH_MAX);
+        MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_PATH_MAX);
 
         metadata->cover_path = cover_path;
         break;
@@ -411,7 +403,7 @@ end:
 }
 
 static void maw_cfg_ctx_dump(YamlContext *ctx) {
-    char out[MAW_CFG_PATH_MAX];
+    char out[MAW_PATH_MAX];
     out[0] = '\0';
 
     for (int i = 0; i < MAW_CFG_MAX_DEPTH; i++) {
@@ -424,61 +416,6 @@ static void maw_cfg_ctx_dump(YamlContext *ctx) {
     }
 
     MAW_LOGF(MAW_DEBUG, "YAML context: %s", out);
-}
-
-// Update the `new` metadata with fields from the `original` if applicable
-static void maw_cfg_merge_metadata(const Metadata *original, Metadata *new) {
-    if (original->title != NULL && new->title == NULL) {
-        new->title = strdup(original->title);
-    }
-    if (original->album != NULL && new->album == NULL) {
-        new->album = strdup(original->album);
-    }
-    if (original->artist != NULL && new->artist == NULL) {
-        new->artist = strdup(original->artist);
-    }
-    if (original->cover_path != NULL && new->cover_path == NULL) {
-        new->cover_path = strdup(original->cover_path);
-    }
-    if (original->cover_policy != COVER_UNSPECIFIED &&
-        new->cover_policy == COVER_UNSPECIFIED) {
-        new->cover_policy = original->cover_policy;
-    }
-
-    // Always keep the new value for `clean`
-}
-
-static bool maw_cfg_add_mediafile(const char *filepath, Metadata *metadata,
-                                  MediaFile mediafiles[MAW_MAX_FILES],
-                                  ssize_t *mediafiles_count) {
-    MediaFile *latest;
-    uint32_t digest;
-
-    if (*mediafiles_count > MAW_MAX_FILES) {
-        MAW_LOGF(MAW_ERROR, "Cannot process more than %d file(s)",
-                 MAW_MAX_FILES);
-        return false;
-    }
-
-    digest = hash(filepath);
-
-    for (ssize_t i = 0; i < *mediafiles_count; i++) {
-        if (mediafiles[i].path_digest == digest) {
-            maw_cfg_merge_metadata(mediafiles[i].metadata, metadata);
-            mediafiles[i].metadata = metadata;
-            MAW_LOGF(MAW_DEBUG, "Replaced: %s", mediafiles[i].path);
-            return true;
-        }
-    }
-
-    *mediafiles_count += 1;
-    latest = &mediafiles[*mediafiles_count - 1];
-    latest->path = strdup(filepath);
-    latest->path_digest = hash(filepath);
-    latest->metadata = metadata;
-    MAW_LOGF(MAW_DEBUG, "Added: %s", latest->path);
-
-    return true;
 }
 
 void maw_cfg_dump(MawConfig *cfg) {
@@ -649,134 +586,4 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
 end:
     maw_cfg_yaml_deinit(parser, fp);
     return r;
-}
-
-// If paths were provided on the command line, only add the sections
-// that have a matching prefix
-static bool maw_cfg_should_alloc_mediafiles(MawArguments *args,
-                                            MetadataEntry *metadata_entry) {
-    size_t patlen;
-    size_t arglen;
-
-    // Include all entries by default
-    if (args->cmd_args_count == 0) {
-        return true;
-    }
-
-    patlen = strlen(metadata_entry->pattern);
-
-    for (int i = 0; i < args->cmd_args_count; i++) {
-        // The exact path provided on the command line
-        if (STR_EQ(metadata_entry->pattern, args->cmd_args[i]))
-            return true;
-
-        // A path *beneath* the path provided on the command line
-        if (STR_HAS_PREFIX(metadata_entry->pattern, args->cmd_args[i])) {
-            arglen = strlen(args->cmd_args[i]);
-            if (patlen > arglen && metadata_entry->pattern[arglen] == '/')
-                return true;
-        }
-    }
-
-    return false;
-}
-
-// Given our *cfg, create a MediaFile[] that we can feed to the job launcher
-// Later matches in the config file will take precedence!
-int maw_cfg_mediafiles_alloc(MawConfig *cfg, MawArguments *args,
-                             MediaFile mediafiles[MAW_MAX_FILES],
-                             ssize_t *mediafiles_count) {
-    int r = MAW_ERR_INTERNAL;
-    MetadataEntry *metadata_entry = NULL;
-    DIR *dir = NULL;
-    struct dirent *entry;
-    struct stat s;
-    glob_t glob_result;
-    char complete_pattern[MAW_CFG_PATH_MAX];
-    char filepath[MAW_CFG_PATH_MAX];
-    size_t music_dir_idx;
-    bool ok;
-
-    MAW_STRLCPY(complete_pattern, cfg->music_dir);
-    MAW_STRLCAT(complete_pattern, "/");
-    music_dir_idx = strlen(complete_pattern);
-
-    TAILQ_FOREACH(metadata_entry, &(cfg->metadata_head), entry) {
-        ok = maw_cfg_should_alloc_mediafiles(args, metadata_entry);
-        if (!ok) {
-            MAW_LOGF(MAW_DEBUG, "Skipping: %s", metadata_entry->pattern);
-            continue;
-        }
-
-        // Keep the leading path across iterations and append the new pattern
-        complete_pattern[music_dir_idx] = '\0';
-        MAW_STRLCAT(complete_pattern, metadata_entry->pattern);
-
-        if (strchr(complete_pattern, '*') != NULL) {
-            r = glob(complete_pattern, 0, NULL, &glob_result);
-            if (r != 0) {
-                MAW_PERRORF("glob", complete_pattern);
-                goto end;
-            }
-
-            for (size_t i = 0; i < glob_result.gl_pathc; i++) {
-                if (!maw_cfg_add_mediafile(glob_result.gl_pathv[i],
-                                           &metadata_entry->value, mediafiles,
-                                           mediafiles_count))
-                    goto end;
-            }
-            globfree(&glob_result);
-        }
-        else {
-            r = stat(complete_pattern, &s);
-            if (r != 0) {
-                MAW_PERRORF("stat", complete_pattern);
-                goto end;
-            }
-
-            if (S_ISREG(s.st_mode)) {
-                if (!maw_cfg_add_mediafile(complete_pattern,
-                                           &metadata_entry->value, mediafiles,
-                                           mediafiles_count))
-                    goto end;
-            }
-            else if (S_ISDIR(s.st_mode)) {
-                if ((dir = opendir(complete_pattern)) == NULL) {
-                    MAW_PERRORF("opendir", complete_pattern);
-                    goto end;
-                }
-
-                while ((entry = readdir(dir)) != NULL) {
-                    if (entry->d_type != DT_REG) {
-                        continue;
-                    }
-                    MAW_STRLCPY(filepath, complete_pattern);
-                    MAW_STRLCAT(filepath, "/");
-                    MAW_STRLCAT(filepath, entry->d_name);
-                    if (!maw_cfg_add_mediafile(filepath, &metadata_entry->value,
-                                               mediafiles, mediafiles_count)) {
-                        goto end;
-                    }
-                }
-                (void)closedir(dir);
-                dir = NULL;
-            }
-        }
-    }
-
-    r = 0;
-end:
-    if (dir != NULL)
-        (void)closedir(dir);
-    return r;
-}
-
-void maw_cfg_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES],
-                             ssize_t count) {
-    for (ssize_t i = 0; i < count; i++) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-        free((void *)mediafiles[i].path);
-#pragma GCC diagnostic pop
-    }
 }

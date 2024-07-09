@@ -1,5 +1,5 @@
-#ifndef CFG_H
-#define CFG_H
+#ifndef MAW_CFG_H
+#define MAW_CFG_H
 
 #include "maw/maw.h"
 #include <yaml.h>
@@ -16,8 +16,6 @@
 #define MAW_CFG_KEY_CLEAN        "clean"
 
 #define MAW_CFG_MAX_DEPTH 3
-
-#define MAW_CFG_PATH_MAX 1024
 
 enum YamlKey {
     KEY_NONE,
@@ -45,12 +43,5 @@ void maw_cfg_dump(MawConfig *cfg);
 void maw_cfg_free(MawConfig *cfg);
 int maw_cfg_parse(const char *filepath, MawConfig **cfg)
     __attribute__((warn_unused_result));
-int maw_cfg_mediafiles_alloc(MawConfig *cfg, MawArguments *args,
-                             MediaFile mediafiles[MAW_MAX_FILES],
-                             ssize_t *mediafiles_count)
-    __attribute__((warn_unused_result));
 
-void maw_cfg_mediafiles_free(MediaFile mediafiles[MAW_MAX_FILES],
-                             ssize_t count);
-
-#endif // CFG_H
+#endif // MAW_CFG_H

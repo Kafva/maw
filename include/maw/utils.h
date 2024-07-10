@@ -15,5 +15,7 @@ int movefile(const char *src, const char *dst)
     __attribute__((warn_unused_result));
 bool on_same_device(const char *path1, const char *path2);
 uint32_t hash(const char *data);
+int basename_no_ext(const char *filepath, char *out, size_t outsize)
+    __attribute__((warn_unused_result));
 
 #endif // MAW_UTILS_H

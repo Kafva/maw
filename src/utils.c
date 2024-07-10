@@ -90,6 +90,34 @@ bool on_same_device(const char *path1, const char *path2) {
     return stat1.st_dev == stat2.st_dev;
 }
 
+// Music/red/red1.m4a -> red1
+int basename_no_ext(const char *filepath, char *out, size_t outsize) {
+    int r = MAW_ERR_INTERNAL;
+    char *slash;
+    char *dot;
+
+    slash = strrchr(filepath, '/');
+    if (slash == NULL) {
+        MAW_STRLCPY_SIZE(out, filepath, outsize);
+    }
+    else if (strlen(slash) > 1) {
+        MAW_STRLCPY_SIZE(out, slash + 1, outsize);
+    }
+    else {
+        MAW_LOGF(MAW_ERROR, "Invalid filename: %s", filepath);
+        goto end;
+    }
+
+    dot = strrchr(out, '.');
+    if (dot != NULL) {
+        *dot = '\0';
+    }
+
+    r = 0;
+end:
+    return r;
+}
+
 // http://www.isthe.com/chongo/tech/comp/fnv/
 uint32_t hash(const char *str) {
     uint32_t digest = 2166136261;

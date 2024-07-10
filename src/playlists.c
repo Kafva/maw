@@ -108,7 +108,8 @@ int maw_playlists_gen(MawConfig *cfg) {
             }
         }
 
-        MAW_LOGF(MAW_INFO, "Generated: %s [%zu item(s)]", playlistfile, linecnt);
+        MAW_LOGF(MAW_INFO, "Generated: %s [%zu item(s)]", playlistfile,
+                 linecnt);
         (void)close(fd);
     }
 

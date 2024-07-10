@@ -69,6 +69,7 @@ end:
 
 bool maw_verify(const MediaFile *mediafile) {
     bool ok = false;
+    bool is_unclean;
     int r;
     AVFormatContext *fmt_ctx = NULL;
     const AVDictionaryEntry *entry = NULL;
@@ -83,17 +84,19 @@ bool maw_verify(const MediaFile *mediafile) {
         goto end;
     }
 
+    is_unclean = false;
+
     // Verify metadata
     while ((entry = av_dict_iterate(fmt_ctx->metadata, entry))) {
-        if (strcmp(entry->key, "title") == 0) {
+        if (STR_EQ("title", entry->key)) {
             if (!LHS_EMPTY_OR_EQ(mediafile->metadata->title, entry->value))
                 goto end;
         }
-        else if (strcmp(entry->key, "artist") == 0) {
+        else if (STR_EQ("artist", entry->key)) {
             if (!LHS_EMPTY_OR_EQ(mediafile->metadata->artist, entry->value))
                 goto end;
         }
-        else if (strcmp(entry->key, "album") == 0) {
+        else if (STR_EQ("album", entry->key)) {
             if (!LHS_EMPTY_OR_EQ(mediafile->metadata->album, entry->value))
                 goto end;
         }
@@ -102,9 +105,20 @@ bool maw_verify(const MediaFile *mediafile) {
                  strcmp(entry->key, "minor_version") != 0 &&
                  strcmp(entry->key, "compatible_brands") != 0 &&
                  strcmp(entry->key, "encoder") != 0) {
-            // There should be no other fields
+            MAW_LOGF(MAW_ERROR, "%s: Unexpected unclean field: %s",
+                     mediafile->path, entry->key);
             goto end;
         }
+        else if (!mediafile->metadata->clean && !is_unclean) {
+            // Verify that genre was actually kept if clean is unset, we don't
+            // verify that *all* other fields were kept
+            is_unclean = strcmp(entry->key, "genre") == 0;
+        }
+    }
+
+    if (!mediafile->metadata->clean && !is_unclean) {
+        MAW_LOGF(MAW_ERROR, "%s: Expected unclean metadata", mediafile->path);
+        goto end;
     }
 
     if (mediafile->metadata->cover_policy == COVER_CROP &&

@@ -292,6 +292,14 @@ def setup
                    album: "Album",
                    cover_color: "white",
                    random_metadata: false
+    generate_audio "#{TOP}/unit/auto_set_title.m4a",
+                   title: "Not the correct title",
+                   artist: "Artist",
+                   album: "Album"
+    generate_audio "#{TOP}/unit/explicit_title.m4a",
+                   title: "Not the correct title",
+                   artist: "Artist",
+                   album: "Album"
 
     # E2E testing data
     ALBUMS.each do |album|

@@ -15,8 +15,9 @@ static const Metadata no_metadata = {0};
 
 static bool test_dual_audio(const char *desc) {
     int r;
+    const Metadata metadata = {.clean = true};
     const MediaFile mediafile = {.path = "./.testenv/unit/dual_audio.mp4",
-                                 .metadata = &no_metadata};
+                                 .metadata = &metadata};
     (void)desc;
 
     // Second audio stream should be ignored
@@ -40,7 +41,7 @@ static bool test_no_audio(const char *desc) {
 
 static bool test_dual_video(const char *desc) {
     int r;
-    const Metadata metadata = {.title = "dual_video"};
+    const Metadata metadata = {.title = "dual_video", .clean = true};
     const MediaFile mediafile = {.path = "./.testenv/unit/dual_video.mp4",
                                  .metadata = &metadata};
     (void)desc;
@@ -57,10 +58,10 @@ static bool test_dual_video(const char *desc) {
 
 static bool test_keep_all(const char *desc) {
     int r;
-    // Default policy: keep everything (except explicitly set mediafile fields)
-    // as is
+    // Keep everything (except explicitly set mediafile fields)
+    // as is. We only verify that one of the non-core fields are actually kept.
     const Metadata metadata = {
-        .title = "keep_all",
+        .title = "Keep all",
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
@@ -77,10 +78,28 @@ static bool test_keep_all(const char *desc) {
     return true;
 }
 
+static bool test_auto_title(const char *desc) {
+    int r;
+    // Title should be automatically set to the filename by default
+    Metadata metadata = {0};
+    const MediaFile mediafile = {.path = "./.testenv/unit/auto_set_title.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    r = maw_update(&mediafile);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    metadata.title = "auto_set_title";
+    r = maw_verify(&mediafile);
+    MAW_ASSERT_EQ(r, true, desc);
+
+    return true;
+}
+
 static bool test_clear_non_core_fields(const char *desc) {
     int r;
     const Metadata metadata = {
-        .title = "clean",
+        .title = "Clean name",
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
@@ -404,6 +423,7 @@ static bool test_hash(const char *desc) {
 
 static struct Testcase testcases[] = {
     {.desc = "Keep metadata and cover", .fn = test_keep_all},
+    {.desc = "Autoset title", .fn = test_auto_title},
     {.desc = "Clear non core fields", .fn = test_clear_non_core_fields},
     {.desc = "Clear cover", .fn = test_clear_cover},
     {.desc = "Add cover", .fn = test_add_cover},

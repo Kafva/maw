@@ -1,5 +1,6 @@
 #include "maw/av.h"
 #include "maw/log.h"
+#include "maw/utils.h"
 
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
@@ -12,7 +13,7 @@
 
 static int maw_av_demux_cover(MawAVContext *);
 static int maw_av_filter_crop_cover(MawAVContext *);
-static int maw_av_copy_metadata_fields(AVFormatContext *, const Metadata *);
+static int maw_av_copy_metadata_fields(AVFormatContext *, const MediaFile *);
 static int maw_av_set_metadata(MawAVContext *);
 static int maw_av_demux(MawAVContext *);
 static int maw_av_mux(MawAVContext *);
@@ -171,22 +172,39 @@ end:
 }
 
 static int maw_av_copy_metadata_fields(AVFormatContext *fmt_ctx,
-                                       const Metadata *metadata) {
+                                       const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
-    r = av_dict_set(&fmt_ctx->metadata, "title", metadata->title, 0);
-    if (r != 0) {
-        goto end;
+    char *title = NULL;
+
+    // Use the basename of the mediafile as the title if none was provided
+    if (mediafile->metadata->title != NULL) {
+        r = av_dict_set(&fmt_ctx->metadata, "title", mediafile->metadata->title,
+                        0);
+        if (r != 0)
+            goto end;
+    }
+    else {
+        title = calloc(MAW_PATH_MAX, sizeof(char));
+        if (title == NULL) {
+            MAW_PERROR("calloc");
+            goto end;
+        }
+        r = basename_no_ext(mediafile->path, title, MAW_PATH_MAX);
+        if (r != 0)
+            goto end;
+        r = av_dict_set(&fmt_ctx->metadata, "title", title, 0);
+        if (r != 0)
+            goto end;
     }
 
-    r = av_dict_set(&fmt_ctx->metadata, "artist", metadata->artist, 0);
-    if (r != 0) {
+    r = av_dict_set(&fmt_ctx->metadata, "artist", mediafile->metadata->artist,
+                    0);
+    if (r != 0)
         goto end;
-    }
 
-    r = av_dict_set(&fmt_ctx->metadata, "album", metadata->album, 0);
-    if (r != 0) {
+    r = av_dict_set(&fmt_ctx->metadata, "album", mediafile->metadata->album, 0);
+    if (r != 0)
         goto end;
-    }
 
     r = 0;
 end:
@@ -223,12 +241,9 @@ static int maw_av_set_metadata(MawAVContext *ctx) {
     }
 
     // Set custom values
-    if (ctx->mediafile->metadata != NULL) {
-        r = maw_av_copy_metadata_fields(ctx->output_fmt_ctx,
-                                        ctx->mediafile->metadata);
-        if (r != 0) {
-            goto end;
-        }
+    r = maw_av_copy_metadata_fields(ctx->output_fmt_ctx, ctx->mediafile);
+    if (r != 0) {
+        goto end;
     }
 
     r = 0;
@@ -654,6 +669,11 @@ end:
 // See "Stream copy" section of ffmpeg(1), that is what we are doing
 int maw_av_remux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
+
+    if (ctx->mediafile == NULL || ctx->mediafile->metadata == NULL) {
+        MAW_LOG(MAW_ERROR, "Invalid argument");
+        goto end;
+    }
 
     // * Find the indices of the video and audio stream and create
     // corresponding output streams

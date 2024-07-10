@@ -182,7 +182,7 @@ static void usage(void) {
     fprintf(stderr, HEADER_COLOR"USAGE:"NO_COLOR"\n");
     fprintf(stderr, MAW_PROGRAM " [OPTIONS] <COMMAND>\n\n");
     fprintf(stderr, HEADER_COLOR"COMMANDS:"NO_COLOR"\n");
-    fprintf(stderr, OPT_COLOR"    up [paths]"NO_COLOR"              Update metadata in [paths] according to config\n");
+    fprintf(stderr, OPT_COLOR"    update [paths]"NO_COLOR"          Update metadata in [paths] according to config\n");
     fprintf(stderr, OPT_COLOR"    generate"NO_COLOR"                Generate playlists\n");
     fprintf(stderr, "\n");
     fprintf(stderr, HEADER_COLOR"OPTIONS:"NO_COLOR"\n");

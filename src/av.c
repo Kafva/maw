@@ -11,16 +11,27 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/rational.h>
 
-static int maw_av_demux_cover(MawAVContext *);
-static int maw_av_filter_crop_cover(MawAVContext *);
-static int maw_av_copy_metadata_fields(AVFormatContext *, const MediaFile *);
-static int maw_av_set_metadata(MawAVContext *);
-static int maw_av_demux(MawAVContext *);
-static int maw_av_mux(MawAVContext *);
-static int maw_av_init_dec_context(MawAVContext *);
-static int maw_av_init_enc_context(MawAVContext *);
+static bool maw_av_should_crop(MawAVContext *ctx);
+static int maw_av_demux_cover(MawAVContext *ctx);
+static int maw_av_filter_crop_cover(MawAVContext *ctx);
+static int maw_av_copy_metadata_fields(AVFormatContext *ctx,
+                                       const MediaFile *mediafile);
+static int maw_av_set_metadata(MawAVContext *ctx);
+static int maw_av_demux(MawAVContext *ctx);
+static int maw_av_mux(MawAVContext *ctx);
+static int maw_av_init_dec_context(MawAVContext *ctx);
+static int maw_av_init_enc_context(MawAVContext *ctx);
 
 ////////////////////////////////////////////////////////////////////////////////
+
+static bool maw_av_should_crop(MawAVContext *ctx) {
+    return ctx->video_input_stream_index != -1 &&
+           ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
+           ctx->mediafile->metadata->cover_path == NULL &&
+           (ctx->dec_codec_ctx == NULL ||
+            (ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
+             ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT));
+}
 
 static int maw_av_demux_cover(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
@@ -452,11 +463,7 @@ static int maw_av_mux(MawAVContext *ctx) {
     // actual raw data. Filters can not be applied directly on packets, we
     // need to decode them into frames and re-encode them back into packets.
     AVPacket *pkt = NULL;
-    bool should_crop =
-        ctx->video_input_stream_index != -1 &&
-        ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
-        ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
-        ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT;
+    bool should_crop = maw_av_should_crop(ctx);
 
     r = avio_open(&(ctx->output_fmt_ctx->pb), ctx->output_filepath,
                   AVIO_FLAG_WRITE);
@@ -684,8 +691,7 @@ int maw_av_remux(MawAVContext *ctx) {
         goto end;
 
     // Only try to crop if there is an input video stream
-    if (ctx->video_input_stream_index != -1 &&
-        ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP) {
+    if (maw_av_should_crop(ctx)) {
         r = maw_av_init_dec_context(ctx);
         if (r != 0)
             goto end;

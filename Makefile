@@ -176,7 +176,9 @@ coverage:
 		--ignore-filename-regex='deps/*'
 
 install: $(BUILD)/$(PROGRAM)
-	install -D $< $(PREFIX)/bin/$(PROGRAM)
+	@# macOS does not have the install -D flag 😭
+	mkdir -p $(PREFIX)/bin
+	install $< $(PREFIX)/bin/$(PROGRAM)
 
 clean:
 	rm -rf $(BUILD)/*.o $(BUILD)/.*.json $(BUILD)/tests $(BUILD)/$(PROGRAM) \

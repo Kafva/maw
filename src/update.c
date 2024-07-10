@@ -32,12 +32,7 @@ static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
     if (original->cover_path != NULL && new->cover_path == NULL) {
         new->cover_path = strdup(original->cover_path);
     }
-    if (original->cover_policy != COVER_POLICY_NONE &&
-        new->cover_policy == COVER_POLICY_NONE) {
-        new->cover_policy = original->cover_policy;
-    }
-
-    // Always keep the new value for `clean`
+    // XXX: Always keep the new value for `clean` and `cover_policy`
 }
 
 static bool maw_update_add(const char *filepath, Metadata *metadata,
@@ -101,6 +96,19 @@ static bool maw_update_should_alloc(MawArguments *args,
     }
 
     return false;
+}
+
+static void maw_update_check(MediaFile mediafiles[MAW_MAX_FILES],
+                             ssize_t count) {
+    const Metadata *m;
+
+    for (ssize_t i = 0; i < count; i++) {
+        m = mediafiles[i].metadata;
+        if (m->cover_path != NULL && m->cover_policy != COVER_POLICY_NONE) {
+            MAW_LOGF(MAW_WARN, "%s: crop policy has no effect with a cover set",
+                     mediafiles[i].path);
+        }
+    }
 }
 
 // Given our *cfg, create a MediaFile[] that we can feed to the job launcher.
@@ -187,6 +195,8 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
             }
         }
     }
+
+    maw_update_check(mediafiles, *mediafiles_count);
 
     r = 0;
 end:

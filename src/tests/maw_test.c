@@ -163,6 +163,30 @@ static bool test_crop_nocover(const char *desc) {
     return true;
 }
 
+static bool test_crop_ignore(const char *desc) {
+    int r;
+    // A CROP policy should be ignored if a cover is provided
+    Metadata metadata = {
+        .cover_policy = COVER_POLICY_CROP,
+        .cover_path = "./.testenv/art/blue-1.png",
+        .clean = true,
+    };
+    MediaFile mediafile = {.path = "./.testenv/unit/crop_ignore.m4a",
+                           .metadata = &metadata};
+    (void)desc;
+
+    r = maw_update(&mediafile);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    // Set the policy to what we actually expect to have happen
+    metadata.cover_policy = COVER_POLICY_NONE;
+    metadata.title = "crop_ignore";
+    r = maw_verify(&mediafile);
+    MAW_ASSERT_EQ(r, true, desc);
+
+    return true;
+}
+
 static bool test_crop_cover(const char *desc) {
     int r;
     const Metadata metadata = {
@@ -454,6 +478,7 @@ static struct Testcase testcases[] = {
     {.desc = "Dual video streams", .fn = test_dual_video},
     {.desc = "Crop cover", .fn = test_crop_cover},
     {.desc = "Crop no cover on source", .fn = test_crop_nocover},
+    {.desc = "Crop policy ignore", .fn = test_crop_ignore},
     {.desc = "Threads ok", .fn = test_threads_ok},
     {.desc = "Threads error", .fn = test_threads_error},
     {.desc = "YAML ok", .fn = test_cfg_ok},

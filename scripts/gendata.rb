@@ -275,6 +275,7 @@ def setup
     generate_audio "#{TOP}/unit/only_audio.m4a"
 
     generate_audio "#{TOP}/unit/crop_nocover.m4a"
+    generate_audio "#{TOP}/unit/crop_ignore.m4a"
     generate_audio "#{TOP}/unit/add_cover.m4a"
     generate_audio "#{TOP}/unit/clear_cover.m4a"
     generate_audio "#{TOP}/unit/crop_cover.m4a",

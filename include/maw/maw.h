@@ -42,27 +42,27 @@ enum MawError {
 };
 
 struct Metadata {
-    const char *title;
-    const char *album;
-    const char *artist;
-    const char *cover_path;
+    char *title;
+    char *album;
+    char *artist;
+    char *cover_path;
     CoverPolicy cover_policy;
     bool clean;
 } typedef Metadata;
 
 struct MediaFile {
-    const char *path;
+    char *path;
     const Metadata *metadata;
     uint32_t path_digest;
 } typedef MediaFile;
 
 struct PlaylistPath {
-    const char *path;
+    char *path;
     TAILQ_ENTRY(PlaylistPath) entry;
 } typedef PlaylistPath;
 
 struct Playlist {
-    const char *name;
+    char *name;
     TAILQ_HEAD(, PlaylistPath) playlist_paths_head;
 } typedef Playlist;
 
@@ -72,7 +72,7 @@ struct PlaylistEntry {
 } typedef PlaylistEntry;
 
 struct MetadataEntry {
-    const char *pattern;
+    char *pattern;
     Metadata value;
     TAILQ_ENTRY(MetadataEntry) entry;
 } typedef MetadataEntry;

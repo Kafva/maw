@@ -1,7 +1,6 @@
 #include "maw/tests/maw_test.h"
 #include "maw/cfg.h"
 #include "maw/maw.h"
-#include "maw/mediafiles.h"
 #include "maw/playlists.h"
 #include "maw/tests/maw_verify.h"
 #include "maw/threads.h"
@@ -35,7 +34,7 @@ static bool test_no_audio(const char *desc) {
     (void)desc;
 
     r = maw_update(&mediafile);
-    MAW_ASSERT_EQ(r, MAW_ERR_UNSUPPORTED_INPUT_STREAMS, desc);
+    MAW_ASSERT_EQ(r, 0, desc); // OK return value, non mp4 files are skipped
     return true;
 }
 
@@ -309,7 +308,7 @@ static bool test_update(const char *desc) {
     r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
+    r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     // Only paths starting with 'red' should have been included
@@ -328,7 +327,7 @@ static bool test_update(const char *desc) {
     }
 
     maw_cfg_free(cfg);
-    maw_mediafiles_free(mediafiles, mediafiles_count);
+    maw_update_free(mediafiles, mediafiles_count);
 
     return true;
 }
@@ -372,13 +371,13 @@ static bool test_cfg_ok(const char *desc) {
     r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    r = maw_mediafiles_alloc(cfg, &args, mediafiles, &mediafiles_count);
+    r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
     maw_cfg_dump(cfg);
 
     maw_cfg_free(cfg);
-    maw_mediafiles_free(mediafiles, mediafiles_count);
+    maw_update_free(mediafiles, mediafiles_count);
 
     return true;
 }
@@ -433,8 +432,8 @@ static struct Testcase testcases[] = {
     {.desc = "Dual audio streams", .fn = test_dual_audio},
     {.desc = "Dual video streams", .fn = test_dual_video},
     {.desc = "Crop cover", .fn = test_crop_cover},
-    {.desc = "Jobs ok", .fn = test_threads_ok},
-    {.desc = "Jobs error", .fn = test_threads_error},
+    {.desc = "Threads ok", .fn = test_threads_ok},
+    {.desc = "Threads error", .fn = test_threads_error},
     {.desc = "YAML ok", .fn = test_cfg_ok},
     {.desc = "YAML key missing value", .fn = test_cfg_key_missing_value},
     {.desc = "YAML invalid", .fn = test_cfg_error},

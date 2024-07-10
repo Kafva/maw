@@ -44,7 +44,7 @@ static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser,
 
     *fp = fopen(filepath, "r");
     if (*fp == NULL) {
-        MAW_PERROR(filepath);
+        MAW_PERRORF("fopen", filepath);
         goto end;
     }
 
@@ -463,15 +463,11 @@ void maw_cfg_free(MawConfig *cfg) {
 
     while (!TAILQ_EMPTY(&(cfg->metadata_head))) {
         m = TAILQ_FIRST(&(cfg->metadata_head));
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
         free((void *)m->pattern);
         free((void *)m->value.title);
         free((void *)m->value.album);
         free((void *)m->value.artist);
         free((void *)m->value.cover_path);
-#pragma GCC diagnostic pop
 
         TAILQ_REMOVE(&(cfg->metadata_head), m, entry);
         free(m);
@@ -482,21 +478,14 @@ void maw_cfg_free(MawConfig *cfg) {
 
         while (!TAILQ_EMPTY(&(p->value.playlist_paths_head))) {
             pp = TAILQ_FIRST(&(p->value.playlist_paths_head));
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
             free((void *)pp->path);
-#pragma GCC diagnostic pop
 
             TAILQ_REMOVE(&(p->value.playlist_paths_head), pp, entry);
             free(pp);
         }
 
         TAILQ_REMOVE(&(cfg->playlists_head), p, entry);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
         free((void *)p->value.name);
-#pragma GCC diagnostic pop
         free(p);
     }
 

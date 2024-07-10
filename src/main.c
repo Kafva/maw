@@ -38,7 +38,6 @@
 #define MAW_OPTS "m:" _MAW_OPTS
 #else
 #include "maw/cfg.h"
-#include "maw/mediafiles.h"
 #include "maw/playlists.h"
 #include "maw/update.h"
 #define MAW_OPTS _MAW_OPTS
@@ -233,7 +232,7 @@ static int set_config(MawArguments *args, char *config_path, size_t size) {
             fprintf(stderr, "No config file provided\n");
         }
         else {
-            MAW_PERROR("stat");
+            MAW_PERRORF("stat", config_path);
         }
         goto end;
     }
@@ -248,7 +247,7 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
 
-    r = maw_mediafiles_alloc(cfg, args, mediafiles, &mediafiles_count);
+    r = maw_update_load(cfg, args, mediafiles, &mediafiles_count);
     if (r != 0)
         goto end;
 
@@ -274,7 +273,7 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     r = 0;
 
 end:
-    maw_mediafiles_free(mediafiles, mediafiles_count);
+    maw_update_free(mediafiles, mediafiles_count);
     return r;
 }
 

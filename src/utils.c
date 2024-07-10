@@ -14,7 +14,7 @@ size_t readfile(const char *filepath, char *out, size_t outsize) {
 
     fp = fopen(filepath, "r");
     if (fp == NULL) {
-        MAW_PERROR(filepath);
+        MAW_PERRORF("fopen", filepath);
         goto end;
     }
 
@@ -42,13 +42,13 @@ int movefile(const char *src, const char *dst) {
 
     fp_src = fopen(src, "r");
     if (fp_src == NULL) {
-        MAW_PERROR(src);
+        MAW_PERRORF("fopen", src);
         goto end;
     }
 
     fp_dst = fopen(dst, "w");
     if (fp_dst == NULL) {
-        MAW_PERROR(dst);
+        MAW_PERRORF("fopen", dst);
         goto end;
     }
 
@@ -61,7 +61,7 @@ int movefile(const char *src, const char *dst) {
 
     r = unlink(src);
     if (r != 0) {
-        MAW_PERROR(src);
+        MAW_PERRORF("unlink", src);
         goto end;
     }
 
@@ -78,12 +78,12 @@ bool on_same_device(const char *path1, const char *path2) {
     struct stat stat1, stat2;
 
     if (stat(path1, &stat1) < 0) {
-        MAW_PERROR("stat");
+        MAW_PERRORF("stat", path1);
         return false;
     }
 
     if (stat(path2, &stat2) < 0) {
-        MAW_PERROR("stat");
+        MAW_PERRORF("stat", path2);
         return false;
     }
 

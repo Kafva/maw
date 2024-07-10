@@ -64,7 +64,7 @@ static bool test_keep_all(const char *desc) {
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        // .cover_policy = COVER_UNSPECIFIED // (implicit)
+        // .cover_policy = COVER_POLICY_NONE // (implicit)
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/keep_all.m4a",
                                  .metadata = &metadata};
@@ -146,7 +146,7 @@ static bool test_bad_covers(const char *desc) {
 static bool test_crop_nocover(const char *desc) {
     int r;
     Metadata metadata = {
-        .cover_policy = COVER_CROP,
+        .cover_policy = COVER_POLICY_CROP,
         .clean = true,
     };
     MediaFile mediafile = {.path = "./.testenv/unit/crop_nocover.m4a",
@@ -166,7 +166,7 @@ static bool test_crop_nocover(const char *desc) {
 static bool test_crop_cover(const char *desc) {
     int r;
     const Metadata metadata = {
-        .cover_policy = COVER_CROP,
+        .cover_policy = COVER_POLICY_CROP,
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/crop_cover.m4a",
                                  .metadata = &metadata};
@@ -189,7 +189,7 @@ static bool test_crop_cover(const char *desc) {
 static bool test_clear_cover(const char *desc) {
     int r;
     const Metadata metadata = {
-        .cover_policy = COVER_CLEAR,
+        .cover_policy = COVER_POLICY_CLEAR,
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/clear_cover.m4a",
                                  .metadata = &metadata};

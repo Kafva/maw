@@ -89,10 +89,9 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
 
 static const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
     switch (key) {
-        CASE_RET(COVER_UNSPECIFIED);
-        CASE_RET(COVER_KEEP);
-        CASE_RET(COVER_CLEAR);
-        CASE_RET(COVER_CROP);
+        CASE_RET(COVER_POLICY_NONE);
+        CASE_RET(COVER_POLICY_CLEAR);
+        CASE_RET(COVER_POLICY_CROP);
     }
 }
 
@@ -219,14 +218,14 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
         metadata->cover_path = cover_path;
         break;
     case KEY_COVER_POLICY:
-        if (STR_CASE_EQ("keep", value)) {
-            metadata->cover_policy = COVER_KEEP;
+        if (STR_CASE_EQ("none", value)) {
+            metadata->cover_policy = COVER_POLICY_NONE;
         }
         else if (STR_CASE_EQ("crop", value)) {
-            metadata->cover_policy = COVER_CROP;
+            metadata->cover_policy = COVER_POLICY_CROP;
         }
         else if (STR_CASE_EQ("clear", value)) {
-            metadata->cover_policy = COVER_CLEAR;
+            metadata->cover_policy = COVER_POLICY_CLEAR;
         }
         else {
             MAW_YAML_ERROR(ctx, token, "value", value);
@@ -295,7 +294,7 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
             metadata_entry->value.album = NULL;
             metadata_entry->value.artist = NULL;
             metadata_entry->value.cover_path = NULL;
-            metadata_entry->value.cover_policy = COVER_UNSPECIFIED;
+            metadata_entry->value.cover_policy = COVER_POLICY_NONE;
             metadata_entry->value.clean = false;
             metadata_entry->pattern = strdup(key);
             TAILQ_INSERT_TAIL(&cfg->metadata_head, metadata_entry, entry);

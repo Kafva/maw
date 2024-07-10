@@ -28,9 +28,10 @@ metadata:
   # This entry also matches files under `red/`, matches later in the configuration
   # take precedence!
   red/*no_cover.m4a:
-    # What to do with thumbnails when no `cover` is provided?
-    # Possible values CLEAR|KEEP|CROP, default is KEEP.
-    # CROP will crop from 1280x720 -> 720x720
+    # Possible values:
+    #   NONE: keep the current cover unless a `cover` is provided [default]
+    #   CLEAR: remove the cover art
+    #   CROP: crop from 1280x720 -> 720x720
     cover_policy: CLEAR
 
 playlists:

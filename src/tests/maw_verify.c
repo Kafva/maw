@@ -121,7 +121,7 @@ bool maw_verify(const MediaFile *mediafile) {
         goto end;
     }
 
-    if (mediafile->metadata->cover_policy == COVER_CROP &&
+    if (mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
         fmt_ctx->nb_streams == 2) {
         if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width ==
                   CROP_DESIRED_WIDTH &&
@@ -141,7 +141,7 @@ bool maw_verify(const MediaFile *mediafile) {
             goto end;
         }
     }
-    else if (mediafile->metadata->cover_policy == COVER_CLEAR) {
+    else if (mediafile->metadata->cover_policy == COVER_POLICY_CLEAR) {
         // No cover should be present
         if (fmt_ctx->nb_streams != 1) {
             MAW_LOGF(MAW_ERROR, "%s: Expected one stream: found %u",

@@ -234,7 +234,7 @@ def setup
               cover_policy: CLEAR
             # Best match, this should be used!
             blue/*blue_2.m4a:
-              cover_policy: KEEP
+              cover_policy: NONE
             blue/*3.m4a:
               cover_policy: CROP
 

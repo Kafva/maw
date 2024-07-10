@@ -32,8 +32,8 @@ static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
     if (original->cover_path != NULL && new->cover_path == NULL) {
         new->cover_path = strdup(original->cover_path);
     }
-    if (original->cover_policy != COVER_UNSPECIFIED &&
-        new->cover_policy == COVER_UNSPECIFIED) {
+    if (original->cover_policy != COVER_POLICY_NONE &&
+        new->cover_policy == COVER_POLICY_NONE) {
         new->cover_policy = original->cover_policy;
     }
 

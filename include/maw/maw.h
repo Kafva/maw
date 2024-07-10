@@ -23,13 +23,11 @@
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
     // Keep original cover art unless a custom `cover_path` is given (default)
-    COVER_UNSPECIFIED = 0,
-    // Explicitly keep the current cover as is
-    COVER_KEEP = 1,
+    COVER_POLICY_NONE = 0,
     // Remove cover art if present
-    COVER_CLEAR = 2,
+    COVER_POLICY_CLEAR = 1,
     // Crop 1280x720 covers to 720x720, idempotent for 720x720 covers.
-    COVER_CROP = 3,
+    COVER_POLICY_CROP = 2,
 } typedef CoverPolicy;
 
 enum MawError {

@@ -44,12 +44,13 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
 #define AUDIO_OUTPUT_STREAM_INDEX 0
 #define VIDEO_OUTPUT_STREAM_INDEX 1
 
-#define MAW_CREATE_FILTER(r, filter_ctx, filter, name, filter_graph, args) \
+#define MAW_CREATE_FILTER(r, filepath, filter_ctx, filter, name, filter_graph, \
+                          args) \
     do { \
         r = avfilter_graph_create_filter(filter_ctx, filter, name, args, NULL, \
                                          filter_graph); \
         if (r != 0) { \
-            MAW_AVERROR(r, "Failed to create filter"); \
+            MAW_AVERROR(r, filepath, "Failed to create filter"); \
             goto end; \
         } \
         if (args == NULL) { \

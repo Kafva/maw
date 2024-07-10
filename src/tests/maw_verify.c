@@ -75,12 +75,12 @@ bool maw_verify(const MediaFile *mediafile) {
     const AVDictionaryEntry *entry = NULL;
 
     if ((r = avformat_open_input(&fmt_ctx, mediafile->path, NULL, NULL))) {
-        MAW_AVERROR(r, mediafile->path);
+        MAW_AVERROR(r, mediafile->path, NULL);
         goto end;
     }
 
     if ((r = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-        MAW_AVERROR(r, mediafile->path);
+        MAW_AVERROR(r, mediafile->path, NULL);
         goto end;
     }
 

@@ -37,23 +37,25 @@ void maw_log_init(bool verbose, int av_log_level);
     } while (0)
 
 // Log the description of an AV_ERROR
-#define MAW_AVERROR(code, msg) \
+#define MAW_AVERROR(code, filepath, msg) \
     do { \
         char errbuf[128] = {0}; \
         if (av_strerror(code, errbuf, sizeof errbuf) != 0) { \
             if (msg != NULL) { \
-                MAW_LOGF(MAW_ERROR, "%s: Unknown error", msg); \
+                MAW_LOGF(MAW_ERROR, "%s: %s: Unknown error", filepath, \
+                         (char *)msg); \
             } \
             else { \
-                MAW_LOG(MAW_ERROR, "Unknown error"); \
+                MAW_LOGF(MAW_ERROR, "%s: Unknown error", filepath); \
             } \
         } \
         else { \
             if (msg != NULL) { \
-                MAW_LOGF(MAW_ERROR, "%s: %s", msg, errbuf); \
+                MAW_LOGF(MAW_ERROR, "%s: %s: %s", filepath, (char *)msg, \
+                         errbuf); \
             } \
             else { \
-                MAW_LOG(MAW_ERROR, errbuf); \
+                MAW_LOGF(MAW_ERROR, "%s: %s", filepath, errbuf); \
             } \
         } \
     } while (0)

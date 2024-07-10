@@ -42,12 +42,12 @@ static int maw_av_demux_cover(MawAVContext *ctx) {
     r = avformat_open_input(&(ctx->cover_fmt_ctx),
                             ctx->mediafile->metadata->cover_path, NULL, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, ctx->mediafile->metadata->cover_path);
+        MAW_AVERROR(r, ctx->mediafile->metadata->cover_path, NULL);
         goto end;
     }
     r = avformat_find_stream_info(ctx->cover_fmt_ctx, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, ctx->mediafile->metadata->cover_path);
+        MAW_AVERROR(r, ctx->mediafile->metadata->cover_path, NULL);
         goto end;
     }
 
@@ -78,7 +78,7 @@ static int maw_av_demux_cover(MawAVContext *ctx) {
     r = avcodec_parameters_copy(output_stream->codecpar,
                                 ctx->cover_fmt_ctx->streams[0]->codecpar);
     if (r != 0) {
-        MAW_AVERROR(r, ctx->mediafile->metadata->cover_path);
+        MAW_AVERROR(r, ctx->mediafile->metadata->cover_path, NULL);
         goto end;
     }
 
@@ -106,7 +106,8 @@ static int maw_av_filter_crop_cover(MawAVContext *ctx) {
     ctx->filter_graph = avfilter_graph_alloc();
     if (ctx == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Failed to allocate filter graph context");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to allocate filter graph context");
         goto end;
     }
 
@@ -117,7 +118,8 @@ static int maw_av_filter_crop_cover(MawAVContext *ctx) {
     if (buffersrc_filter == NULL || buffersink_filter == NULL ||
         crop_filter == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Failed to initialize crop filter");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to initialize crop filter");
         goto end;
     }
 
@@ -136,8 +138,8 @@ static int maw_av_filter_crop_cover(MawAVContext *ctx) {
         MAW_LOG(MAW_ERROR, "snprintf error/truncation");
         goto end;
     }
-    MAW_CREATE_FILTER(r, &(ctx->filter_buffersrc_ctx), buffersrc_filter, "in",
-                      ctx->filter_graph, args);
+    MAW_CREATE_FILTER(r, ctx->mediafile->path, &(ctx->filter_buffersrc_ctx),
+                      buffersrc_filter, "in", ctx->filter_graph, args);
 
     // Crop filter: frames are cropped at this stage
     x_offset = (CROP_ACCEPTED_WIDTH - CROP_DESIRED_WIDTH) / 2;
@@ -148,27 +150,29 @@ static int maw_av_filter_crop_cover(MawAVContext *ctx) {
         MAW_LOG(MAW_ERROR, "snprintf error/truncation");
         goto end;
     }
-    MAW_CREATE_FILTER(r, &filter_crop_ctx, crop_filter, "crop",
-                      ctx->filter_graph, args);
+    MAW_CREATE_FILTER(r, ctx->mediafile->path, &filter_crop_ctx, crop_filter,
+                      "crop", ctx->filter_graph, args);
 
     // Output filter sink
-    MAW_CREATE_FILTER(r, &(ctx->filter_buffersink_ctx), buffersink_filter,
-                      "out", ctx->filter_graph, (char *)NULL);
+    MAW_CREATE_FILTER(r, ctx->mediafile->path, &(ctx->filter_buffersink_ctx),
+                      buffersink_filter, "out", ctx->filter_graph,
+                      (char *)NULL);
 
     r = avfilter_link(ctx->filter_buffersrc_ctx, 0, filter_crop_ctx, 0);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to link filters");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to link filters");
         goto end;
     }
     r = avfilter_link(filter_crop_ctx, 0, ctx->filter_buffersink_ctx, 0);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to link filters");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to link filters");
         goto end;
     }
 
     r = avfilter_graph_config(ctx->filter_graph, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to configure filter graph");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to configure filter graph");
         goto end;
     }
 
@@ -294,7 +298,7 @@ static int maw_av_demux(MawAVContext *ctx) {
                                     input_stream->codecpar);
 
         if (r != 0) {
-            MAW_AVERROR(r, ctx->mediafile->path);
+            MAW_AVERROR(r, ctx->mediafile->path, NULL);
             goto end;
         }
     }
@@ -332,7 +336,7 @@ static int maw_av_demux(MawAVContext *ctx) {
         r = avcodec_parameters_copy(output_stream->codecpar,
                                     input_stream->codecpar);
         if (r != 0) {
-            MAW_AVERROR(r, ctx->mediafile->path);
+            MAW_AVERROR(r, ctx->mediafile->path, NULL);
             goto end;
         }
 
@@ -381,14 +385,16 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     filtered_frame = av_frame_alloc();
     if (frame == NULL || filtered_frame == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Failed to initialize filter structures");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to initialize filter structures");
         goto end;
     }
 
     // Send the packet to the decoder
     r = avcodec_send_packet(ctx->dec_codec_ctx, pkt);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to send packet to decoder");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to send packet to decoder");
         goto end;
     }
     av_packet_unref(pkt);
@@ -399,14 +405,14 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
         goto end;
     }
     else if (r != 0) {
-        MAW_AVERROR(r, "Failed to read decoded frame");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to read decoded frame");
         goto end;
     }
 
     // Push the frame into the filter graph
     r = av_buffersrc_add_frame(ctx->filter_buffersrc_ctx, frame);
     if (r != 0) {
-        MAW_AVERROR(r, "Error feeding the filtergraph");
+        MAW_AVERROR(r, ctx->mediafile->path, "Error feeding the filtergraph");
         goto end;
     }
     av_frame_free(&frame);
@@ -414,14 +420,14 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     // Pull filtered frames from the filtergraph
     r = av_buffersink_get_frame(ctx->filter_buffersink_ctx, filtered_frame);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to read filtered frame");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to read filtered frame");
         goto end;
     }
 
     // Encode the frame into a packet
     r = avcodec_send_frame(ctx->enc_codec_ctx, filtered_frame);
     if (r != 0) {
-        MAW_AVERROR(r, "Error sending frame to encoder");
+        MAW_AVERROR(r, ctx->mediafile->path, "Error sending frame to encoder");
         goto end;
     }
     av_frame_free(&filtered_frame);
@@ -430,7 +436,7 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     av_packet_unref(pkt);
     r = avcodec_receive_packet(ctx->enc_codec_ctx, pkt);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to read filtered packet");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to read filtered packet");
         goto end;
     }
 
@@ -468,13 +474,13 @@ static int maw_av_mux(MawAVContext *ctx) {
     r = avio_open(&(ctx->output_fmt_ctx->pb), ctx->output_filepath,
                   AVIO_FLAG_WRITE);
     if (r != 0) {
-        MAW_AVERROR(r, ctx->mediafile->path);
+        MAW_AVERROR(r, ctx->mediafile->path, NULL);
         goto end;
     }
 
     r = avformat_write_header(ctx->output_fmt_ctx, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to write header");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to write header");
         goto end;
     }
 
@@ -542,7 +548,7 @@ static int maw_av_mux(MawAVContext *ctx) {
         // The pkt passed to this function is automatically freed
         r = av_interleaved_write_frame(ctx->output_fmt_ctx, pkt);
         if (r != 0) {
-            MAW_AVERROR(r, "Failed to mux packet");
+            MAW_AVERROR(r, ctx->mediafile->path, "Failed to mux packet");
             goto end;
         }
         // This warning: 'Encoder did not produce proper pts, making some up.'
@@ -576,14 +582,14 @@ static int maw_av_mux(MawAVContext *ctx) {
 
         r = av_interleaved_write_frame(ctx->output_fmt_ctx, pkt);
         if (r != 0) {
-            MAW_AVERROR(r, "Failed to mux packet");
+            MAW_AVERROR(r, ctx->mediafile->path, "Failed to mux packet");
             break;
         }
     }
 
     r = av_write_trailer(ctx->output_fmt_ctx);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to write trailer");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to write trailer");
         goto end;
     }
 
@@ -607,20 +613,21 @@ static int maw_av_init_dec_context(MawAVContext *ctx) {
     ctx->dec_codec_ctx = avcodec_alloc_context3(NULL);
     if (ctx->dec_codec_ctx == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Failed to allocate decoder context");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to allocate decoder context");
         goto end;
     }
 
     r = avcodec_parameters_to_context(ctx->dec_codec_ctx,
                                       VIDEO_INPUT_STREAM(ctx)->codecpar);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to copy codec parameters");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to copy codec parameters");
         goto end;
     }
 
     r = avcodec_open2(ctx->dec_codec_ctx, dec_codec, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to open decoder context");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to open decoder context");
         goto end;
     }
 
@@ -651,7 +658,8 @@ static int maw_av_init_enc_context(MawAVContext *ctx) {
     ctx->enc_codec_ctx = avcodec_alloc_context3(enc_codec);
     if (ctx->enc_codec_ctx == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Failed to allocate encoder context");
+        MAW_AVERROR(r, ctx->mediafile->path,
+                    "Failed to allocate encoder context");
         goto end;
     }
 
@@ -667,7 +675,7 @@ static int maw_av_init_enc_context(MawAVContext *ctx) {
 
     r = avcodec_open2(ctx->enc_codec_ctx, enc_codec, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to open encoder context");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to open encoder context");
         goto end;
     }
     r = 0;
@@ -731,7 +739,7 @@ int maw_av_remux(MawAVContext *ctx) {
     // * Configure metadata
     r = maw_av_set_metadata(ctx);
     if (r != 0) {
-        MAW_AVERROR(r, "Failed to copy metadata");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to copy metadata");
         goto end;
     }
 
@@ -784,13 +792,13 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
     // TODO: leak during 'Replace cover'
     r = avformat_open_input(&input_fmt_ctx, mediafile->path, NULL, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, mediafile->path);
+        MAW_AVERROR(r, mediafile->path, NULL);
         goto end;
     }
     // Read input file metadata
     r = avformat_find_stream_info(input_fmt_ctx, NULL);
     if (r != 0) {
-        MAW_AVERROR(r, mediafile->path);
+        MAW_AVERROR(r, mediafile->path, NULL);
         goto end;
     }
 
@@ -799,14 +807,14 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
     r = avformat_alloc_output_context2(&output_fmt_ctx, NULL, NULL,
                                        output_filepath);
     if (r != 0) {
-        MAW_AVERROR(r, output_filepath);
+        MAW_AVERROR(r, output_filepath, NULL);
         goto end;
     }
 
     ctx = calloc(1, sizeof(MawAVContext));
     if (ctx == NULL) {
         r = AVERROR(ENOMEM);
-        MAW_AVERROR(r, "Failed to allocate context");
+        MAW_AVERROR(r, ctx->mediafile->path, "Failed to allocate context");
         goto end;
     }
 

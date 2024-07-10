@@ -120,7 +120,7 @@ end:
 
 const char *extname(const char *s) {
     char *dot;
-    dot = strchr(s, '.');
+    dot = strrchr(s, '.');
     // No extension
     if (dot == NULL || dot == s + strlen(s)) {
         return NULL;

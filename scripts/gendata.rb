@@ -218,7 +218,7 @@ def setup
               - red/audio_red_2.m4a
             second:
               - blue/audio_blue_1.m4a
-              - blue/audio_blue_2.m4a
+              - blue/*_2.m4a
               - red
         metadata:
             red:

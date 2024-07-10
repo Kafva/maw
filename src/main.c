@@ -15,6 +15,18 @@
 #define MAW_PROGRAM "maw"
 #endif
 
+#ifndef MAW_VERSION
+#define MAW_VERSION "unknown"
+#endif
+
+#ifndef MAW_BUILDER_NAME
+#define MAW_BUILDER_NAME ""
+#endif
+
+#ifndef MAW_BUILDER_EMAIL
+#define MAW_BUILDER_EMAIL ""
+#endif
+
 #define HEADER_COLOR "\033[33m"
 #define OPT_COLOR    "\033[32m"
 #define NO_COLOR     "\033[0m"
@@ -162,6 +174,12 @@ static void usage(void) {
            sizeof(long_options_usage) / sizeof(char *));
 
     // clang-format off
+#ifdef DEBUG
+    fprintf(stderr, OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [debug]\n");
+#else
+    fprintf(stderr, OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [release]\n");
+#endif
+    fprintf(stderr, MAW_BUILDER_NAME " <" MAW_BUILDER_EMAIL ">\n\n");
     fprintf(stderr, HEADER_COLOR"USAGE:"NO_COLOR"\n");
     fprintf(stderr, MAW_PROGRAM " [OPTIONS] <COMMAND>\n\n");
     fprintf(stderr, HEADER_COLOR"COMMANDS:"NO_COLOR"\n");

@@ -25,6 +25,9 @@ OBJS              = $(SRCS:src/%.c=$(BUILD)/%.o)
 BUILD             = $(CURDIR)/build
 
 CFLAGS            += -DMAW_PROGRAM=\"$(PROGRAM)\"
+CFLAGS            += -DMAW_VERSION=\"$(shell git describe --tags)\"
+CFLAGS            += -DMAW_BUILDER_NAME=\"$(shell git config user.name)\"
+CFLAGS            += -DMAW_BUILDER_EMAIL=\"$(shell git config user.email)\"
 CFLAGS            += -std=c99
 CFLAGS            += -pthread
 ifeq ($(UNAME),linux)

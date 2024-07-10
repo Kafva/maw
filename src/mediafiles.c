@@ -173,6 +173,9 @@ int maw_mediafiles_alloc(MawConfig *cfg, MawArguments *args,
                     if (entry->d_type != DT_REG) {
                         continue;
                     }
+                    if (entry->d_name[0] == '.') {
+                        continue;
+                    }
                     MAW_STRLCPY(filepath, complete_pattern);
                     MAW_STRLCAT(filepath, "/");
                     MAW_STRLCAT(filepath, entry->d_name);

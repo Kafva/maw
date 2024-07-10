@@ -5,9 +5,21 @@
 
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
-    char tmpfile[] = "/tmp/maw.XXXXXX.m4a";
-    int tmphandle = mkstemps(tmpfile, sizeof(".m4a") - 1);
+    char tmpfile[MAW_PATH_MAX] = "/tmp/maw.XXXXXX.";
+    int tmphandle;
     MawAVContext *ctx = NULL;
+    const char *ext;
+
+    ext = extname(mediafile->path);
+
+    if (ext == NULL || (!STR_EQ("mp4", ext) && !STR_EQ("m4a", ext))) {
+        MAW_LOGF(MAW_WARN, "%s: Skipping unsupported format", mediafile->path);
+        r = 0;
+        goto end;
+    }
+
+    MAW_STRLCAT(tmpfile, ext);
+    tmphandle = mkstemps(tmpfile, (int)strlen(ext));
 
     if (mediafile->metadata == NULL) {
         MAW_LOGF(MAW_ERROR, "%s: Invalid metadata configuration",

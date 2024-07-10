@@ -1,5 +1,5 @@
 # maw
-Maw provides a way to declaratively configure metadata for media files based on
+Maw provides a way to declaratively configure metadata for mp4/m4a files based on
 a config. Example configuration, read by default from `~/.config/maw/maw.yml`:
 
 ```yaml
@@ -60,14 +60,16 @@ maw -c maw.yml generate
 
 ## Building
 
-### macOS
 ```bash
+# macOS
 brew install libyaml ffmpeg nasm
 make install
-```
 
-### NixOS
-```bash
+# Debian
+sudo apt install clang libyaml-dev ffmpeg
+make install
+
+# NixOS
 nix build
 ```
 

@@ -118,6 +118,18 @@ end:
     return r;
 }
 
+const char *extname(const char *s) {
+    char *dot;
+    dot = strchr(s, '.');
+    // No extension
+    if (dot == NULL || dot == s + strlen(s)) {
+        return NULL;
+    }
+    else {
+        return dot + 1;
+    }
+}
+
 // http://www.isthe.com/chongo/tech/comp/fnv/
 uint32_t hash(const char *str) {
     uint32_t digest = 2166136261;

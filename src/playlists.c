@@ -60,6 +60,8 @@ int maw_playlists_gen(MawConfig *cfg) {
             MAW_STRLCAT(path, "/");
             MAW_STRLCAT(path, pp->path);
 
+            // TODO handle globs
+
             r = stat(path, &s);
             if (r != 0) {
                 MAW_PERRORF("stat", path);

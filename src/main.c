@@ -67,7 +67,7 @@ static const char *long_options_usage[] = {
     "Number of parrallel jobs to run",
     "Verbose logging",
     "Do not make any changes to media files",
-    "Log level for libav backend",
+    "Log level for libav*",
 #ifdef MAW_TEST
     "Testcase to run",
 #endif

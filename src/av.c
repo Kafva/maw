@@ -452,7 +452,8 @@ static int maw_av_mux(MawAVContext *ctx) {
     // actual raw data. Filters can not be applied directly on packets, we
     // need to decode them into frames and re-encode them back into packets.
     AVPacket *pkt = NULL;
-    bool should_crop = ctx->mediafile->metadata->cover_policy == COVER_CROP &&
+    bool should_crop = ctx->video_input_stream_index != -1 &&
+                       ctx->mediafile->metadata->cover_policy == COVER_CROP &&
                        ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
                        ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT;
 
@@ -681,7 +682,9 @@ int maw_av_remux(MawAVContext *ctx) {
     if (r != 0)
         goto end;
 
-    if (ctx->mediafile->metadata->cover_policy == COVER_CROP) {
+    // Only try to crop if there is an input video stream
+    if (ctx->video_input_stream_index != -1 &&
+        ctx->mediafile->metadata->cover_policy == COVER_CROP) {
         r = maw_av_init_dec_context(ctx);
         if (r != 0)
             goto end;

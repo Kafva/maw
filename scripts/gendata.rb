@@ -274,6 +274,7 @@ def setup
     generate_dual_video "#{TOP}/unit/dual_video.mp4"
     generate_audio "#{TOP}/unit/only_audio.m4a"
 
+    generate_audio "#{TOP}/unit/crop_nocover.m4a"
     generate_audio "#{TOP}/unit/add_cover.m4a"
     generate_audio "#{TOP}/unit/clear_cover.m4a"
     generate_audio "#{TOP}/unit/crop_cover.m4a",

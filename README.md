@@ -58,14 +58,19 @@ To generate playlists defined in the YAML configuration
 maw -c maw.yml generate
 ```
 
+Maw is purposefully made to only produce a specific type of output. The
+output file will always have one audio stream and optionally one video stream
+with cover data. Subtitle streams etc. in the input file are always removed.
+
 ## Building
+Requires ffmpeg 7 or newer.
 
 ```bash
 # macOS
 brew install libyaml ffmpeg nasm
 make install
 
-# Debian
+# Debian/Ubuntu
 sudo apt install clang \
                  ffmpeg \
                  libyaml-dev \

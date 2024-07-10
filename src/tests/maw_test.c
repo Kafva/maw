@@ -143,6 +143,26 @@ static bool test_bad_covers(const char *desc) {
     return true;
 }
 
+static bool test_crop_nocover(const char *desc) {
+    int r;
+    Metadata metadata = {
+        .cover_policy = COVER_CROP,
+        .clean = true,
+    };
+    MediaFile mediafile = {.path = "./.testenv/unit/crop_nocover.m4a",
+                           .metadata = &metadata};
+    (void)desc;
+
+    r = maw_update(&mediafile);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    metadata.title = "crop_nocover";
+    r = maw_verify(&mediafile);
+    MAW_ASSERT_EQ(r, true, desc);
+
+    return true;
+}
+
 static bool test_crop_cover(const char *desc) {
     int r;
     const Metadata metadata = {
@@ -433,6 +453,7 @@ static struct Testcase testcases[] = {
     {.desc = "Dual audio streams", .fn = test_dual_audio},
     {.desc = "Dual video streams", .fn = test_dual_video},
     {.desc = "Crop cover", .fn = test_crop_cover},
+    {.desc = "Crop no cover on source", .fn = test_crop_nocover},
     {.desc = "Threads ok", .fn = test_threads_ok},
     {.desc = "Threads error", .fn = test_threads_error},
     {.desc = "YAML ok", .fn = test_cfg_ok},

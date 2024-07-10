@@ -264,7 +264,7 @@ static bool test_replace_cover(const char *desc) {
     return true;
 }
 
-// Jobs ////////////////////////////////////////////////////////////////////////
+// Threads /////////////////////////////////////////////////////////////////////
 
 static bool test_threads_ok(const char *desc) {
     int r;
@@ -347,7 +347,7 @@ static bool test_update(const char *desc) {
     MawArguments args = {
         .cmd_args = folders,
         .cmd_args_count = 1,
-        .thread_count = 3,
+        .thread_count = 2,
     };
 
     r = maw_cfg_parse(config_path, &cfg);
@@ -361,6 +361,56 @@ static bool test_update(const char *desc) {
     for (int i = 0; i < mediafiles_count; i++) {
         r = STR_HAS_PREFIX(mediafiles[i].path + music_dir_pathlen, "red");
         MAW_ASSERT_EQ(r, true, desc);
+    }
+
+    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    for (ssize_t i = 0; i < mediafiles_count; i++) {
+        r = maw_verify(&mediafiles[i]);
+        MAW_ASSERT_EQ(r, true, desc);
+    }
+
+    maw_cfg_free(cfg);
+    maw_update_free(mediafiles, mediafiles_count);
+
+    return true;
+}
+
+static bool test_update_override(const char *desc) {
+    int r;
+    const char *config_path = ".testenv/maw.yml";
+    MawConfig *cfg = NULL;
+    MediaFile mediafiles[MAW_MAX_FILES];
+    ssize_t mediafiles_count = 0;
+    char *folders[] = {"blue"};
+    size_t music_dir_pathlen;
+    MawArguments args = {
+        .cmd_args = folders,
+        .cmd_args_count = 1,
+        .thread_count = 1,
+    };
+
+    r = maw_cfg_parse(config_path, &cfg);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
+    MAW_ASSERT_EQ(r, 0, desc);
+
+    // Only paths starting with 'blue' should have been included
+    music_dir_pathlen = strlen(cfg->music_dir) + 1;
+    for (int i = 0; i < mediafiles_count; i++) {
+        r = STR_HAS_PREFIX(mediafiles[i].path + music_dir_pathlen, "blue");
+        MAW_ASSERT_EQ(r, true, desc);
+
+        // The blue/audio_blue_2.m4a entry should have its cover_path set to an
+        // empty string, the final match from the config
+        if (STR_EQ(mediafiles[i].path + music_dir_pathlen,
+                   "blue/audio_blue_2.m4a")) {
+            r = mediafiles->metadata->cover_path != NULL &&
+                strlen(mediafiles->metadata->cover_path) == 0;
+            MAW_ASSERT_EQ(r, true, desc);
+        }
     }
 
     r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
@@ -486,6 +536,7 @@ static struct Testcase testcases[] = {
     {.desc = "YAML invalid", .fn = test_cfg_error},
     {.desc = "FNV-1a Hash", .fn = test_hash},
     {.desc = "Update command", .fn = test_update},
+    {.desc = "Update override cover", .fn = test_update_override},
     {.desc = "Playlists command", .fn = test_playlists}};
 
 int run_tests(const char *match_testcase) {

@@ -28,6 +28,7 @@ static bool maw_av_should_crop(MawAVContext *ctx) {
     return ctx->video_input_stream_index != -1 &&
            ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
            ctx->mediafile->metadata->cover_path == NULL &&
+           strlen(ctx->mediafile->metadata->cover_path) > 0 &&
            (ctx->dec_codec_ctx == NULL ||
             (ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
              ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT));

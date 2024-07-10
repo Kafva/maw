@@ -74,33 +74,24 @@ nix build
 ## Development notes
 ```bash
 # Build options:
-#   DEBUG=1:    Build with debug configuration, dependencies are also built
-#               from source with debug symbols when this option is enabled
-#   TESTS=1:    Build unit tests executable
-#   COVERAGE=1  Build with coverage instrumentation flags
+#   DEBUG=1:      Build with debug configuration, dependencies are also built
+#                 from source with debug symbols when this option is enabled
+#   ASAN=1        Build with LLVM AddressSanitizer
+#   TESTS=1:      Build unit tests executable
+#   COVERAGE=1    Build with coverage instrumentation flags
 make
 ./build/maw --help
 
-# XXX: When building DEBUG on macOS, do not use the system clang.
-# The system default version does not work well with sanitizers.
-brew install llvm
-export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-
-# Run all tests
+# Run all tests (check for regressions)
 make test
 
 # Run all tests with coverage
 make coverage
 
+# Check for memory leaks with AddressSanitizer
+./scripts/asan.sh -m $TESTCASE
+
 # Debug a specific test case
 ./scripts/gendata.rb && DEBUG=1 TESTS=1 make &&
     lldb -o run ./build/maw_test -- -v -l quiet -m $TESTCASE
-
-# Check for memory leaks on macOS
-# https://stackoverflow.com/a/70209891/9033629
-export MallocNanoZone=0
-export ASAN_OPTIONS=detect_leaks=1
-
-./scripts/gendata.rb && DEBUG=1 TESTS=1 make &&
-    ./build/maw_test -v -l quiet -m $TESTCASE
 ```

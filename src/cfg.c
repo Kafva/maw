@@ -280,9 +280,9 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
 
     switch (mkey) {
     case KEY_INVALID:
+        MAW_LOGF(MAW_ERROR, "Unexpected key for current context: '%s'", key);
         goto end;
     case KEY_ARBITRARY:
-        // All keys are valid *directly under* 'metadata' and 'playlists'
         switch (ctx->keypath[0]) {
         case KEY_METADATA:
             // New entry under 'metadata'

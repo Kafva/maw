@@ -1,5 +1,6 @@
 #include "maw/tests/maw_test.h"
 #include "maw/cfg.h"
+#include "maw/maw.h"
 #include "maw/mediafiles.h"
 #include "maw/playlists.h"
 #include "maw/tests/maw_verify.h"
@@ -363,6 +364,19 @@ static bool test_cfg_ok(const char *desc) {
     return true;
 }
 
+static bool test_cfg_key_missing_value(const char *desc) {
+    int r;
+    const char *config_path = ".testenv/unit/key_missing_value.yml";
+    MawConfig *cfg = NULL;
+
+    r = maw_cfg_parse(config_path, &cfg);
+    MAW_ASSERT_EQ(r, MAW_ERR_INTERNAL, desc);
+
+    maw_cfg_free(cfg);
+
+    return true;
+}
+
 static bool test_cfg_error(const char *desc) {
     int r;
     const char *config_path = ".testenv/unit/bad.yml";
@@ -401,8 +415,9 @@ static struct Testcase testcases[] = {
     {.desc = "Crop cover", .fn = test_crop_cover},
     {.desc = "Jobs ok", .fn = test_threads_ok},
     {.desc = "Jobs error", .fn = test_threads_error},
-    {.desc = "Configuration ok", .fn = test_cfg_ok},
-    {.desc = "Configuration error", .fn = test_cfg_error},
+    {.desc = "YAML ok", .fn = test_cfg_ok},
+    {.desc = "YAML key missing value", .fn = test_cfg_key_missing_value},
+    {.desc = "YAML invalid", .fn = test_cfg_error},
     {.desc = "FNV-1a Hash", .fn = test_hash},
     {.desc = "Update command", .fn = test_update},
     {.desc = "Playlists command", .fn = test_playlists}};

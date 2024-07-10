@@ -247,12 +247,25 @@ def setup
         -----
     EOS
 
+    key_missing_value_cfg_yaml = <<~EOS
+        art_dir: #{ART_ROOT}
+        music_dir: #{MUSIC_ROOT}
+        metadata:
+            red:
+              album: Red album
+              artist: Red artist
+              clean: true
+            blue:
+            blue_has_no_value:
+    EOS
+
     FileUtils.rm_rf TOP
     FileUtils.mkdir_p ART_ROOT
     FileUtils.mkdir_p MUSIC_ROOT
     FileUtils.mkdir_p "#{TOP}/unit"
     File.write(CFG, cfg_yaml)
     File.write("#{TOP}/unit/bad.yml", bad_cfg_yaml)
+    File.write("#{TOP}/unit/key_missing_value.yml", key_missing_value_cfg_yaml)
 
 
     # Unit test data

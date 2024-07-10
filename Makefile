@@ -1,7 +1,6 @@
 CC                := clang
-UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-# Default install location
 PREFIX            ?= $(HOME)/.local
+UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 SRCS              = $(wildcard src/*.c)
 HEADERS           = $(wildcard include/*.h)
@@ -9,8 +8,7 @@ HEADERS           = $(wildcard include/*.h)
 # Tests
 PROGRAM_TEST      = maw_test
 LLVM_PROFDATA     = $(BUILD)/$(PROGRAM_TEST).profdata
-# Needs to be set during invocation of binary
-export LLVM_PROFILE_FILE =  $(BUILD)/$(PROGRAM_TEST).profraw
+LLVM_PROFILE_FILE =  $(BUILD)/$(PROGRAM_TEST).profraw
 
 ifeq ($(TESTS),1)
 CFLAGS            += -DMAW_TEST
@@ -56,7 +54,6 @@ CFLAGS            += -Wuninitialized
 CFLAGS            += -Wconversion
 CFLAGS            += -Wnull-dereference
 
-
 # Libraries
 LDFLAGS           += -lyaml
 LDFLAGS           += -lavcodec
@@ -73,19 +70,11 @@ ifeq ($(DEBUG),1)
 CFLAGS            += -g
 ifeq ($(UNAME),darwin)
 CFLAGS            += -O0
-# Use newer llvm with "support" for leak sanitizer
-# https://discourse.llvm.org/t/does-leaksanitizer-not-work-on-macos-13-apple-silicon/73148/2
-LDFLAGS           += -Wl,-rpath,/opt/homebrew/opt/llvm/lib
-LDFLAGS           += -L/opt/homebrew/opt/llvm/lib
-# XXX: PATH needs to be manually updated with /opt/homebrew/opt/llvm/bin/
-# to compile with a matching $(CC).
 else
 CFLAGS            += -Og
 endif
 CFLAGS            += -Wno-unused
 CFLAGS            += -Wno-unused-parameter
-# XXX: Disable this if using valgrind
-CFLAGS            += -fsanitize=address
 # Use the libraries that we build from source
 CFLAGS            += -I$(BUILD)/deps/include
 LDFLAGS           += -Wl,-rpath,$(BUILD)/deps/lib
@@ -99,6 +88,18 @@ ifeq ($(UNAME),darwin)
 CFLAGS            += -I/opt/homebrew/include
 endif # UNAME
 endif # DEBUG
+
+# XXX: This needs to disabled when using valgrind
+ifeq ($(ASAN),1)
+CFLAGS            += -fsanitize=address
+ifeq ($(UNAME),darwin)
+# Use newer llvm with "support" for leak sanitizer
+# https://discourse.llvm.org/t/does-leaksanitizer-not-work-on-macos-13-apple-silicon/73148/2
+LDFLAGS           += -Wl,-rpath,/opt/homebrew/opt/llvm/lib
+LDFLAGS           += -L/opt/homebrew/opt/llvm/lib
+CC                := /opt/homebrew/opt/llvm/bin/clang
+endif # UNAME
+endif # ASAN
 
 ifeq ($(COVERAGE),1)
 COVERAGE_FLAGS    = -fprofile-instr-generate
@@ -157,13 +158,14 @@ lint:
 
 test:
 	$(CURDIR)/scripts/gendata.rb
-	TESTS=1 $(MAKE) clean all
+	DEBUG=0 TESTS=1 $(MAKE) clean all
 	$(BUILD)/$(PROGRAM_TEST)
 
 coverage:
 	$(CURDIR)/scripts/gendata.rb
-	TESTS=1 COVERAGE=1 $(MAKE) clean all
-	-$(BUILD)/$(PROGRAM_TEST)
+	DEBUG=0 TESTS=1 COVERAGE=1 $(MAKE) clean all
+	LLVM_PROFILE_FILE=$(LLVM_PROFILE_FILE) \
+					  $(BUILD)/$(PROGRAM_TEST)
 	llvm-profdata merge -sparse $(LLVM_PROFILE_FILE) -o $(LLVM_PROFDATA)
 	llvm-cov report $(BUILD)/$(PROGRAM_TEST) \
 		-instr-profile=$(LLVM_PROFDATA) \
@@ -174,7 +176,8 @@ install: $(BUILD)/$(PROGRAM)
 	install $< $(PREFIX)/bin
 
 clean:
-	rm -rf $(BUILD)/*.o $(BUILD)/.*.json $(BUILD)/tests $(BUILD)/maw*
+	rm -rf $(BUILD)/*.o $(BUILD)/.*.json $(BUILD)/tests $(BUILD)/$(PROGRAM) \
+		$(BUILD)/$(PROGRAM_TEST)
 
 distclean:
 	rm -rf $(BUILD)

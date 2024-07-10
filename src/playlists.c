@@ -37,6 +37,7 @@ int maw_playlists_gen(MawConfig *cfg) {
     struct dirent **namelist = NULL;
     int names_count = -1;
     size_t pathsize;
+    size_t linecnt;
     struct stat s;
 
     TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
@@ -52,6 +53,7 @@ int maw_playlists_gen(MawConfig *cfg) {
             goto end;
         }
 
+        linecnt = 0;
         TAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
 
             MAW_STRLCPY(path, cfg->music_dir);
@@ -68,6 +70,7 @@ int maw_playlists_gen(MawConfig *cfg) {
                 pathsize = strlen(pp->path);
                 MAW_WRITE(fd, pp->path, pathsize);
                 MAW_WRITE(fd, "\n", 1);
+                linecnt++;
             }
             else if (S_ISDIR(s.st_mode)) {
                 if ((dir = opendir(path)) == NULL) {
@@ -92,6 +95,7 @@ int maw_playlists_gen(MawConfig *cfg) {
                     pathsize = strlen(path);
                     MAW_WRITE(fd, path, pathsize);
                     MAW_WRITE(fd, "\n", 1);
+                    linecnt++;
 
                     free(namelist[i]);
                     namelist[i] = NULL;
@@ -104,7 +108,7 @@ int maw_playlists_gen(MawConfig *cfg) {
             }
         }
 
-        MAW_LOGF(MAW_INFO, "Generated: %s", playlistfile);
+        MAW_LOGF(MAW_INFO, "Generated: %s [%zu item(s)]", playlistfile, linecnt);
         (void)close(fd);
     }
 

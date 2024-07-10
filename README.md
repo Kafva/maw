@@ -64,7 +64,6 @@ output file will always have one audio stream and optionally one video stream
 with cover data. Subtitle streams etc. in the input file are always removed.
 
 ## Building
-Requires ffmpeg 7 or newer.
 
 ```bash
 # macOS
@@ -72,6 +71,7 @@ brew install libyaml ffmpeg nasm
 make install
 
 # Debian/Ubuntu
+# Requires ffmpeg version 6.1.1 or newer
 sudo apt install clang \
                  ffmpeg \
                  libyaml-dev \

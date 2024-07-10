@@ -258,9 +258,8 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     }
 
     if (args->dry_run) {
-        MAW_LOG(MAW_INFO, "~ Matches ~");
         for (int i = 0; i < mediafiles_count; i++) {
-            MAW_LOGF(MAW_INFO, "  %s", mediafiles[i].path);
+            printf("%s\n", mediafiles[i].path);
         }
     }
     else {

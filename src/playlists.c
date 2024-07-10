@@ -39,8 +39,12 @@ int maw_playlists_gen(MawConfig *cfg) {
     int names_count = -1;
     size_t pathsize;
     size_t linecnt;
+    size_t music_dir_pathlen;
     struct stat s;
+    char *glob_path;
     glob_t glob_result;
+
+    music_dir_pathlen = strlen(cfg->music_dir) + 1;
 
     TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
         r = maw_playlists_path(cfg, p->value.name, playlistfile,
@@ -70,8 +74,9 @@ int maw_playlists_gen(MawConfig *cfg) {
                 }
 
                 for (size_t i = 0; i < glob_result.gl_pathc; i++) {
-                    pathsize = strlen(glob_result.gl_pathv[i]);
-                    MAW_WRITE(fd, glob_result.gl_pathv[i], pathsize);
+                    glob_path = glob_result.gl_pathv[i] + music_dir_pathlen;
+                    pathsize = strlen(glob_path);
+                    MAW_WRITE(fd, glob_path, pathsize);
                     MAW_WRITE(fd, "\n", 1);
                     linecnt++;
                 }

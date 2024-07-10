@@ -66,7 +66,15 @@ brew install libyaml ffmpeg nasm
 make install
 
 # Debian
-sudo apt install clang libyaml-dev ffmpeg
+sudo apt install clang \
+                 ffmpeg \
+                 libyaml-dev \
+                 libavformat-dev \
+                 libavfilter-dev \
+                 libavutil-dev \
+                 libavcodec-dev \
+                 libswresample-dev \
+                 libswscale-dev
 make install
 
 # NixOS

@@ -9,19 +9,17 @@
 #include <string.h>
 #include <sys/stat.h>
 
-static void maw_update_merge_metadata(const Metadata *original,
-                                          Metadata *new);
+static void maw_update_merge_metadata(const Metadata *original, Metadata *new);
 static bool maw_update_add(const char *filepath, Metadata *metadata,
-                               MediaFile mediafiles[MAW_MAX_FILES],
-                               ssize_t *mediafiles_count);
+                           MediaFile mediafiles[MAW_MAX_FILES],
+                           ssize_t *mediafiles_count);
 static bool maw_update_should_alloc(MawArguments *args,
-                                        MetadataEntry *metadata_entry);
+                                    MetadataEntry *metadata_entry);
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // Update the `new` metadata with fields from the `original` if applicable
-static void maw_update_merge_metadata(const Metadata *original,
-                                          Metadata *new) {
+static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
     if (original->title != NULL && new->title == NULL) {
         new->title = strdup(original->title);
     }
@@ -43,8 +41,8 @@ static void maw_update_merge_metadata(const Metadata *original,
 }
 
 static bool maw_update_add(const char *filepath, Metadata *metadata,
-                               MediaFile mediafiles[MAW_MAX_FILES],
-                               ssize_t *mediafiles_count) {
+                           MediaFile mediafiles[MAW_MAX_FILES],
+                           ssize_t *mediafiles_count) {
     MediaFile *latest;
     uint32_t digest;
 
@@ -78,7 +76,7 @@ static bool maw_update_add(const char *filepath, Metadata *metadata,
 // If paths were provided on the command line, only add the sections
 // that have a matching prefix
 static bool maw_update_should_alloc(MawArguments *args,
-                                        MetadataEntry *metadata_entry) {
+                                    MetadataEntry *metadata_entry) {
     size_t patlen;
     size_t arglen;
 
@@ -108,8 +106,8 @@ static bool maw_update_should_alloc(MawArguments *args,
 // Given our *cfg, create a MediaFile[] that we can feed to the job launcher.
 // Later matches in the config file will take precedence!
 int maw_update_load(MawConfig *cfg, MawArguments *args,
-                         MediaFile mediafiles[MAW_MAX_FILES],
-                         ssize_t *mediafiles_count) {
+                    MediaFile mediafiles[MAW_MAX_FILES],
+                    ssize_t *mediafiles_count) {
     int r = MAW_ERR_INTERNAL;
     MetadataEntry *metadata_entry = NULL;
     DIR *dir = NULL;
@@ -145,8 +143,8 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
 
             for (size_t i = 0; i < glob_result.gl_pathc; i++) {
                 if (!maw_update_add(glob_result.gl_pathv[i],
-                                        &metadata_entry->value, mediafiles,
-                                        mediafiles_count))
+                                    &metadata_entry->value, mediafiles,
+                                    mediafiles_count))
                     goto end;
             }
             globfree(&glob_result);
@@ -159,9 +157,8 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
             }
 
             if (S_ISREG(s.st_mode)) {
-                if (!maw_update_add(complete_pattern,
-                                        &metadata_entry->value, mediafiles,
-                                        mediafiles_count))
+                if (!maw_update_add(complete_pattern, &metadata_entry->value,
+                                    mediafiles, mediafiles_count))
                     goto end;
             }
             else if (S_ISDIR(s.st_mode)) {
@@ -181,7 +178,7 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
                     MAW_STRLCAT(filepath, "/");
                     MAW_STRLCAT(filepath, entry->d_name);
                     if (!maw_update_add(filepath, &metadata_entry->value,
-                                            mediafiles, mediafiles_count)) {
+                                        mediafiles, mediafiles_count)) {
                         goto end;
                     }
                 }
@@ -206,7 +203,8 @@ void maw_update_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
 
 int maw_update(const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
-    char tmpfile[MAW_PATH_MAX] = "/tmp/maw.XXXXXX.";
+    char tmpfile[MAW_PATH_MAX];
+    char *tmpdir;
     int tmphandle;
     MawAVContext *ctx = NULL;
     const char *ext;
@@ -225,8 +223,17 @@ int maw_update(const MediaFile *mediafile) {
         goto end;
     }
 
+    // Define temp location for output file under TMPDIR, this allows
+    // for easy overrides to speed up execution if /tmp is on another device.
+    tmpdir = getenv("TMPDIR");
+    if (tmpdir == NULL)
+        tmpdir = "/tmp";
+
+    MAW_STRLCPY(tmpfile, tmpdir);
+    MAW_STRLCAT(tmpfile, "/maw.XXXXXX.");
     MAW_STRLCAT(tmpfile, ext);
-    tmphandle = mkstemps(tmpfile, (int)strlen(ext));
+
+    tmphandle = mkstemps(tmpfile, (int)strlen(ext) + 1); // +1 for the '.'
 
     if (tmphandle < 0) {
         MAW_PERRORF("mkstemps", tmpfile);

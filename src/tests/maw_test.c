@@ -275,12 +275,13 @@ static bool test_threads_error(const char *desc) {
             .path = ".testenv/albums/blue/audio_blue_0.m4a",
             .metadata = &cfg_arr[0],
         },
-        {// BAD
-         .path = "non_existant",
-         .metadata = &cfg_arr[1]},
-        {.path = ".testenv/albums/red/audio_red_1.m4a",
-         .metadata = &cfg_arr[2]},
+        {
+            .path = ".testenv/albums/blue/audio_blue_1.m4a",
+            .metadata = NULL,
+        }, // Should result in failure
         {.path = ".testenv/albums/red/audio_red_2.m4a",
+         .metadata = &cfg_arr[2]},
+        {.path = ".testenv/albums/red/audio_red_3.m4a",
          .metadata = &cfg_arr[3]},
     };
     ssize_t mediafiles_count = sizeof(cfg_arr) / sizeof(Metadata);

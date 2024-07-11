@@ -135,7 +135,7 @@ bool maw_verify(const MediaFile *mediafile) {
             goto end;
         }
     }
-    else if (SHOULD_ATTACH_NEW_COVER(mediafile->metadata)) {
+    else if (mediafile->metadata->cover_policy == COVER_POLICY_PATH) {
         // Configured cover should be present
         if (!maw_verify_cover(fmt_ctx, mediafile)) {
             goto end;

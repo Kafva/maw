@@ -4,16 +4,15 @@
 #include "maw/maw.h"
 #include <yaml.h>
 
-#define MAW_CFG_KEY_ART          "art_dir"
-#define MAW_CFG_KEY_MUSIC        "music_dir"
-#define MAW_CFG_KEY_PLAYLISTS    "playlists"
-#define MAW_CFG_KEY_METADATA     "metadata"
-#define MAW_CFG_KEY_TITLE        "title"
-#define MAW_CFG_KEY_ALBUM        "album"
-#define MAW_CFG_KEY_ARTIST       "artist"
-#define MAW_CFG_KEY_COVER        "cover"
-#define MAW_CFG_KEY_COVER_POLICY "cover_policy"
-#define MAW_CFG_KEY_CLEAN        "clean"
+#define MAW_CFG_KEY_ART       "art_dir"
+#define MAW_CFG_KEY_MUSIC     "music_dir"
+#define MAW_CFG_KEY_PLAYLISTS "playlists"
+#define MAW_CFG_KEY_METADATA  "metadata"
+#define MAW_CFG_KEY_TITLE     "title"
+#define MAW_CFG_KEY_ALBUM     "album"
+#define MAW_CFG_KEY_ARTIST    "artist"
+#define MAW_CFG_KEY_COVER     "cover"
+#define MAW_CFG_KEY_CLEAN     "clean"
 
 #define MAW_CFG_MAX_DEPTH 3
 
@@ -28,7 +27,6 @@ enum YamlKey {
     KEY_ALBUM,
     KEY_ARTIST,
     KEY_COVER,
-    KEY_COVER_POLICY,
     KEY_CLEAN,
 };
 

@@ -20,7 +20,12 @@ metadata:
     # The title defaults to the filename (without extension) for each file.
     album: Red album
     artist: Red artist
-    # Path relative to `art_dir` with thumbnail artwork to set
+    # 
+    # The 'cover' field accepts a path relative to `art_dir` with thumbnail artwork to set or
+    # one of these flags:
+    #   NONE: keep the current cover artwork if any [default]
+    #   CLEAR: remove cover artwork if any
+    #   CROP: crop from 1280x720 -> 720x720
     cover: red.png
     # Should all other metadata fields, composer etc. be cleared?
     clean: true
@@ -28,11 +33,7 @@ metadata:
   # This entry also matches files under `red/`, matches later in the configuration
   # take precedence!
   red/*no_cover.m4a:
-    # Possible values:
-    #   NONE: keep the current cover unless a `cover` is provided [default]
-    #   CLEAR: remove the cover art
-    #   CROP: crop from 1280x720 -> 720x720
-    cover_policy: CLEAR
+    cover: CLEAR
 
 playlists:
   # Define a .m3u playlist with the files below,

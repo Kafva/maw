@@ -260,12 +260,11 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     if (args->dry_run) {
         maw_update_dump(mediafiles, mediafiles_count);
     }
-    else {
-        r = maw_threads_launch(mediafiles, mediafiles_count,
-                               args->thread_count);
-        if (r != 0)
-            goto end;
-    }
+
+    r = maw_threads_launch(mediafiles, mediafiles_count, args->thread_count,
+                           args->dry_run);
+    if (r != 0)
+        goto end;
 
     r = 0;
 

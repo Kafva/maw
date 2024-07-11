@@ -232,7 +232,7 @@ def setup
               clean: true
             blue/*2.m4a:
               # Should be ignored in favor of the next entry
-              cover_policy: CLEAR
+              cover: CLEAR
             blue/*blue_2.m4a:
               # Override with no cover
               cover: ''

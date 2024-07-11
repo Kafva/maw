@@ -2,6 +2,7 @@
 #include "maw/av.h"
 #include "maw/cfg.h"
 #include "maw/log.h"
+#include "maw/maw.h"
 #include "maw/utils.h"
 
 #include <dirent.h>
@@ -23,8 +24,6 @@ static bool maw_update_should_alloc(MawArguments *args,
 // If a metadata field is set in `original` AND unset it `new`, use the
 // `original` value, otherwise keep the new value.
 static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
-    // XXX: An empty string for any of these fields is different from NULL and
-    // will be used over the original value.
     if (original->title != NULL && new->title == NULL) {
         new->title = strdup(original->title);
     }
@@ -34,10 +33,14 @@ static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
     if (original->artist != NULL && new->artist == NULL) {
         new->artist = strdup(original->artist);
     }
-    if (original->cover_path != NULL && new->cover_path == NULL) {
-        new->cover_path = strdup(original->cover_path);
+    if (original->cover_policy != COVER_POLICY_NONE &&
+        new->cover_policy == COVER_POLICY_NONE) {
+        new->cover_policy = original->cover_policy;
+        if (new->cover_policy == COVER_POLICY_PATH) {
+            new->cover_path = strdup(original->cover_path);
+        }
     }
-    // XXX: Always keep the new value for `clean` and `cover_policy`
+    // XXX: Always keep the new value for `clean`
 }
 
 static bool maw_update_add(const char *filepath, Metadata *metadata,
@@ -101,21 +104,6 @@ static bool maw_update_should_alloc(MawArguments *args,
     }
 
     return false;
-}
-
-static void maw_update_check(MediaFile mediafiles[MAW_MAX_FILES],
-                             ssize_t count) {
-    const Metadata *m;
-
-    for (ssize_t i = 0; i < count; i++) {
-        m = mediafiles[i].metadata;
-        if (m->cover_path != NULL && strlen(m->cover_path) > 0 &&
-            m->cover_policy != COVER_POLICY_NONE) {
-            MAW_LOGF(MAW_WARN, "%s: %s has no effect with a cover set",
-                     mediafiles[i].path,
-                     maw_cfg_cover_policy_tostr(m->cover_policy));
-        }
-    }
 }
 
 // Given our *cfg, create a MediaFile[] that we can feed to the job launcher.
@@ -203,8 +191,6 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
         }
     }
 
-    maw_update_check(mediafiles, *mediafiles_count);
-
     r = 0;
 end:
     if (dir != NULL)
@@ -223,10 +209,7 @@ void maw_update_dump(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
         printf("    \"" MAW_CFG_KEY_ARTIST "\": \"%s\",\n",
                mediafiles[i].metadata->artist);
         printf("    \"" MAW_CFG_KEY_COVER "\": \"%s\",\n",
-               mediafiles[i].metadata->cover_path);
-        printf(
-            "    \"" MAW_CFG_KEY_COVER_POLICY "\": \"%s\",\n",
-            maw_cfg_cover_policy_tostr(mediafiles[i].metadata->cover_policy));
+               MAW_COVER_TOSTR(mediafiles[i].metadata));
         printf("    \"" MAW_CFG_KEY_CLEAN "\": \"%d\"\n",
                mediafiles[i].metadata->clean);
         printf(i == count - 1 ? "  }\n" : "  },\n");
@@ -240,7 +223,7 @@ void maw_update_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
     }
 }
 
-int maw_update(const MediaFile *mediafile) {
+int maw_update(const MediaFile *mediafile, bool dry_run) {
     int r = MAW_ERR_INTERNAL;
     char tmpfile[MAW_PATH_MAX];
     char *tmpdir;
@@ -248,17 +231,34 @@ int maw_update(const MediaFile *mediafile) {
     MawAVContext *ctx = NULL;
     const char *ext;
 
+    // Check argument sanity
+    if (mediafile == NULL || mediafile->metadata == NULL ||
+        mediafile->path == NULL) {
+        MAW_LOG(MAW_ERROR, "No metadata configuration provided");
+        goto end;
+    }
+    if (mediafile->metadata->cover_policy != COVER_POLICY_PATH &&
+        mediafile->metadata->cover_path != NULL) {
+        MAW_LOGF(MAW_ERROR,
+                 "%s: cover_path should be unset for current policy: %s",
+                 mediafile->path,
+                 maw_cfg_cover_policy_tostr(mediafile->metadata->cover_policy));
+        goto end;
+    }
+    if (mediafile->metadata->cover_policy == COVER_POLICY_PATH &&
+        mediafile->metadata->cover_path == NULL) {
+        MAW_LOGF(MAW_ERROR,
+                 "%s: cover_path should be set for current policy: %s",
+                 mediafile->path,
+                 maw_cfg_cover_policy_tostr(mediafile->metadata->cover_policy));
+        goto end;
+    }
+
     ext = extname(mediafile->path);
 
     if (ext == NULL || (!STR_EQ("mp4", ext) && !STR_EQ("m4a", ext))) {
         MAW_LOGF(MAW_WARN, "%s: Skipping unsupported format", mediafile->path);
         r = 0;
-        goto end;
-    }
-
-    if (mediafile->metadata == NULL) {
-        MAW_LOGF(MAW_ERROR, "%s: Invalid metadata configuration",
-                 mediafile->path);
         goto end;
     }
 
@@ -282,26 +282,31 @@ int maw_update(const MediaFile *mediafile) {
 
     MAW_LOGF(MAW_DEBUG, "%s -> %s", mediafile->path, tmpfile);
 
+    // Initialize libav contexts
     ctx = maw_av_init_context(mediafile, tmpfile);
     if (ctx == NULL)
         goto end;
 
+    // Remux the input file
     r = maw_av_remux(ctx);
     if (r != 0) {
         goto end;
     }
 
-    if (on_same_device(tmpfile, mediafile->path)) {
-        r = rename(tmpfile, mediafile->path);
-        if (r != 0) {
-            MAW_PERRORF("rename", tmpfile);
-            goto end;
+    if (!dry_run) {
+        // Replace the input file with the output file
+        if (on_same_device(tmpfile, mediafile->path)) {
+            r = rename(tmpfile, mediafile->path);
+            if (r != 0) {
+                MAW_PERRORF("rename", tmpfile);
+                goto end;
+            }
         }
-    }
-    else {
-        r = movefile(tmpfile, mediafile->path);
-        if (r != 0)
-            goto end;
+        else {
+            r = movefile(tmpfile, mediafile->path);
+            if (r != 0)
+                goto end;
+        }
     }
 
     r = 0;

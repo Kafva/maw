@@ -50,6 +50,7 @@ static void *maw_threads_worker(void *arg) {
     int finished_jobs = 0;
     ThreadContext *ctx = (ThreadContext *)arg;
     unsigned long tid = (unsigned long)pthread_self();
+    const MediaFile *mediafile;
 
     if (ctx->status != THREAD_STARTED) {
         MAW_LOGF(MAW_ERROR, "Thread #%lu not properly started", tid);
@@ -74,8 +75,8 @@ static void *maw_threads_worker(void *arg) {
         }
 
         // Do work on current mediafiles_index
-        r = maw_update(
-            (const MediaFile *)(&ctx->mediafiles[ctx->mediafiles_index]));
+        mediafile = &ctx->mediafiles[ctx->mediafiles_index];
+        r = maw_update(mediafile, ctx->dry_run);
 
         // On fail, set next_mediafiles_index to -1, cancelling other threads
         if (r != 0) {
@@ -100,7 +101,7 @@ end:
 
 // @return non-zero if at least one thread fails
 int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
-                       size_t thread_count) {
+                       size_t thread_count, bool dry_run) {
     int status = -1;
     int r = MAW_ERR_INTERNAL;
     pthread_t *threads = NULL;

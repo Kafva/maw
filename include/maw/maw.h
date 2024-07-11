@@ -22,12 +22,14 @@
 
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
-    // Keep original cover art unless a custom `cover_path` is given (default)
+    // Keep original cover
     COVER_POLICY_NONE = 0,
+    // Use custom cover art
+    COVER_POLICY_PATH = 1,
     // Remove cover art if present
-    COVER_POLICY_CLEAR = 1,
+    COVER_POLICY_CLEAR = 2,
     // Crop 1280x720 covers to 720x720, idempotent for 720x720 covers.
-    COVER_POLICY_CROP = 2,
+    COVER_POLICY_CROP = 3,
 } typedef CoverPolicy;
 
 enum MawError {
@@ -43,6 +45,7 @@ struct Metadata {
     char *title;
     char *album;
     char *artist;
+    // Only relevant when COVER_POLICY_PATH is set
     char *cover_path;
     CoverPolicy cover_policy;
     bool clean;
@@ -139,11 +142,10 @@ struct MawArguments {
         } \
     } while (0)
 
-// The value for a Metadata item that infer that a new external cover
-// should be attached.
-#define SHOULD_ATTACH_NEW_COVER(m) \
-    (m->cover_path != NULL && strlen(m->cover_path) > 0 && \
-     m->cover_policy == COVER_POLICY_NONE)
+#define MAW_COVER_TOSTR(m) \
+    ((m->cover_policy == COVER_POLICY_PATH) \
+         ? m->cover_path \
+         : maw_cfg_cover_policy_tostr(m->cover_policy))
 
 #define MAW_STRLCAT(dst, src) MAW_STRLCAT_SIZE(dst, src, sizeof(dst))
 

@@ -15,9 +15,11 @@ struct ThreadContext {
     ThreadStatus status;
     const MediaFile *mediafiles;
     ssize_t mediafiles_index;
+    bool dry_run;
 } typedef ThreadContext;
 
 int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
-                       size_t thread_count) __attribute__((warn_unused_result));
+                       size_t thread_count, bool dry_run)
+    __attribute__((warn_unused_result));
 
 #endif // MAW_THREADS_H

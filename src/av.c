@@ -27,7 +27,6 @@ static int maw_av_init_enc_context(MawAVContext *ctx);
 static bool maw_av_should_crop(MawAVContext *ctx) {
     return ctx->video_input_stream_index != -1 &&
            ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
-           !SHOULD_ATTACH_NEW_COVER(ctx->mediafile->metadata) &&
            (ctx->dec_codec_ctx == NULL ||
             (ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
              ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT));
@@ -687,11 +686,6 @@ end:
 int maw_av_remux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
 
-    if (ctx->mediafile == NULL || ctx->mediafile->metadata == NULL) {
-        MAW_LOG(MAW_ERROR, "Invalid argument");
-        goto end;
-    }
-
     // * Find the indices of the video and audio stream and create
     // corresponding output streams
     r = maw_av_demux(ctx);
@@ -727,7 +721,7 @@ int maw_av_remux(MawAVContext *ctx) {
                 goto end;
         }
     }
-    else if (SHOULD_ATTACH_NEW_COVER(ctx->mediafile->metadata)) {
+    else if (ctx->mediafile->metadata->cover_policy == COVER_POLICY_PATH) {
         // * Find the input stream in the cover and create a corresponding
         // output stream
         r = maw_av_demux_picture_file(ctx);

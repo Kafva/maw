@@ -80,7 +80,6 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
         CASE_RET(KEY_ALBUM);
         CASE_RET(KEY_ARTIST);
         CASE_RET(KEY_COVER);
-        CASE_RET(KEY_COVER_POLICY);
         CASE_RET(KEY_CLEAN);
     default:
         return NULL;
@@ -90,6 +89,7 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
 const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
     switch (key) {
         CASE_RET(COVER_POLICY_NONE);
+        CASE_RET(COVER_POLICY_PATH);
         CASE_RET(COVER_POLICY_CLEAR);
         CASE_RET(COVER_POLICY_CROP);
     }
@@ -171,9 +171,6 @@ static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx,
         else if (STR_EQ(MAW_CFG_KEY_COVER, key)) {
             return KEY_COVER;
         }
-        else if (STR_EQ(MAW_CFG_KEY_COVER_POLICY, key)) {
-            return KEY_COVER_POLICY;
-        }
         else if (STR_EQ(MAW_CFG_KEY_CLEAN, key)) {
             return KEY_CLEAN;
         }
@@ -189,7 +186,6 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
                                       const char *value) {
     int r = MAW_ERR_INTERNAL;
     char *cover_path = NULL;
-    size_t value_len;
 
     switch (ctx->keypath[2]) {
     case KEY_ALBUM:
@@ -199,31 +195,6 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
         metadata->artist = strdup(value);
         break;
     case KEY_COVER:
-        if (cfg->art_dir == NULL) {
-            MAW_LOGF(MAW_ERROR,
-                     "%s: an art_dir must be configured before setting a cover",
-                     value);
-            goto end;
-        }
-
-        // Set the cover path to an empty string (do not prepend `art_dir`)
-        // when the configuration contains a `cover: ''` mapping.
-        value_len = strlen(value);
-        cover_path = calloc(value_len == 0 ? 1 : MAW_PATH_MAX, sizeof(char));
-        if (cover_path == NULL) {
-            MAW_PERROR("calloc");
-            goto end;
-        }
-
-        if (value_len > 0) {
-            MAW_STRLCPY_SIZE(cover_path, cfg->art_dir, (size_t)MAW_PATH_MAX);
-            MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_PATH_MAX);
-            MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_PATH_MAX);
-        }
-
-        metadata->cover_path = cover_path;
-        break;
-    case KEY_COVER_POLICY:
         if (STR_CASE_EQ("none", value)) {
             metadata->cover_policy = COVER_POLICY_NONE;
         }
@@ -234,8 +205,26 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
             metadata->cover_policy = COVER_POLICY_CLEAR;
         }
         else {
-            MAW_YAML_ERROR(ctx, token, "value", value);
-            goto end;
+            metadata->cover_policy = COVER_POLICY_PATH;
+            if (cfg->art_dir == NULL) {
+                MAW_LOGF(
+                    MAW_ERROR,
+                    "%s: an art_dir must be configured before setting a cover",
+                    value);
+                goto end;
+            }
+
+            cover_path = calloc(MAW_PATH_MAX, sizeof(char));
+            if (cover_path == NULL) {
+                MAW_PERROR("calloc");
+                goto end;
+            }
+
+            MAW_STRLCPY_SIZE(cover_path, cfg->art_dir, (size_t)MAW_PATH_MAX);
+            MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_PATH_MAX);
+            MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_PATH_MAX);
+
+            metadata->cover_path = cover_path;
         }
         break;
     case KEY_CLEAN:
@@ -575,9 +564,7 @@ void maw_cfg_dump(MawConfig *cfg) {
         MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_ALBUM ": %s", m->value.album);
         MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_ARTIST ": %s", m->value.artist);
         MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_COVER ": %s",
-                 m->value.cover_path);
-        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_COVER_POLICY ": %s",
-                 maw_cfg_cover_policy_tostr(m->value.cover_policy));
+                 MAW_COVER_TOSTR((&m->value)));
         MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_CLEAN ": %d", m->value.clean);
     }
     MAW_LOG(MAW_DEBUG, "playlists:");

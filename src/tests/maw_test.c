@@ -20,7 +20,7 @@ static bool test_dual_audio(const char *desc) {
     (void)desc;
 
     // Second audio stream should be ignored
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -33,7 +33,7 @@ static bool test_no_audio(const char *desc) {
                                  .metadata = &no_metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc); // OK return value, non mp4 files are skipped
     return true;
 }
@@ -46,7 +46,7 @@ static bool test_dual_video(const char *desc) {
     (void)desc;
 
     // Second video stream should be ignored
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -70,7 +70,7 @@ static bool test_keep_all(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -85,7 +85,7 @@ static bool test_auto_title(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
 
     metadata.title = "auto_set_title";
@@ -108,7 +108,7 @@ static bool test_clear_non_core_fields(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -136,7 +136,7 @@ static bool test_bad_covers(const char *desc) {
 
     for (size_t i = 0; i < sizeof(bad_metadata) / sizeof(Metadata); i++) {
         mediafile.metadata = &bad_metadata[i];
-        r = maw_update(&mediafile);
+        r = maw_update(&mediafile, false);
         MAW_ASSERT_EQ(r, errors[i], bad_metadata[i].cover_path);
     }
 
@@ -153,7 +153,7 @@ static bool test_crop_nocover(const char *desc) {
                            .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
 
     metadata.title = "crop_nocover";
@@ -175,7 +175,7 @@ static bool test_crop_ignore(const char *desc) {
                            .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
 
     // Set the policy to what we actually expect to have happen
@@ -197,13 +197,13 @@ static bool test_crop_cover(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
 
     // Verify that a second update is idempotent
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -220,7 +220,7 @@ static bool test_clear_cover(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -239,7 +239,7 @@ static bool test_add_cover(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -258,7 +258,7 @@ static bool test_replace_cover(const char *desc) {
                                  .metadata = &metadata};
     (void)desc;
 
-    r = maw_update(&mediafile);
+    r = maw_update(&mediafile, false);
     MAW_ASSERT_EQ(r, 0, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -292,7 +292,7 @@ static bool test_threads_ok(const char *desc) {
 
     ssize_t mediafiles_count = sizeof(mediafiles) / sizeof(MediaFile);
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, 3);
+    r = maw_threads_launch(mediafiles, mediafiles_count, 3, false);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (ssize_t i = 0; i < mediafiles_count; i++) {
@@ -331,7 +331,7 @@ static bool test_threads_error(const char *desc) {
     };
     ssize_t mediafiles_count = sizeof(cfg_arr) / sizeof(Metadata);
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, 2);
+    r = maw_threads_launch(mediafiles, mediafiles_count, 2, false);
     MAW_ASSERT_EQ(r, -1, desc);
 
     return true;
@@ -345,11 +345,10 @@ static bool test_update(const char *desc) {
     ssize_t mediafiles_count = 0;
     char *folders[] = {"red"};
     size_t music_dir_pathlen;
-    MawArguments args = {
-        .cmd_args = folders,
-        .cmd_args_count = 1,
-        .thread_count = 2,
-    };
+    MawArguments args = {.cmd_args = folders,
+                         .cmd_args_count = 1,
+                         .thread_count = 2,
+                         .dry_run = false};
 
     r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
@@ -364,7 +363,8 @@ static bool test_update(const char *desc) {
         MAW_ASSERT_EQ(r, true, desc);
     }
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
+    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count,
+                           args.dry_run);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (ssize_t i = 0; i < mediafiles_count; i++) {
@@ -385,11 +385,10 @@ static bool test_update_override(const char *desc) {
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
     size_t music_dir_pathlen;
-    MawArguments args = {
-        .cmd_args = NULL,
-        .cmd_args_count = 0,
-        .thread_count = 1,
-    };
+    MawArguments args = {.cmd_args = NULL,
+                         .cmd_args_count = 0,
+                         .thread_count = 1,
+                         .dry_run = false};
 
     r = maw_cfg_parse(config_path, &cfg);
     MAW_ASSERT_EQ(r, 0, desc);
@@ -400,17 +399,17 @@ static bool test_update_override(const char *desc) {
     // Only paths starting with 'blue' should have been included
     music_dir_pathlen = strlen(cfg->music_dir) + 1;
     for (int i = 0; i < mediafiles_count; i++) {
-        // The blue/audio_blue_2.m4a entry should have its cover_path set to an
-        // empty string, the final match from the config. This should not infer
-        // setting a new cover.
+        // The blue/audio_blue_2.m4a entry specifies the 'NONE' keyword for
+        // 'cover', this should result in the original cover being kept.
         if (STR_EQ(mediafiles[i].path + music_dir_pathlen,
                    "blue/audio_blue_2.m4a")) {
-            r = !SHOULD_ATTACH_NEW_COVER(mediafiles->metadata);
+            r = mediafiles[i].metadata->cover_policy == COVER_POLICY_NONE;
             MAW_ASSERT_EQ(r, true, desc);
         }
     }
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count);
+    r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count,
+                           args.dry_run);
     MAW_ASSERT_EQ(r, 0, desc);
 
     for (ssize_t i = 0; i < mediafiles_count; i++) {

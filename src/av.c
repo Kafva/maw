@@ -507,8 +507,9 @@ static int maw_av_mux(MawAVContext *ctx) {
             output_stream_index = AUDIO_OUTPUT_STREAM_INDEX;
         }
         else if (pkt->stream_index == ctx->video_input_stream_index) {
-            if (!NEEDS_ORIGINAL_COVER(ctx->mediafile->metadata)) {
+            if (ctx->mediafile->metadata->cover_policy == COVER_POLICY_PATH) {
                 // Skip original video stream
+                av_packet_unref(pkt);
                 continue;
             }
             // Video stream to keep

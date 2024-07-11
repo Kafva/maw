@@ -431,7 +431,7 @@ static void maw_cfg_ctx_dump(YamlContext *ctx) {
         out[strlen(out) - 1] = '\0';
     }
 
-    if (strlen(out))
+    if (strlen(out) > 0)
         MAW_LOGF(MAW_DEBUG, "YAML context: %s", out);
 }
 
@@ -560,8 +560,12 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
             else {
                 r = maw_cfg_parse_value(*cfg, &ctx, &token);
             }
-            if (r != 0)
+            if (r != 0) {
+                MAW_LOGF(MAW_ERROR, "%s: parsing error %d", ctx.filepath, r);
+                maw_cfg_ctx_dump(&ctx);
+                yaml_token_delete(&token);
                 goto end;
+            }
             break;
         case YAML_BLOCK_SEQUENCE_START_TOKEN:
             MAW_LOG(MAW_DEBUG, "BEGIN sequence");
@@ -581,6 +585,10 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
         case YAML_STREAM_END_TOKEN:
             done = true;
             break;
+        case YAML_NO_TOKEN:
+            r = MAW_ERR_YAML;
+            yaml_token_delete(&token);
+            goto end;
         default:
             MAW_LOGF(MAW_DEBUG, "Token event: #%d", token.type);
             break;
@@ -590,12 +598,6 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     }
 
     maw_cfg_dump(*cfg);
-
-    if (ctx.key_count != 0) {
-        MAW_LOG(MAW_ERROR, "Unexpected end of parsing YAML context");
-        maw_cfg_ctx_dump(&ctx);
-        goto end;
-    }
 
     r = 0;
 end:

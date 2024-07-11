@@ -53,7 +53,7 @@ int maw_playlists_gen(MawConfig *cfg) {
             goto end;
         }
 
-        fd = open(playlistfile, O_CREAT | O_WRONLY, 0644);
+        fd = open(playlistfile, O_CREAT | O_TRUNC | O_WRONLY, 0644);
         if (fd <= 0) {
             MAW_PERRORF("open", playlistfile);
             goto end;

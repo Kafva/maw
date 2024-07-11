@@ -232,6 +232,8 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
     MawAVContext *ctx = NULL;
     const char *ext;
 
+    tmpfile[0] = '\0';
+
     // Check argument sanity
     if (mediafile == NULL || mediafile->metadata == NULL ||
         mediafile->path == NULL) {
@@ -313,7 +315,8 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
 
     r = 0;
 end:
-    (void)unlink(tmpfile);
+    if (tmpfile[0] != '\0')
+        (void)unlink(tmpfile);
     maw_av_free_context(ctx);
     return r;
 }

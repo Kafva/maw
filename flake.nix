@@ -18,7 +18,6 @@
             clang
             ffmpeg_7
             libyaml
-            libbsd
             # For building FFmpeg
             libtool
             nasm

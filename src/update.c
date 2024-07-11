@@ -265,7 +265,7 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
         goto end;
     }
 
-    // Define temp location for output file under IMPAIR, this allows
+    // Define temp location for output file under TMPDIR, this allows
     // for easy overrides to speed up execution if /tmp is on another device.
     tmpdir = getenv("TMPDIR");
     if (tmpdir == NULL)

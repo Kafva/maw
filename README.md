@@ -1,11 +1,12 @@
 # maw
-Maw provides a way to declaratively configure metadata for mp4/m4a files based on
-a config. Example configuration, read by default from `~/.config/maw/maw.yml`:
+Maw provides a way to declaratively configure metadata for mp4/m4a files based
+on a config. See example configuration below, read by default from
+`~/.config/maw/maw.yml`:
 
 ```yaml
 # Directory with custom thumbnail artwork
 art_dir: ~/Pictures/art
-# Directory with media files
+# Directory with mp4 files
 music_dir: ~/Music
 
 # Each entry under `metadata` corresponds to a path (or glob expression)
@@ -20,48 +21,46 @@ metadata:
     # The title defaults to the filename (without extension) for each file.
     album: Red album
     artist: Red artist
-    # 
     # The 'cover' field accepts a path relative to `art_dir` with thumbnail artwork to set or
     # one of these flags:
-    #   NONE: keep the current cover artwork if any [default]
-    #   CLEAR: remove cover artwork if any
-    #   CROP: crop from 1280x720 -> 720x720
+    #   KEEP: keep the current artwork if any [default]
+    #   CLEAR: remove artwork if any
+    #   CROP: crop artwork from 1280x720 -> 720x720
     cover: red.png
-    # Should all other metadata fields, composer etc. be cleared?
+    # Set to true to clear all other metadata fields, e.g. composer etc.
     clean: true
-
   # This entry also matches files under `red/`, matches later in the configuration
   # take precedence!
   red/*no_cover.m4a:
     cover: CLEAR
 
 playlists:
-  # Define a .m3u playlist with the files below,
-  # folders and glob expressions allowed
+  # Define a .m3u playlist with the files below, it will land in 
+  # ~/Music/.playlist1.m3u, folders and glob expressions are allowed
   playlist1:
     - red/track01.m4a
-    - blue/track01.m4a
+    - blue/very blue*.m4a
     - yellow
 ```
 
 To apply the configuration:
 ```bash
-maw -c maw.yml update
+maw update
 ```
 
 A limited set of the configuration can also be applied:
 ```bash
 # Only includes paths under 'red' from the configuration
-maw -c maw.yml update red
+maw update red
 ```
 
-To generate playlists defined in the YAML configuration
+To generate the playlists defined in the YAML configuration
 ```bash
-maw -c maw.yml generate
+maw generate
 ```
 
 Maw is purposefully made to only produce a specific type of output. The
-output file will always have one audio stream and optionally one video stream
+output files will always have one audio stream and optionally one video stream
 with cover data. Subtitle streams etc. in the input file are always removed.
 
 ## Building

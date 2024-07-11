@@ -61,11 +61,6 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
         } \
     } while (0)
 
-#define NEEDS_ORIGINAL_COVER(metadata) \
-    (metadata->cover_policy == COVER_POLICY_CROP || \
-     metadata->cover_policy == COVER_POLICY_UNSPECIFIED || \
-     metadata->cover_policy == COVER_POLICY_KEEP)
-
 #define AUDIO_INPUT_STREAM(ctx) \
     ctx->input_fmt_ctx->streams[ctx->audio_input_stream_index]
 #define VIDEO_INPUT_STREAM(ctx) \

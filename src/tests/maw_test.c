@@ -103,6 +103,7 @@ static bool test_clear_non_core_fields(const char *desc) {
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
+        .cover_policy = COVER_POLICY_UNSPECIFIED,
         .clean_policy = CLEAN_POLICY_TRUE,
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/clean.m4a",

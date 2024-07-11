@@ -222,7 +222,6 @@ end:
     return r;
 }
 
-// @return 0 on success, negative AVERROR code on failure.
 static int maw_av_set_metadata(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVDictionaryEntry *entry = NULL;
@@ -323,7 +322,7 @@ static int maw_av_demux(MawAVContext *ctx) {
         ctx->video_input_stream_index = i;
 
         // Do not demux the original video stream if it is not needed
-        if (!NEEDS_ORIGINAL_COVER(ctx->mediafile->metadata)) {
+        if (ctx->mediafile->metadata->cover_policy == COVER_POLICY_PATH) {
             continue;
         }
 
@@ -346,7 +345,7 @@ static int maw_av_demux(MawAVContext *ctx) {
              ctx->audio_input_stream_index);
 
     if (ctx->video_input_stream_index != -1) {
-        if (NEEDS_ORIGINAL_COVER(ctx->mediafile->metadata)) {
+        if (ctx->mediafile->metadata->cover_policy != COVER_POLICY_PATH) {
             MAW_LOGF(MAW_DEBUG, "%s: Video input stream #%ld",
                      ctx->mediafile->path, ctx->video_input_stream_index);
         }

@@ -99,7 +99,7 @@ end:
     return NULL;
 }
 
-// @return non-zero if at least one thread fails
+// Return non-zero if at least one thread fails
 int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
                        size_t thread_count, bool dry_run) {
     int status = -1;

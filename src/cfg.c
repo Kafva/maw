@@ -87,7 +87,7 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
     }
 }
 
-const char *maw_cfg_clean_policy_tostr(CleanPolicy key) {
+const char *maw_cfg_clean_policy_tostr(enum CleanPolicy key) {
     switch (key) {
         CASE_RET(CLEAN_POLICY_UNSPECIFIED);
         CASE_RET(CLEAN_POLICY_FALSE);
@@ -95,7 +95,7 @@ const char *maw_cfg_clean_policy_tostr(CleanPolicy key) {
     }
 }
 
-const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
+const char *maw_cfg_cover_policy_tostr(enum CoverPolicy key) {
     switch (key) {
         CASE_RET(COVER_POLICY_UNSPECIFIED);
         CASE_RET(COVER_POLICY_KEEP);

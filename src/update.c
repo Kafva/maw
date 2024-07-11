@@ -140,8 +140,15 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
         if (strchr(complete_pattern, '*') != NULL) {
             r = glob(complete_pattern, GLOB_TILDE, NULL, &glob_result);
             if (r != 0) {
-                MAW_PERRORF("glob", complete_pattern);
-                goto end;
+                if (r == GLOB_NOMATCH) {
+                    MAW_LOGF(MAW_WARN, "glob: no matches for %s",
+                             complete_pattern);
+                }
+                else {
+                    MAW_LOGF(MAW_ERROR, "glob: %s: error code %d",
+                             complete_pattern, r);
+                    goto end;
+                }
             }
 
             for (size_t i = 0; i < glob_result.gl_pathc; i++) {

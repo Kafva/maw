@@ -35,7 +35,7 @@ metadata:
     cover: CLEAR
 
 playlists:
-  # Define a .m3u playlist with the files below, it will land in 
+  # Define a .m3u playlist with the files below, it will land in
   # ~/Music/.playlist1.m3u, folders and glob expressions are allowed
   playlist1:
     - red/track01.m4a

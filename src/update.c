@@ -273,7 +273,8 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
     MAW_STRLCAT(tmpfile, "/maw.XXXXXX.");
     MAW_STRLCAT(tmpfile, ext);
 
-    tmphandle = mkstemps(tmpfile, (int)strlen(ext) + 1); // +1 for the '.'
+    // +1 for the last '.'
+    tmphandle = mkstemps(tmpfile, (int)strlen(ext) + 1);
 
     if (tmphandle < 0) {
         MAW_PERRORF("mkstemps", tmpfile);

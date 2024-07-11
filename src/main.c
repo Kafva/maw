@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
         case 'j':
             thread_count = strtol(optarg, NULL, 10);
             if (thread_count <= 0) {
-                fprintf(stderr, "Invalid argument for job count: %s\n", optarg);
+                printf("Invalid argument for job count: %s\n", optarg);
                 return EXIT_FAILURE;
             }
             args.thread_count = (size_t)thread_count;
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
                 args.av_log_level = AV_LOG_QUIET;
             }
             else {
-                fprintf(stderr, "Invalid log level\n");
+                printf("Invalid log level\n");
                 return EXIT_FAILURE;
             }
             break;
@@ -174,18 +174,18 @@ static void usage(void) {
 
     // clang-format off
 #ifdef DEBUG
-    fprintf(stderr, OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [debug]\n");
+    printf(OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [debug]\n");
 #else
-    fprintf(stderr, OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [release]\n");
+    printf(OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [release]\n");
 #endif
-    fprintf(stderr, MAW_BUILDER_NAME " <" MAW_BUILDER_EMAIL ">\n\n");
-    fprintf(stderr, HEADER_COLOR"USAGE:"NO_COLOR"\n");
-    fprintf(stderr, MAW_PROGRAM " [OPTIONS] <COMMAND>\n\n");
-    fprintf(stderr, HEADER_COLOR"COMMANDS:"NO_COLOR"\n");
-    fprintf(stderr, OPT_COLOR"    update [paths]"NO_COLOR"          Update metadata in [paths] according to config\n");
-    fprintf(stderr, OPT_COLOR"    generate"NO_COLOR"                Generate playlists\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, HEADER_COLOR"OPTIONS:"NO_COLOR"\n");
+    printf(MAW_BUILDER_NAME " <" MAW_BUILDER_EMAIL ">\n\n");
+    printf(HEADER_COLOR"USAGE:"NO_COLOR"\n");
+    printf(MAW_PROGRAM " [OPTIONS] <COMMAND>\n\n");
+    printf(HEADER_COLOR"COMMANDS:"NO_COLOR"\n");
+    printf(OPT_COLOR"    update [paths]"NO_COLOR"          Update metadata in [paths] according to config\n");
+    printf(OPT_COLOR"    generate"NO_COLOR"                Generate playlists\n");
+    printf("\n");
+    printf(HEADER_COLOR"OPTIONS:"NO_COLOR"\n");
     // clang-format on
 
     for (size_t i = 0; i < optcount; i++) {
@@ -193,8 +193,8 @@ static void usage(void) {
         if (long_options[i].has_arg) {
             (void)strlcat(buf, " <arg>", sizeof buf);
         }
-        fprintf(stderr, OPT_COLOR "    -%c, --%-18s" NO_COLOR "%-30s\n",
-                long_options[i].val, buf, long_options_usage[i]);
+        printf(OPT_COLOR "    -%c, --%-18s" NO_COLOR "%-30s\n",
+               long_options[i].val, buf, long_options_usage[i]);
     }
 }
 
@@ -229,7 +229,7 @@ static int set_config(MawArguments *args, char *config_path, size_t size) {
 
     if (stat(config_path, &s) < 0) {
         if (errno == ENOENT) {
-            fprintf(stderr, "No config file provided\n");
+            printf("No config file provided\n");
         }
         else {
             MAW_PERRORF("stat", config_path);
@@ -252,7 +252,7 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
         goto end;
 
     if (mediafiles_count == 0) {
-        fprintf(stderr, "No media files matched\n");
+        printf("No media files matched\n");
         fflush(stderr);
         goto end;
     }
@@ -284,7 +284,7 @@ static int run_program(MawArguments *args) {
         return EXIT_FAILURE;
     }
     if (args->cmd == NULL) {
-        fprintf(stderr, "No command provided\n");
+        printf("No command provided\n");
         usage();
         return EXIT_FAILURE;
     }
@@ -307,7 +307,7 @@ static int run_program(MawArguments *args) {
             goto end;
     }
     else {
-        fprintf(stderr, "Unknown command: '%s'\n", args->cmd);
+        printf("Unknown command: '%s'\n", args->cmd);
         goto end;
     }
 

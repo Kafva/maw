@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 static bool maw_verbose = false;
-static bool maw_is_tty = true;
+static bool maw_log_is_tty = true;
 
 static void maw_log_prefix(enum LogLevel level, const char *filename, int line,
                            char *out, size_t outsize) {
@@ -16,17 +16,19 @@ static void maw_log_prefix(enum LogLevel level, const char *filename, int line,
     switch (level) {
     case MAW_DEBUG:
         fmt_str =
-            maw_is_tty ? "\033[94mDEBUG\033[0m [%s:%d] " : "DEBUG [%s:%d] ";
+            maw_log_is_tty ? "\033[94mDEBUG\033[0m [%s:%d] " : "DEBUG [%s:%d] ";
         break;
     case MAW_INFO:
-        fmt_str = maw_is_tty ? "\033[92mINFO\033[0m [%s:%d] " : "INFO [%s:%d] ";
+        fmt_str =
+            maw_log_is_tty ? "\033[92mINFO\033[0m [%s:%d] " : "INFO [%s:%d] ";
         break;
     case MAW_WARN:
-        fmt_str = maw_is_tty ? "\033[93mWARN\033[0m [%s:%d] " : "WARN [%s:%d] ";
+        fmt_str =
+            maw_log_is_tty ? "\033[93mWARN\033[0m [%s:%d] " : "WARN [%s:%d] ";
         break;
     case MAW_ERROR:
         fmt_str =
-            maw_is_tty ? "\033[91mERROR\033[0m [%s:%d] " : "ERROR [%s:%d] ";
+            maw_log_is_tty ? "\033[91mERROR\033[0m [%s:%d] " : "ERROR [%s:%d] ";
         break;
     default:
         fmt_str = "[%s:%d] ";
@@ -92,7 +94,7 @@ void maw_log(enum LogLevel level, const char *filename, int line,
 
 void maw_log_init(bool verbose, int av_log_level) {
     maw_verbose = verbose;
-    maw_is_tty = isatty(fileno(stdout)) && isatty(fileno(stderr));
+    maw_log_is_tty = isatty(fileno(MAW_LOG_FP));
 
     av_log_set_level(av_log_level);
 }

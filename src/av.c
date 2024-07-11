@@ -99,6 +99,8 @@ static int maw_av_filter_crop_cover(MawAVContext *ctx) {
 
     if (ctx->video_input_stream_index == -1) {
         // The validity should already have been checked during demux
+        MAW_LOGF(MAW_ERROR, "%s: Video input stream index is unset",
+                 ctx->mediafile->path);
         goto end;
     }
 
@@ -373,8 +375,8 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     AVFrame *filtered_frame = NULL;
     AVFrame *frame = NULL;
 
-    // Create an encoder context, we need this to translate the output
-    // frames from the filtergraph back into packets
+    // Create an encoder context to translate the output frames from the
+    // filtergraph back into packets
     r = maw_av_init_enc_context(ctx);
     if (r != 0)
         goto end;
@@ -397,7 +399,7 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     }
     av_packet_unref(pkt);
 
-    // Read the decoded frame
+    // Read the decoded frame (XXX: EAGAIN is not handled)
     r = avcodec_receive_frame(ctx->dec_codec_ctx, frame);
     if (r == AVERROR_EOF || r == AVERROR(EAGAIN)) {
         goto end;
@@ -441,7 +443,7 @@ static int maw_av_mux_crop(MawAVContext *ctx, AVPacket *pkt) {
     // Write the encoded packet to the output stream
     pkt->pos = -1;
     pkt->pts = AV_NOPTS_VALUE;
-    pkt->stream_index = 1;
+    pkt->stream_index = VIDEO_OUTPUT_STREAM_INDEX;
 
     // Verify that there are not more filtered frames to process
     r = av_buffersink_get_frame(ctx->filter_buffersink_ctx, filtered_frame);
@@ -528,8 +530,8 @@ static int maw_av_mux(MawAVContext *ctx) {
 
         output_stream = ctx->output_fmt_ctx->streams[output_stream_index];
 
-        // The pkt will have the stream_index set to the stream index in the
-        // input file. Remap it to the correct stream_index in the output file.
+        // The `pkt->stream_index` is set to the stream index in the input file.
+        // Remap it to the correct `stream_index` in the output file.
         pkt->stream_index = output_stream_index;
 
         if (should_crop && pkt->stream_index == ctx->video_input_stream_index) {
@@ -569,13 +571,7 @@ static int maw_av_mux(MawAVContext *ctx) {
             goto end;
         }
 
-        output_stream_index = VIDEO_OUTPUT_STREAM_INDEX;
-
-        // Input and output stream for the current packet
-        input_stream = ctx->cover_fmt_ctx->streams[pkt->stream_index];
-        output_stream = ctx->output_fmt_ctx->streams[output_stream_index];
-
-        pkt->stream_index = output_stream_index;
+        pkt->stream_index = VIDEO_OUTPUT_STREAM_INDEX;
         pkt->pos = -1;
 
         r = av_interleaved_write_frame(ctx->output_fmt_ctx, pkt);

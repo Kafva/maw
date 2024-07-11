@@ -190,7 +190,7 @@ end:
 static int maw_av_copy_metadata_fields(AVFormatContext *fmt_ctx,
                                        const MediaFile *mediafile) {
     int r = MAW_ERR_INTERNAL;
-    char *title = NULL;
+    char title[MAW_PATH_MAX];
 
     // Use the basename of the mediafile as the title if none was provided
     if (mediafile->metadata->title != NULL) {
@@ -200,12 +200,7 @@ static int maw_av_copy_metadata_fields(AVFormatContext *fmt_ctx,
             goto end;
     }
     else {
-        title = calloc(MAW_PATH_MAX, sizeof(char));
-        if (title == NULL) {
-            MAW_PERROR("calloc");
-            goto end;
-        }
-        r = basename_no_ext(mediafile->path, title, MAW_PATH_MAX);
+        r = basename_no_ext(mediafile->path, title, sizeof title);
         if (r != 0)
             goto end;
         r = av_dict_set(&fmt_ctx->metadata, "title", title, 0);

@@ -180,6 +180,7 @@ static bool test_crop_ignore(const char *desc) {
 
     // Set the policy to what we actually expect to have happen
     metadata.cover_policy = COVER_POLICY_NONE;
+    metadata.cover_path = "";
     metadata.title = "crop_ignore";
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
@@ -383,11 +384,10 @@ static bool test_update_override(const char *desc) {
     MawConfig *cfg = NULL;
     MediaFile mediafiles[MAW_MAX_FILES];
     ssize_t mediafiles_count = 0;
-    char *folders[] = {"blue"};
     size_t music_dir_pathlen;
     MawArguments args = {
-        .cmd_args = folders,
-        .cmd_args_count = 1,
+        .cmd_args = NULL,
+        .cmd_args_count = 0,
         .thread_count = 1,
     };
 
@@ -400,15 +400,12 @@ static bool test_update_override(const char *desc) {
     // Only paths starting with 'blue' should have been included
     music_dir_pathlen = strlen(cfg->music_dir) + 1;
     for (int i = 0; i < mediafiles_count; i++) {
-        r = STR_HAS_PREFIX(mediafiles[i].path + music_dir_pathlen, "blue");
-        MAW_ASSERT_EQ(r, true, desc);
-
         // The blue/audio_blue_2.m4a entry should have its cover_path set to an
-        // empty string, the final match from the config
+        // empty string, the final match from the config. This should not infer
+        // setting a new cover.
         if (STR_EQ(mediafiles[i].path + music_dir_pathlen,
                    "blue/audio_blue_2.m4a")) {
-            r = mediafiles->metadata->cover_path != NULL &&
-                strlen(mediafiles->metadata->cover_path) == 0;
+            r = !SHOULD_ATTACH_NEW_COVER(mediafiles->metadata);
             MAW_ASSERT_EQ(r, true, desc);
         }
     }

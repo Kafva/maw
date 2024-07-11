@@ -12,7 +12,7 @@
 #include <libavutil/rational.h>
 
 static bool maw_av_should_crop(MawAVContext *ctx);
-static int maw_av_demux_cover(MawAVContext *ctx);
+static int maw_av_demux_picture_file(MawAVContext *ctx);
 static int maw_av_filter_crop_cover(MawAVContext *ctx);
 static int maw_av_copy_metadata_fields(AVFormatContext *ctx,
                                        const MediaFile *mediafile);
@@ -27,14 +27,13 @@ static int maw_av_init_enc_context(MawAVContext *ctx);
 static bool maw_av_should_crop(MawAVContext *ctx) {
     return ctx->video_input_stream_index != -1 &&
            ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
-           ctx->mediafile->metadata->cover_path == NULL &&
-           strlen(ctx->mediafile->metadata->cover_path) > 0 &&
+           !SHOULD_ATTACH_NEW_COVER(ctx->mediafile->metadata) &&
            (ctx->dec_codec_ctx == NULL ||
             (ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
              ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT));
 }
 
-static int maw_av_demux_cover(MawAVContext *ctx) {
+static int maw_av_demux_picture_file(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     AVStream *output_stream = NULL;
     enum AVMediaType codec_type;
@@ -728,11 +727,10 @@ int maw_av_remux(MawAVContext *ctx) {
                 goto end;
         }
     }
-    else if (ctx->mediafile->metadata->cover_path != NULL &&
-             strlen(ctx->mediafile->metadata->cover_path) > 0) {
+    else if (SHOULD_ATTACH_NEW_COVER(ctx->mediafile->metadata)) {
         // * Find the input stream in the cover and create a corresponding
         // output stream
-        r = maw_av_demux_cover(ctx);
+        r = maw_av_demux_picture_file(ctx);
         if (r != 0)
             goto end;
     }

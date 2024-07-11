@@ -87,7 +87,7 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
     }
 }
 
-static const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
+const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
     switch (key) {
         CASE_RET(COVER_POLICY_NONE);
         CASE_RET(COVER_POLICY_CLEAR);
@@ -189,6 +189,7 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
                                       const char *value) {
     int r = MAW_ERR_INTERNAL;
     char *cover_path = NULL;
+    size_t value_len;
 
     switch (ctx->keypath[2]) {
     case KEY_ALBUM:
@@ -205,15 +206,20 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
             goto end;
         }
 
-        cover_path = calloc(MAW_PATH_MAX, sizeof(char));
+        // Set the cover path to an empty string (do not prepend `art_dir`)
+        // when the configuration contains a `cover: ''` mapping.
+        value_len = strlen(value);
+        cover_path = calloc(value_len == 0 ? 1 : MAW_PATH_MAX, sizeof(char));
         if (cover_path == NULL) {
             MAW_PERROR("calloc");
             goto end;
         }
 
-        MAW_STRLCPY_SIZE(cover_path, cfg->art_dir, (size_t)MAW_PATH_MAX);
-        MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_PATH_MAX);
-        MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_PATH_MAX);
+        if (value_len > 0) {
+            MAW_STRLCPY_SIZE(cover_path, cfg->art_dir, (size_t)MAW_PATH_MAX);
+            MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_PATH_MAX);
+            MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_PATH_MAX);
+        }
 
         metadata->cover_path = cover_path;
         break;

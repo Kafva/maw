@@ -39,6 +39,7 @@ struct YamlContext {
     ssize_t key_count;
 } typedef YamlContext;
 
+const char *maw_cfg_cover_policy_tostr(CoverPolicy key);
 void maw_cfg_dump(MawConfig *cfg);
 void maw_cfg_free(MawConfig *cfg);
 int maw_cfg_parse(const char *filepath, MawConfig **cfg)

@@ -231,11 +231,11 @@ def setup
               cover: blue.png
               clean: true
             blue/*2.m4a:
-              # Should be ignored in favor of next entry
+              # Should be ignored in favor of the next entry
               cover_policy: CLEAR
             blue/*blue_2.m4a:
-                # Override with no cover
-                cover: ' '
+              # Override with no cover
+              cover: ''
 
     EOS
 

@@ -1,5 +1,6 @@
 #include "maw/update.h"
 #include "maw/av.h"
+#include "maw/cfg.h"
 #include "maw/log.h"
 #include "maw/utils.h"
 
@@ -18,8 +19,12 @@ static bool maw_update_should_alloc(MawArguments *args,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Update the `new` metadata with fields from the `original` if applicable
+// Merge the metadata from `original` into `new`.
+// If a metadata field is set in `original` AND unset it `new`, use the
+// `original` value, otherwise keep the new value.
 static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
+    // XXX: An empty string for any of these fields is different from NULL and
+    // will be used over the original value.
     if (original->title != NULL && new->title == NULL) {
         new->title = strdup(original->title);
     }
@@ -104,9 +109,11 @@ static void maw_update_check(MediaFile mediafiles[MAW_MAX_FILES],
 
     for (ssize_t i = 0; i < count; i++) {
         m = mediafiles[i].metadata;
-        if (m->cover_path != NULL && m->cover_policy != COVER_POLICY_NONE) {
-            MAW_LOGF(MAW_WARN, "%s: crop policy has no effect with a cover set",
-                     mediafiles[i].path);
+        if (m->cover_path != NULL && strlen(m->cover_path) > 0 &&
+            m->cover_policy != COVER_POLICY_NONE) {
+            MAW_LOGF(MAW_WARN, "%s: %s has no effect with a cover set",
+                     mediafiles[i].path,
+                     maw_cfg_cover_policy_tostr(m->cover_policy));
         }
     }
 }
@@ -233,7 +240,7 @@ int maw_update(const MediaFile *mediafile) {
         goto end;
     }
 
-    // Define temp location for output file under TMPDIR, this allows
+    // Define temp location for output file under IMPAIR, this allows
     // for easy overrides to speed up execution if /tmp is on another device.
     tmpdir = getenv("TMPDIR");
     if (tmpdir == NULL)

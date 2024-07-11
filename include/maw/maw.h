@@ -139,6 +139,12 @@ struct MawArguments {
         } \
     } while (0)
 
+// The value for a Metadata item that infer that a new external cover
+// should be attached.
+#define SHOULD_ATTACH_NEW_COVER(m) \
+    (m->cover_path != NULL && strlen(m->cover_path) > 0 && \
+     m->cover_policy == COVER_POLICY_NONE)
+
 #define MAW_STRLCAT(dst, src) MAW_STRLCAT_SIZE(dst, src, sizeof(dst))
 
 #define STR_HAS_PREFIX(s, prefix) \

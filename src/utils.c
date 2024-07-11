@@ -90,6 +90,16 @@ bool on_same_device(const char *path1, const char *path2) {
     return stat1.st_dev == stat2.st_dev;
 }
 
+bool isfile(const char *path) {
+    struct stat s;
+
+    if (stat(path, &s) != 0) {
+        return false;
+    }
+
+    return S_ISREG(s.st_mode);
+}
+
 // Music/red/red1.m4a -> red1
 int basename_no_ext(const char *filepath, char *out, size_t outsize) {
     int r = MAW_ERR_INTERNAL;

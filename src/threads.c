@@ -127,6 +127,7 @@ int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
         thread_ctxs[i].status = THREAD_UNINITIALIZED;
         thread_ctxs[i].mediafiles_index = -1;
         thread_ctxs[i].mediafiles = mediafiles;
+        thread_ctxs[i].dry_run = dry_run;
     }
 
     r = pthread_mutex_init(&lock, NULL);

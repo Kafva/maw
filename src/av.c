@@ -230,12 +230,11 @@ static int maw_av_set_metadata(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
     const AVDictionaryEntry *entry = NULL;
 
-    if (ctx->mediafile->metadata->clean) {
+    if (ctx->mediafile->metadata->clean_policy == CLEAN_POLICY_TRUE) {
         // Only keep some of the metadata
         while ((entry = av_dict_iterate(ctx->input_fmt_ctx->metadata, entry))) {
-            if (strcmp(entry->key, "title") != 0 &&
-                strcmp(entry->key, "artist") != 0 &&
-                strcmp(entry->key, "album") != 0) {
+            if (!STR_EQ("title", entry->key) && !STR_EQ("artist", entry->key) &&
+                !STR_EQ("album", entry->key)) {
                 continue;
             }
             r = av_dict_set(&(ctx->output_fmt_ctx->metadata), entry->key,
@@ -682,7 +681,8 @@ end:
     return r;
 }
 
-// See "Stream copy" section of ffmpeg(1), that is what we are doing
+// The remux process only applies a filter when COVER_POLICY_CROP is set,
+// otherwise a "Stream copy", see ffmpeg(1), is performed.
 int maw_av_remux(MawAVContext *ctx) {
     int r = MAW_ERR_INTERNAL;
 
@@ -815,7 +815,6 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
     ctx->output_fmt_ctx = output_fmt_ctx;
     ctx->audio_input_stream_index = -1;
     ctx->video_input_stream_index = -1;
-    // XXX: Not reallocated
     ctx->mediafile = mediafile;
     ctx->output_filepath = output_filepath;
     // Filtering variables

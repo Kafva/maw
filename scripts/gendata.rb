@@ -234,8 +234,8 @@ def setup
               # Should be ignored in favor of the next entry
               cover: CLEAR
             blue/*blue_2.m4a:
-              # Override with no cover
-              cover: ''
+              # Override to keep original cover
+              cover: KEEP
 
     EOS
 

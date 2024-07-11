@@ -14,7 +14,7 @@ static const Metadata no_metadata = {0};
 
 static bool test_dual_audio(const char *desc) {
     int r;
-    const Metadata metadata = {.clean = true};
+    const Metadata metadata = {.clean_policy = CLEAN_POLICY_TRUE};
     const MediaFile mediafile = {.path = "./.testenv/unit/dual_audio.mp4",
                                  .metadata = &metadata};
     (void)desc;
@@ -40,7 +40,8 @@ static bool test_no_audio(const char *desc) {
 
 static bool test_dual_video(const char *desc) {
     int r;
-    const Metadata metadata = {.title = "dual_video", .clean = true};
+    const Metadata metadata = {.title = "dual_video",
+                               .clean_policy = CLEAN_POLICY_TRUE};
     const MediaFile mediafile = {.path = "./.testenv/unit/dual_video.mp4",
                                  .metadata = &metadata};
     (void)desc;
@@ -64,7 +65,7 @@ static bool test_keep_all(const char *desc) {
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        // .cover_policy = COVER_POLICY_NONE // (implicit)
+        // .cover_policy = COVER_POLICY_KEEP // (implicit)
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/keep_all.m4a",
                                  .metadata = &metadata};
@@ -102,7 +103,7 @@ static bool test_clear_non_core_fields(const char *desc) {
         .album = "New album",
         .artist = "New artist",
         .cover_path = NULL,
-        .clean = true,
+        .clean_policy = CLEAN_POLICY_TRUE,
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/clean.m4a",
                                  .metadata = &metadata};
@@ -119,19 +120,24 @@ static bool test_clear_non_core_fields(const char *desc) {
 
 static bool test_bad_covers(const char *desc) {
     int r;
+    // clang-format off
     const Metadata bad_metadata[] = {
-        {.cover_path = "./.testenv/unit/dual_audio.mp4"},
-        {.cover_path = "./.testenv/unit/only_audio.m4a"},
-        {.cover_path = "./does_not_exist"},
-        {.cover_path = "./README.md"},
+        {.cover_policy = COVER_POLICY_PATH, .cover_path = "./.testenv/unit/dual_audio.mp4"},
+        {.cover_policy = COVER_POLICY_PATH, .cover_path = "./.testenv/unit/only_audio.m4a"},
+        {.cover_policy = COVER_POLICY_PATH, .cover_path = "./does_not_exist"},
+        {.cover_policy = COVER_POLICY_PATH, .cover_path = "./README.md"},
+        {.cover_policy = COVER_POLICY_CROP, .cover_path = "./.testenv/art/blue-1.png"},
     };
+    int errors[] = {
+        MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
+        MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
+        AVERROR(ENOENT),
+        AVERROR_INVALIDDATA,
+        MAW_ERR_INTERNAL
+    };
+    // clang-format on
     MediaFile mediafile = {.path = "./.testenv/unit/keep_all.m4a",
                            .metadata = NULL};
-    int errors[] = {
-        MAW_ERR_UNSUPPORTED_INPUT_STREAMS, MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
-        AVERROR(ENOENT), AVERROR_INVALIDDATA,
-        // UNSUPPORTED_INPUT_STREAMS,
-    };
     (void)desc;
 
     for (size_t i = 0; i < sizeof(bad_metadata) / sizeof(Metadata); i++) {
@@ -147,7 +153,7 @@ static bool test_crop_nocover(const char *desc) {
     int r;
     Metadata metadata = {
         .cover_policy = COVER_POLICY_CROP,
-        .clean = true,
+        .clean_policy = CLEAN_POLICY_TRUE,
     };
     MediaFile mediafile = {.path = "./.testenv/unit/crop_nocover.m4a",
                            .metadata = &metadata};
@@ -157,31 +163,6 @@ static bool test_crop_nocover(const char *desc) {
     MAW_ASSERT_EQ(r, 0, desc);
 
     metadata.title = "crop_nocover";
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
-
-    return true;
-}
-
-static bool test_crop_ignore(const char *desc) {
-    int r;
-    // A CROP policy should be ignored if a cover is provided
-    Metadata metadata = {
-        .cover_policy = COVER_POLICY_CROP,
-        .cover_path = "./.testenv/art/blue-1.png",
-        .clean = true,
-    };
-    MediaFile mediafile = {.path = "./.testenv/unit/crop_ignore.m4a",
-                           .metadata = &metadata};
-    (void)desc;
-
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-
-    // Set the policy to what we actually expect to have happen
-    metadata.cover_policy = COVER_POLICY_NONE;
-    metadata.cover_path = "";
-    metadata.title = "crop_ignore";
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
 
@@ -234,6 +215,7 @@ static bool test_add_cover(const char *desc) {
         .album = NULL,
         .artist = NULL,
         .cover_path = "./.testenv/art/blue-1.png",
+        .cover_policy = COVER_POLICY_PATH,
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/add_cover.m4a",
                                  .metadata = &metadata};
@@ -253,6 +235,7 @@ static bool test_replace_cover(const char *desc) {
         .album = NULL,
         .artist = NULL,
         .cover_path = "./.testenv/art/blue-1.png",
+        .cover_policy = COVER_POLICY_PATH,
     };
     const MediaFile mediafile = {.path = "./.testenv/unit/replace_cover.m4a",
                                  .metadata = &metadata};
@@ -274,6 +257,7 @@ static bool test_threads_ok(const char *desc) {
             .title = "audio_blue_0",
             .album = "New blue",
             .cover_path = "./.testenv/art/blue-1.png",
+            .cover_policy = COVER_POLICY_PATH,
         },
         {.title = "audio_red_0", .album = "New red"},
         {.title = "audio_red_1", .album = "New red"},
@@ -310,6 +294,7 @@ static bool test_threads_error(const char *desc) {
             .title = "audio_blue_0",
             .album = "New blue",
             .cover_path = "./.testenv/art/blue-1.png",
+            .cover_policy = COVER_POLICY_PATH,
         },
         {.title = "audio_red_0", .album = "New red"},
         {.title = "audio_red_1", .album = "New red"},
@@ -403,7 +388,7 @@ static bool test_update_override(const char *desc) {
         // 'cover', this should result in the original cover being kept.
         if (STR_EQ(mediafiles[i].path + music_dir_pathlen,
                    "blue/audio_blue_2.m4a")) {
-            r = mediafiles[i].metadata->cover_policy == COVER_POLICY_NONE;
+            r = mediafiles[i].metadata->cover_policy == COVER_POLICY_KEEP;
             MAW_ASSERT_EQ(r, true, desc);
         }
     }
@@ -465,8 +450,6 @@ static bool test_cfg_ok(const char *desc) {
     r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
     MAW_ASSERT_EQ(r, 0, desc);
 
-    maw_cfg_dump(cfg);
-
     maw_cfg_free(cfg);
     maw_update_free(mediafiles, mediafiles_count);
 
@@ -524,7 +507,6 @@ static struct Testcase testcases[] = {
     {.desc = "Dual video streams", .fn = test_dual_video},
     {.desc = "Crop cover", .fn = test_crop_cover},
     {.desc = "Crop no cover on source", .fn = test_crop_nocover},
-    {.desc = "Crop policy ignore", .fn = test_crop_ignore},
     {.desc = "Threads ok", .fn = test_threads_ok},
     {.desc = "Threads error", .fn = test_threads_error},
     {.desc = "YAML ok", .fn = test_cfg_ok},

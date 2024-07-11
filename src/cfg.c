@@ -22,6 +22,7 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
 static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
                                yaml_token_t *token);
 static void maw_cfg_ctx_dump(YamlContext *ctx);
+static void maw_cfg_dump(MawConfig *cfg);
 
 #define MAW_YAML_UNXEXPECTED(level, ctx, token, type, scalar) \
     do { \
@@ -86,9 +87,18 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
     }
 }
 
+const char *maw_cfg_clean_policy_tostr(CleanPolicy key) {
+    switch (key) {
+        CASE_RET(CLEAN_POLICY_UNSPECIFIED);
+        CASE_RET(CLEAN_POLICY_FALSE);
+        CASE_RET(CLEAN_POLICY_TRUE);
+    }
+}
+
 const char *maw_cfg_cover_policy_tostr(CoverPolicy key) {
     switch (key) {
-        CASE_RET(COVER_POLICY_NONE);
+        CASE_RET(COVER_POLICY_UNSPECIFIED);
+        CASE_RET(COVER_POLICY_KEEP);
         CASE_RET(COVER_POLICY_PATH);
         CASE_RET(COVER_POLICY_CLEAR);
         CASE_RET(COVER_POLICY_CROP);
@@ -195,8 +205,8 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
         metadata->artist = strdup(value);
         break;
     case KEY_COVER:
-        if (STR_CASE_EQ("none", value)) {
-            metadata->cover_policy = COVER_POLICY_NONE;
+        if (STR_CASE_EQ("keep", value)) {
+            metadata->cover_policy = COVER_POLICY_KEEP;
         }
         else if (STR_CASE_EQ("crop", value)) {
             metadata->cover_policy = COVER_POLICY_CROP;
@@ -205,7 +215,7 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
             metadata->cover_policy = COVER_POLICY_CLEAR;
         }
         else {
-            metadata->cover_policy = COVER_POLICY_PATH;
+            // Treat all other values as a path
             if (cfg->art_dir == NULL) {
                 MAW_LOGF(
                     MAW_ERROR,
@@ -224,11 +234,19 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
             MAW_STRLCAT_SIZE(cover_path, "/", (size_t)MAW_PATH_MAX);
             MAW_STRLCAT_SIZE(cover_path, value, (size_t)MAW_PATH_MAX);
 
+            if (!isfile(cover_path)) {
+                MAW_LOGF(MAW_ERROR, "Got cover='%s': File not found: %s", value,
+                         cover_path);
+                goto end;
+            }
+
+            metadata->cover_policy = COVER_POLICY_PATH;
             metadata->cover_path = cover_path;
         }
         break;
     case KEY_CLEAN:
-        metadata->clean = strncasecmp("true", value, sizeof("true") - 1) == 0;
+        metadata->clean_policy =
+            STR_CASE_EQ("true", value) ? CLEAN_POLICY_TRUE : CLEAN_POLICY_FALSE;
         break;
     default:
         MAW_YAML_ERROR(ctx, token, "value", value);
@@ -289,8 +307,8 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
             metadata_entry->value.album = NULL;
             metadata_entry->value.artist = NULL;
             metadata_entry->value.cover_path = NULL;
-            metadata_entry->value.cover_policy = COVER_POLICY_NONE;
-            metadata_entry->value.clean = false;
+            metadata_entry->value.cover_policy = COVER_POLICY_UNSPECIFIED;
+            metadata_entry->value.clean_policy = CLEAN_POLICY_UNSPECIFIED;
             metadata_entry->pattern = strdup(key);
             TAILQ_INSERT_TAIL(&cfg->metadata_head, metadata_entry, entry);
             break;
@@ -404,16 +422,44 @@ static void maw_cfg_ctx_dump(YamlContext *ctx) {
     char out[MAW_PATH_MAX];
     out[0] = '\0';
 
-    for (int i = 0; i < MAW_CFG_MAX_DEPTH; i++) {
+    for (int i = 0; i < ctx->key_count; i++) {
         (void)strlcat(out, maw_cfg_key_tostr(ctx->keypath[i]), sizeof(out));
-        (void)strlcat(out, "|", sizeof(out));
+        (void)strlcat(out, ".", sizeof(out));
     }
 
     if (strlen(out) > 0) {
         out[strlen(out) - 1] = '\0';
     }
 
-    MAW_LOGF(MAW_DEBUG, "YAML context: %s", out);
+    if (strlen(out))
+        MAW_LOGF(MAW_DEBUG, "YAML context: %s", out);
+}
+
+static void maw_cfg_dump(MawConfig *cfg) {
+    MetadataEntry *m;
+    PlaylistEntry *p;
+    PlaylistPath *pp;
+    MAW_LOG(MAW_DEBUG, "---");
+    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_ART ": %s", cfg->art_dir);
+    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_MUSIC ": %s", cfg->music_dir);
+    MAW_LOG(MAW_DEBUG, "metadata:");
+    TAILQ_FOREACH(m, &(cfg->metadata_head), entry) {
+        MAW_LOGF(MAW_DEBUG, "  %s:", m->pattern);
+        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_TITLE ": %s", m->value.title);
+        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_ALBUM ": %s", m->value.album);
+        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_ARTIST ": %s", m->value.artist);
+        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_COVER ": %s",
+                 MAW_COVER_TOSTR((&m->value)));
+        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_CLEAN ": %s",
+                 maw_cfg_clean_policy_tostr(m->value.clean_policy));
+    }
+    MAW_LOG(MAW_DEBUG, "playlists:");
+    TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
+        MAW_LOGF(MAW_DEBUG, "  %s:", p->value.name);
+        TAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
+            MAW_LOGF(MAW_DEBUG, "    - %s", pp->path);
+        }
+    }
 }
 
 void maw_cfg_free(MawConfig *cfg) {
@@ -542,37 +588,17 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
 
         yaml_token_delete(&token);
     }
+
+    maw_cfg_dump(*cfg);
+
+    if (ctx.key_count != 0) {
+        MAW_LOG(MAW_ERROR, "Unexpected end of parsing YAML context");
+        maw_cfg_ctx_dump(&ctx);
+        goto end;
+    }
+
     r = 0;
-    maw_cfg_ctx_dump(&ctx);
 end:
     maw_cfg_yaml_deinit(parser, fp);
     return r;
 }
-
-#ifdef MAW_TEST
-void maw_cfg_dump(MawConfig *cfg) {
-    MetadataEntry *m;
-    PlaylistEntry *p;
-    PlaylistPath *pp;
-    MAW_LOG(MAW_DEBUG, "---");
-    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_ART ": %s", cfg->art_dir);
-    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_MUSIC ": %s", cfg->music_dir);
-    MAW_LOG(MAW_DEBUG, "metadata:");
-    TAILQ_FOREACH(m, &(cfg->metadata_head), entry) {
-        MAW_LOGF(MAW_DEBUG, "  %s:", m->pattern);
-        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_TITLE ": %s", m->value.title);
-        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_ALBUM ": %s", m->value.album);
-        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_ARTIST ": %s", m->value.artist);
-        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_COVER ": %s",
-                 MAW_COVER_TOSTR((&m->value)));
-        MAW_LOGF(MAW_DEBUG, "    " MAW_CFG_KEY_CLEAN ": %d", m->value.clean);
-    }
-    MAW_LOG(MAW_DEBUG, "playlists:");
-    TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
-        MAW_LOGF(MAW_DEBUG, "  %s:", p->value.name);
-        TAILQ_FOREACH(pp, &(p->value.playlist_paths_head), entry) {
-            MAW_LOGF(MAW_DEBUG, "    - %s", pp->path);
-        }
-    }
-}
-#endif

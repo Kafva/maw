@@ -20,16 +20,27 @@
 // Maximum length of paths in configuration file etc.
 #define MAW_PATH_MAX 1024
 
+enum CleanPolicy {
+    // Same treatment as CLEAN_POLICY_FALSE but can be overriden [default]
+    CLEAN_POLICY_UNSPECIFIED = 0,
+    // Do not clean metadata
+    CLEAN_POLICY_FALSE = 1,
+    // Clean metadata
+    CLEAN_POLICY_TRUE = 2,
+} typedef CleanPolicy;
+
 // The cover policy options are mutually exclusive from one another
 enum CoverPolicy {
-    // Keep original cover
-    COVER_POLICY_NONE = 0,
+    // Same treatment as COVER_POLICY_KEEP but can be overriden [default]
+    COVER_POLICY_UNSPECIFIED = 0,
+    // Explicitly keep original cover
+    COVER_POLICY_KEEP = 1,
     // Use custom cover art
-    COVER_POLICY_PATH = 1,
+    COVER_POLICY_PATH = 2,
     // Remove cover art if present
-    COVER_POLICY_CLEAR = 2,
+    COVER_POLICY_CLEAR = 3,
     // Crop 1280x720 covers to 720x720, idempotent for 720x720 covers.
-    COVER_POLICY_CROP = 3,
+    COVER_POLICY_CROP = 4,
 } typedef CoverPolicy;
 
 enum MawError {
@@ -48,7 +59,7 @@ struct Metadata {
     // Only relevant when COVER_POLICY_PATH is set
     char *cover_path;
     CoverPolicy cover_policy;
-    bool clean;
+    CleanPolicy clean_policy;
 } typedef Metadata;
 
 struct MediaFile {

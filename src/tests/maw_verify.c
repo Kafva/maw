@@ -100,7 +100,7 @@ bool maw_verify(const MediaFile *mediafile) {
             if (!LHS_EMPTY_OR_EQ(mediafile->metadata->album, entry->value))
                 goto end;
         }
-        else if (mediafile->metadata->clean &&
+        else if (mediafile->metadata->clean_policy == CLEAN_POLICY_TRUE &&
                  strcmp(entry->key, "major_brand") != 0 &&
                  strcmp(entry->key, "minor_version") != 0 &&
                  strcmp(entry->key, "compatible_brands") != 0 &&
@@ -109,14 +109,15 @@ bool maw_verify(const MediaFile *mediafile) {
                      mediafile->path, entry->key);
             goto end;
         }
-        else if (!mediafile->metadata->clean && !is_unclean) {
-            // Verify that genre was actually kept if clean is unset, we don't
-            // verify that *all* other fields were kept
+        else if (mediafile->metadata->clean_policy != CLEAN_POLICY_TRUE &&
+                 !is_unclean) {
+            // Verify that genre was actually kept if clean policy is false or
+            // unset, we don't verify that *all* other fields were kept
             is_unclean = strcmp(entry->key, "genre") == 0;
         }
     }
 
-    if (!mediafile->metadata->clean && !is_unclean) {
+    if (mediafile->metadata->clean_policy != CLEAN_POLICY_TRUE && !is_unclean) {
         MAW_LOGF(MAW_ERROR, "%s: Expected unclean metadata", mediafile->path);
         goto end;
     }

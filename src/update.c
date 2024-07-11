@@ -33,14 +33,14 @@ static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
     if (original->artist != NULL && new->artist == NULL) {
         new->artist = strdup(original->artist);
     }
-    if (original->cover_policy != COVER_POLICY_NONE &&
-        new->cover_policy == COVER_POLICY_NONE) {
+    // Reuse the original value if the `new` item does not specify anything
+    if (original->cover_policy != COVER_POLICY_UNSPECIFIED &&
+        new->cover_policy == COVER_POLICY_UNSPECIFIED) {
         new->cover_policy = original->cover_policy;
         if (new->cover_policy == COVER_POLICY_PATH) {
             new->cover_path = strdup(original->cover_path);
         }
     }
-    // XXX: Always keep the new value for `clean`
 }
 
 static bool maw_update_add(const char *filepath, Metadata *metadata,
@@ -210,8 +210,9 @@ void maw_update_dump(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
                mediafiles[i].metadata->artist);
         printf("    \"" MAW_CFG_KEY_COVER "\": \"%s\",\n",
                MAW_COVER_TOSTR(mediafiles[i].metadata));
-        printf("    \"" MAW_CFG_KEY_CLEAN "\": \"%d\"\n",
-               mediafiles[i].metadata->clean);
+        printf(
+            "    \"" MAW_CFG_KEY_CLEAN "\": \"%s\"\n",
+            maw_cfg_clean_policy_tostr(mediafiles[i].metadata->clean_policy));
         printf(i == count - 1 ? "  }\n" : "  },\n");
     }
     printf("}\n");

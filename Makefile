@@ -9,6 +9,9 @@ HEADERS           = $(wildcard include/*.h)
 PROGRAM_TEST      = maw_test
 LLVM_PROFDATA     = $(BUILD)/$(PROGRAM_TEST).profdata
 LLVM_PROFILE_FILE =  $(BUILD)/$(PROGRAM_TEST).profraw
+LLVM_COV_FLAGS    = -instr-profile=$(LLVM_PROFDATA)
+LLVM_COV_FLAGS    += --ignore-filename-regex='include/*'
+LLVM_COV_FLAGS    += --ignore-filename-regex='deps/*'
 
 ifeq ($(TESTS),1)
 CFLAGS            += -DMAW_TEST
@@ -170,10 +173,8 @@ coverage:
 	LLVM_PROFILE_FILE=$(LLVM_PROFILE_FILE) \
 					  $(BUILD)/$(PROGRAM_TEST)
 	llvm-profdata merge -sparse $(LLVM_PROFILE_FILE) -o $(LLVM_PROFDATA)
-	llvm-cov report $(BUILD)/$(PROGRAM_TEST) \
-		-instr-profile=$(LLVM_PROFDATA) \
-		--ignore-filename-regex='include/*' \
-		--ignore-filename-regex='deps/*'
+	llvm-cov show $(BUILD)/$(PROGRAM_TEST) $(LLVM_COV_FLAGS) -format=html -o $(BUILD)
+	llvm-cov report $(BUILD)/$(PROGRAM_TEST) $(LLVM_COV_FLAGS)
 
 install: $(BUILD)/$(PROGRAM)
 	@# macOS does not have the install -D flag 😭

@@ -258,9 +258,7 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     }
 
     if (args->dry_run) {
-        for (int i = 0; i < mediafiles_count; i++) {
-            printf("%s\n", mediafiles[i].path);
-        }
+        maw_update_dump(mediafiles, mediafiles_count);
     }
     else {
         r = maw_threads_launch(mediafiles, mediafiles_count,

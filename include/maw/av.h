@@ -61,10 +61,13 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
         } \
     } while (0)
 
+// The original cover stream is needed if:
+//  The policy is set to crop
+//  The policy is unset and no cover has been provided
 #define NEEDS_ORIGINAL_COVER(metadata) \
-    (metadata->cover_policy != COVER_POLICY_CLEAR && \
-     (metadata->cover_policy == COVER_POLICY_CROP || \
-      metadata->cover_path == NULL))
+    (metadata->cover_policy == COVER_POLICY_CROP || \
+     (metadata->cover_policy == COVER_POLICY_NONE && \
+      (metadata->cover_path == NULL || strlen(metadata->cover_path) == 0)))
 
 #define AUDIO_INPUT_STREAM(ctx) \
     ctx->input_fmt_ctx->streams[ctx->audio_input_stream_index]

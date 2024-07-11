@@ -212,6 +212,28 @@ end:
     return r;
 }
 
+void maw_update_dump(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
+    printf("{\n");
+    for (ssize_t i = 0; i < count; i++) {
+        printf("  \"%s\": {\n", mediafiles[i].path);
+        printf("    \"" MAW_CFG_KEY_TITLE "\": \"%s\",\n",
+               mediafiles[i].metadata->title);
+        printf("    \"" MAW_CFG_KEY_ALBUM "\": \"%s\",\n",
+               mediafiles[i].metadata->album);
+        printf("    \"" MAW_CFG_KEY_ARTIST "\": \"%s\",\n",
+               mediafiles[i].metadata->artist);
+        printf("    \"" MAW_CFG_KEY_COVER "\": \"%s\",\n",
+               mediafiles[i].metadata->cover_path);
+        printf(
+            "    \"" MAW_CFG_KEY_COVER_POLICY "\": \"%s\",\n",
+            maw_cfg_cover_policy_tostr(mediafiles[i].metadata->cover_policy));
+        printf("    \"" MAW_CFG_KEY_CLEAN "\": \"%d\"\n",
+               mediafiles[i].metadata->clean);
+        printf(i == count - 1 ? "  }\n" : "  },\n");
+    }
+    printf("}\n");
+}
+
 void maw_update_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
     for (ssize_t i = 0; i < count; i++) {
         free((void *)mediafiles[i].path);

@@ -3,11 +3,9 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/queue.h>
 #include <sys/types.h>
-#ifdef __linux__
-#include <stdint.h>
-#endif
 
 // TAILQ is used instead of STAILQ to make the code more portable.
 // STAILQ_LAST is only provided by <bsd/sys/queue.h> and generates

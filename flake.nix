@@ -1,7 +1,7 @@
 {
     # nix flake --help
     # https://nixos.wiki/wiki/Flakes#Flake_schema
-    description = "maw - Music library manager";
+    description = "maw - Declaratively configure mp4 metadata";
 
     inputs = {
         nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
@@ -9,46 +9,60 @@
 
     outputs = {self, nixpkgs}:
     let
-        name = "maw";
-        # TODO: use forAllSystems = nixpkgs.lib.genAttrs = { "x86_64-linux", "aarch64-linux" }
-        system = "x86_64-linux";
-        pkgs = import nixpkgs { inherit system; };
-        nativeBuildInputs = with pkgs; [
-            makeWrapper
-            clang
-            ffmpeg_7
-            libyaml
-            # For building FFmpeg
-            libtool
-            nasm
-            pkg-config
-        ];
+        app_name = "maw";
+
+        supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
+
+        # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
+        forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+
+        # Nixpkgs instantiated for supported system types.
+        nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in
     {
-         # Ran with: `nix develop`
-         devShells."${system}".default = pkgs.mkShell {
-            packages = nativeBuildInputs ++ (with pkgs; [
-                ruby
-                lldb
-            ]);
-         };
+        packages = forAllSystems (system:
+            let pkgs = nixpkgsFor.${system};
+            in {
+                # Default target for `nix build`
+                default = pkgs.stdenv.mkDerivation {
+                    name = app_name;
+                    src = ./.;
+                    # Build time dependencies
+                    nativeBuildInputs = with pkgs; [
+                        makeWrapper
+                        git
+                        clang
+                        ffmpeg_7
+                        libyaml
+                    ];
+                    buildPhase = ''
+                       make
+                    '';
+                    installPhase = ''
+                       make PREFIX=$out install
+                    '';
+                };
+                # Point 'maw' to the default target
+                "${app_name}" = self.packages.${system}.default;
+            }
+        );
 
-         packages."${system}" = rec {
-            # Ran with: `nix build`
-            default = pkgs.stdenv.mkDerivation {
-                name = name;
-                src = self;
-
-                # Compile time dependencies
-                nativeBuildInputs = nativeBuildInputs;
-                buildPhase = ''
-                   make
-                '';
-                installPhase = ''
-
-                '';
-            };
-            "${name}" = default;
-         };
+        # Development shell: use `nix develop -c $SHELL`
+        devShells = forAllSystems (system:
+            let pkgs = nixpkgsFor.${system};
+            in pkgs.mkShell {
+                buildInputs =
+                    self.packages.${system}.default.nativeBuildInputs
+                    ++ (with pkgs; [
+                        # For building FFmpeg
+                        autoreconfHook
+                        libtool
+                        nasm
+                        pkg-config
+                        # Development
+                        ruby
+                        lldb
+                    ]);
+        });
     };
 }

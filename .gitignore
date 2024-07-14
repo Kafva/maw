@@ -1,5 +1,6 @@
 # vi: ft=gitignore
 
+/result
 /deps
 .lldbinit
 .testenv

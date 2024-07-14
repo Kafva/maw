@@ -84,7 +84,11 @@ sudo apt install clang \
 make install
 
 # NixOS
-nix build
+# Build and run directly
+nix run "github:Kafva/maw"
+
+# Development shell
+nix develop -c $SHELL
 ```
 
 ## Development notes

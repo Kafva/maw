@@ -1,6 +1,6 @@
 CC                := clang
 PREFIX            ?= $(HOME)/.local
-UNAME 			  := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+UNAME             := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 SRCS              = $(wildcard src/*.c)
 HEADERS           = $(wildcard include/*.h)

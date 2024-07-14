@@ -83,7 +83,7 @@ static const char *long_options_usage[] = {
 
 int main(int argc, char *argv[]) {
     int opt;
-    ssize_t thread_count;
+    size_t thread_count;
     // clang-format off
     MawArguments args = {
         .config_path = NULL,
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
             args.dry_run = true;
             break;
         case 'j':
-            thread_count = strtol(optarg, NULL, 10);
+            thread_count = strtoul(optarg, NULL, 10);
             if (thread_count <= 0) {
                 printf("Invalid argument for job count: %s\n", optarg);
                 return EXIT_FAILURE;
@@ -256,7 +256,7 @@ end:
 static int run_update(MawArguments *args, MawConfig *cfg) {
     int r = EXIT_FAILURE;
     MediaFile mediafiles[MAW_MAX_FILES];
-    ssize_t mediafiles_count = 0;
+    size_t mediafiles_count = 0;
 
     r = maw_update_load(cfg, args, mediafiles, &mediafiles_count);
     if (r != 0)

@@ -14,7 +14,7 @@
 static void maw_update_merge_metadata(const Metadata *original, Metadata *new);
 static bool maw_update_add(const char *filepath, Metadata *metadata,
                            MediaFile mediafiles[MAW_MAX_FILES],
-                           ssize_t *mediafiles_count);
+                           size_t *mediafiles_count);
 static bool maw_update_should_alloc(MawArguments *args,
                                     MetadataEntry *metadata_entry);
 
@@ -45,7 +45,7 @@ static void maw_update_merge_metadata(const Metadata *original, Metadata *new) {
 
 static bool maw_update_add(const char *filepath, Metadata *metadata,
                            MediaFile mediafiles[MAW_MAX_FILES],
-                           ssize_t *mediafiles_count) {
+                           size_t *mediafiles_count) {
     MediaFile *latest;
     uint32_t digest;
 
@@ -57,7 +57,7 @@ static bool maw_update_add(const char *filepath, Metadata *metadata,
 
     digest = hash(filepath);
 
-    for (ssize_t i = 0; i < *mediafiles_count; i++) {
+    for (size_t i = 0; i < *mediafiles_count; i++) {
         if (mediafiles[i].path_digest == digest) {
             maw_update_merge_metadata(mediafiles[i].metadata, metadata);
             mediafiles[i].metadata = metadata;
@@ -110,7 +110,7 @@ static bool maw_update_should_alloc(MawArguments *args,
 // Later matches in the config file will take precedence!
 int maw_update_load(MawConfig *cfg, MawArguments *args,
                     MediaFile mediafiles[MAW_MAX_FILES],
-                    ssize_t *mediafiles_count) {
+                    size_t *mediafiles_count) {
     int r = MAW_ERR_INTERNAL;
     MetadataEntry *metadata_entry = NULL;
     DIR *dir = NULL;
@@ -205,9 +205,9 @@ end:
     return r;
 }
 
-void maw_update_dump(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
+void maw_update_dump(MediaFile mediafiles[MAW_MAX_FILES], size_t count) {
     printf("{\n");
-    for (ssize_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < count; i++) {
         printf("  \"%s\": {\n", mediafiles[i].path);
         printf("    \"" MAW_CFG_KEY_TITLE "\": \"%s\",\n",
                mediafiles[i].metadata->title);
@@ -225,8 +225,8 @@ void maw_update_dump(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
     printf("}\n");
 }
 
-void maw_update_free(MediaFile mediafiles[MAW_MAX_FILES], ssize_t count) {
-    for (ssize_t i = 0; i < count; i++) {
+void maw_update_free(MediaFile mediafiles[MAW_MAX_FILES], size_t count) {
+    for (size_t i = 0; i < count; i++) {
         free((void *)mediafiles[i].path);
     }
 }

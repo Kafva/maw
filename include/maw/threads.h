@@ -5,21 +5,16 @@
 
 #include <pthread.h>
 
-enum ThreadStatus {
-    THREAD_UNINITIALIZED,
-    THREAD_STARTED,
-    THREAD_FAILED,
-} typedef ThreadStatus;
-
 struct ThreadContext {
-    ThreadStatus status;
     const MediaFile *mediafiles;
-    ssize_t mediafiles_index;
+    size_t index_start;
+    size_t index_end;
     bool dry_run;
+    bool exit_ok;
+    bool spawned;
 } typedef ThreadContext;
 
-int maw_threads_launch(MediaFile mediafiles[], ssize_t size,
-                       size_t thread_count, bool dry_run)
-    __attribute__((warn_unused_result));
+int maw_threads_launch(MediaFile mediafiles[], size_t size, size_t thread_count,
+                       bool dry_run) __attribute__((warn_unused_result));
 
 #endif // MAW_THREADS_H

@@ -27,6 +27,12 @@
 #define MAW_BUILDER_EMAIL ""
 #endif
 
+#ifdef DEBUG
+#define MAW_BUILDTYPE "debug"
+#else
+#define MAW_BUILDTYPE "release"
+#endif
+
 #define HEADER_COLOR "\033[33m"
 #define OPT_COLOR    "\033[32m"
 #define NO_COLOR     "\033[0m"
@@ -173,12 +179,17 @@ static void usage(void) {
            sizeof(long_options_usage) / sizeof(char *));
 
     // clang-format off
-#ifdef DEBUG
-    printf(OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [debug]\n");
-#else
-    printf(OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [release]\n");
-#endif
-    printf(MAW_BUILDER_NAME " <" MAW_BUILDER_EMAIL ">\n\n");
+    if (strlen(MAW_VERSION) > /* DISABLES CODE */ (0)) {
+        printf(OPT_COLOR MAW_PROGRAM NO_COLOR " " MAW_VERSION " [" MAW_BUILDTYPE "]\n");
+    }
+    else {
+        printf(OPT_COLOR MAW_PROGRAM NO_COLOR " [" MAW_BUILDTYPE "]\n");
+    }
+    if (strlen(MAW_BUILDER_NAME) > /* DISABLES CODE */ (0) && 
+        strlen(MAW_BUILDER_EMAIL) > /* DISABLES CODE */ (0)) {
+        printf(MAW_BUILDER_NAME " <" MAW_BUILDER_EMAIL ">\n");
+    }
+    printf("\n");
     printf(HEADER_COLOR"USAGE:"NO_COLOR"\n");
     printf(MAW_PROGRAM " [OPTIONS] <COMMAND>\n\n");
     printf(HEADER_COLOR"COMMANDS:"NO_COLOR"\n");

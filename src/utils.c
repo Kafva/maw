@@ -34,7 +34,7 @@ end:
 }
 
 int movefile(const char *src, const char *dst) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     size_t read_bytes = 0;
     char buffer[BUFSIZ];
     FILE *fp_src = NULL;
@@ -65,7 +65,7 @@ int movefile(const char *src, const char *dst) {
         goto end;
     }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     if (fp_src != NULL)
         fclose(fp_src);
@@ -102,7 +102,7 @@ bool isfile(const char *path) {
 
 // Music/red/red1.m4a -> red1
 int basename_no_ext(const char *filepath, char *out, size_t outsize) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     char *slash;
     char *dot;
 
@@ -123,7 +123,7 @@ int basename_no_ext(const char *filepath, char *out, size_t outsize) {
         *dot = '\0';
     }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }

@@ -9,6 +9,43 @@
 
 #include <libavutil/error.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+// Perform an update on the provided media file twice after waiting for a short
+// period. Verify that the modification time after the second update has not
+// changed.
+#define NOOP_CHECK(m) \
+    do { \
+        struct stat s_first; \
+        struct stat s_second; \
+        r = maw_update(&m, false); \
+        MAW_ASSERT_EQ(r, RESULT_OK, desc); \
+\
+        r = maw_verify(&m); \
+        MAW_ASSERT_EQ(r, true, desc); \
+\
+        if (stat(m.path, &s_first) != 0) { \
+            MAW_PERRORF("stat", m.path); \
+            return false; \
+        } \
+\
+        usleep(500000); \
+\
+        r = maw_update(&m, false); \
+        MAW_ASSERT_EQ(r, RESULT_NOOP, desc); \
+\
+        r = maw_verify(&m); \
+        MAW_ASSERT_EQ(r, true, desc); \
+\
+        if (stat(m.path, &s_second) != 0) { \
+            MAW_PERRORF("stat", m.path); \
+            return false; \
+        } \
+\
+        MAW_ASSERT_EQ((int)s_second.st_mtime, (int)s_first.st_mtime, \
+                      "Modification time has changed"); \
+    } while (0)
 
 static const Metadata no_metadata = {0};
 
@@ -21,7 +58,7 @@ static bool test_dual_audio(const char *desc) {
 
     // Second audio stream should be ignored
     r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
@@ -34,7 +71,8 @@ static bool test_no_audio(const char *desc) {
     (void)desc;
 
     r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc); // OK return value, non mp4 files are skipped
+    MAW_ASSERT_EQ(r, RESULT_NOOP,
+                  desc); // OK return value, non mp4 files are skipped
     return true;
 }
 
@@ -48,7 +86,7 @@ static bool test_dual_video(const char *desc) {
 
     // Second video stream should be ignored
     r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
@@ -72,7 +110,7 @@ static bool test_keep_all(const char *desc) {
     (void)desc;
 
     r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
     return true;
@@ -87,7 +125,7 @@ static bool test_auto_title(const char *desc) {
     (void)desc;
 
     r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     metadata.title = "auto_set_title";
     r = maw_verify(&mediafile);
@@ -111,9 +149,128 @@ static bool test_clear_non_core_fields(const char *desc) {
     (void)desc;
 
     r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
     r = maw_verify(&mediafile);
     MAW_ASSERT_EQ(r, true, desc);
+    return true;
+}
+
+// NOOP ////////////////////////////////////////////////////////////////////////
+
+// The NOOP tests also cover most of the cover art functionality
+
+static bool test_noop(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .title = "Keep modification time",
+        .album = "New album",
+        .artist = "New artist",
+        .cover_policy = COVER_POLICY_UNSPECIFIED,
+        .clean_policy = CLEAN_POLICY_UNSPECIFIED,
+    };
+    const MediaFile mediafile = {.path = "./.testenv/unit/noop.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+
+    return true;
+}
+
+static bool test_noop_clean(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .title = "Keep modification time",
+        .album = "New album",
+        .artist = "New artist",
+        .cover_policy = COVER_POLICY_UNSPECIFIED,
+        .clean_policy = CLEAN_POLICY_TRUE,
+    };
+    const MediaFile mediafile = {.path = "./.testenv/unit/noop_clean.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+
+    return true;
+}
+
+static bool test_noop_add_cover(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .title = "add_cover",
+        .album = NULL,
+        .artist = NULL,
+        .cover_path = "./.testenv/art/blue-1.png",
+        .cover_policy = COVER_POLICY_PATH,
+    };
+    const MediaFile mediafile = {.path = "./.testenv/unit/noop_add_cover.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+    return true;
+}
+
+static bool test_noop_replace_cover(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .title = "replace_cover",
+        .album = NULL,
+        .artist = NULL,
+        .cover_path = "./.testenv/art/blue-1.png",
+        .cover_policy = COVER_POLICY_PATH,
+    };
+    const MediaFile mediafile = {.path =
+                                     "./.testenv/unit/noop_replace_cover.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+    return true;
+}
+
+static bool test_noop_cover_crop(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .cover_policy = COVER_POLICY_CROP,
+    };
+    const MediaFile mediafile = {.path = "./.testenv/unit/noop_cover_crop.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+
+    return true;
+}
+
+static bool test_noop_nocover_crop(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .title = "Keep modification time",
+        .cover_policy = COVER_POLICY_CROP,
+    };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/noop_nocover_crop.m4a", .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+
+    return true;
+}
+
+static bool test_noop_cover_clear(const char *desc) {
+    int r;
+    const Metadata metadata = {
+        .title = "Keep modification time",
+        .cover_policy = COVER_POLICY_CLEAR,
+    };
+    const MediaFile mediafile = {.path = "./.testenv/unit/noop_cover_clear.m4a",
+                                 .metadata = &metadata};
+    (void)desc;
+
+    NOOP_CHECK(mediafile);
+
     return true;
 }
 
@@ -130,11 +287,11 @@ static bool test_bad_covers(const char *desc) {
         {.cover_policy = COVER_POLICY_CROP, .cover_path = "./.testenv/art/blue-1.png"},
     };
     int errors[] = {
-        MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
-        MAW_ERR_UNSUPPORTED_INPUT_STREAMS,
+        RESULT_UNSUPPORTED_INPUT_STREAMS,
+        RESULT_UNSUPPORTED_INPUT_STREAMS,
         AVERROR(ENOENT),
         AVERROR_INVALIDDATA,
-        MAW_ERR_INTERNAL
+        RESULT_ERR_INTERNAL
     };
     // clang-format on
     MediaFile mediafile = {.path = "./.testenv/unit/keep_all.m4a",
@@ -147,105 +304,6 @@ static bool test_bad_covers(const char *desc) {
         MAW_ASSERT_EQ(r, errors[i], bad_metadata[i].cover_path);
     }
 
-    return true;
-}
-
-static bool test_crop_nocover(const char *desc) {
-    int r;
-    Metadata metadata = {
-        .cover_policy = COVER_POLICY_CROP,
-        .clean_policy = CLEAN_POLICY_TRUE,
-    };
-    MediaFile mediafile = {.path = "./.testenv/unit/crop_nocover.m4a",
-                           .metadata = &metadata};
-    (void)desc;
-
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-
-    metadata.title = "crop_nocover";
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
-
-    return true;
-}
-
-static bool test_crop_cover(const char *desc) {
-    int r;
-    const Metadata metadata = {
-        .cover_policy = COVER_POLICY_CROP,
-    };
-    const MediaFile mediafile = {.path = "./.testenv/unit/crop_cover.m4a",
-                                 .metadata = &metadata};
-    (void)desc;
-
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
-
-    // Verify that a second update is idempotent
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
-
-    return true;
-}
-
-static bool test_clear_cover(const char *desc) {
-    int r;
-    const Metadata metadata = {
-        .cover_policy = COVER_POLICY_CLEAR,
-    };
-    const MediaFile mediafile = {.path = "./.testenv/unit/clear_cover.m4a",
-                                 .metadata = &metadata};
-    (void)desc;
-
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
-    return true;
-}
-
-static bool test_add_cover(const char *desc) {
-    int r;
-    const Metadata metadata = {
-        .title = "add_cover",
-        .album = NULL,
-        .artist = NULL,
-        .cover_path = "./.testenv/art/blue-1.png",
-        .cover_policy = COVER_POLICY_PATH,
-    };
-    const MediaFile mediafile = {.path = "./.testenv/unit/add_cover.m4a",
-                                 .metadata = &metadata};
-    (void)desc;
-
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
-    return true;
-}
-
-static bool test_replace_cover(const char *desc) {
-    int r;
-    const Metadata metadata = {
-        .title = "replace_cover",
-        .album = NULL,
-        .artist = NULL,
-        .cover_path = "./.testenv/art/blue-1.png",
-        .cover_policy = COVER_POLICY_PATH,
-    };
-    const MediaFile mediafile = {.path = "./.testenv/unit/replace_cover.m4a",
-                                 .metadata = &metadata};
-    (void)desc;
-
-    r = maw_update(&mediafile, false);
-    MAW_ASSERT_EQ(r, 0, desc);
-    r = maw_verify(&mediafile);
-    MAW_ASSERT_EQ(r, true, desc);
     return true;
 }
 
@@ -278,7 +336,7 @@ static bool test_threads_ok(const char *desc) {
     size_t mediafiles_count = sizeof(mediafiles) / sizeof(MediaFile);
 
     r = maw_threads_launch(mediafiles, mediafiles_count, 3, false);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     for (size_t i = 0; i < mediafiles_count; i++) {
         r = maw_verify(&mediafiles[i]);
@@ -337,10 +395,10 @@ static bool test_update(const char *desc) {
                          .dry_run = false};
 
     r = maw_cfg_parse(config_path, &cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     // Only paths starting with 'red' should have been included
     music_dir_pathlen = strlen(cfg->music_dir) + 1;
@@ -351,7 +409,7 @@ static bool test_update(const char *desc) {
 
     r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count,
                            args.dry_run);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     for (size_t i = 0; i < mediafiles_count; i++) {
         r = maw_verify(&mediafiles[i]);
@@ -377,10 +435,10 @@ static bool test_update_override(const char *desc) {
                          .dry_run = false};
 
     r = maw_cfg_parse(config_path, &cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     // Only paths starting with 'blue' should have been included
     music_dir_pathlen = strlen(cfg->music_dir) + 1;
@@ -396,7 +454,7 @@ static bool test_update_override(const char *desc) {
 
     r = maw_threads_launch(mediafiles, mediafiles_count, args.thread_count,
                            args.dry_run);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     for (size_t i = 0; i < mediafiles_count; i++) {
         r = maw_verify(&mediafiles[i]);
@@ -422,10 +480,10 @@ static bool test_playlists(const char *desc) {
                            "red/audio_red_3.m4a\n";
 
     r = maw_cfg_parse(config_path, &cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     r = maw_playlists_gen(cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     r = maw_verify_file(playlist, expected);
     MAW_ASSERT_EQ(r, true, desc);
@@ -446,10 +504,10 @@ static bool test_cfg_ok(const char *desc) {
     MawArguments args = {0};
 
     r = maw_cfg_parse(config_path, &cfg);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     r = maw_update_load(cfg, &args, mediafiles, &mediafiles_count);
-    MAW_ASSERT_EQ(r, 0, desc);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     maw_cfg_free(cfg);
     maw_update_free(mediafiles, mediafiles_count);
@@ -463,7 +521,7 @@ static bool test_cfg_key_missing_value(const char *desc) {
     MawConfig *cfg = NULL;
 
     r = maw_cfg_parse(config_path, &cfg);
-    MAW_ASSERT_EQ(r, MAW_ERR_INTERNAL, desc);
+    MAW_ASSERT_EQ(r, RESULT_ERR_INTERNAL, desc);
 
     maw_cfg_free(cfg);
 
@@ -476,7 +534,7 @@ static bool test_cfg_error(const char *desc) {
     MawConfig *cfg = NULL;
 
     r = maw_cfg_parse(config_path, &cfg);
-    MAW_ASSERT_EQ(r, MAW_ERR_YAML, desc);
+    MAW_ASSERT_EQ(r, RESULT_ERR_YAML, desc);
     maw_cfg_free(cfg);
 
     return true;
@@ -495,19 +553,15 @@ static bool test_hash(const char *desc) {
 
 // Runner //////////////////////////////////////////////////////////////////////
 
+// clang-format off
 static struct Testcase testcases[] = {
     {.desc = "Keep metadata and cover", .fn = test_keep_all},
     {.desc = "Autoset title", .fn = test_auto_title},
     {.desc = "Clear non core fields", .fn = test_clear_non_core_fields},
-    {.desc = "Clear cover", .fn = test_clear_cover},
-    {.desc = "Add cover", .fn = test_add_cover},
-    {.desc = "Replace cover", .fn = test_replace_cover},
     {.desc = "Bad covers", .fn = test_bad_covers},
     {.desc = "No audio streams", .fn = test_no_audio},
     {.desc = "Dual audio streams", .fn = test_dual_audio},
     {.desc = "Dual video streams", .fn = test_dual_video},
-    {.desc = "Crop cover", .fn = test_crop_cover},
-    {.desc = "Crop no cover on source", .fn = test_crop_nocover},
     {.desc = "Threads ok", .fn = test_threads_ok},
     {.desc = "Threads error", .fn = test_threads_error},
     {.desc = "YAML ok", .fn = test_cfg_ok},
@@ -516,7 +570,16 @@ static struct Testcase testcases[] = {
     {.desc = "FNV-1a Hash", .fn = test_hash},
     {.desc = "Update command", .fn = test_update},
     {.desc = "Update override cover", .fn = test_update_override},
-    {.desc = "Playlists command", .fn = test_playlists}};
+    {.desc = "Playlists command", .fn = test_playlists},
+    {.desc = "NOOP metadata", .fn = test_noop},
+    {.desc = "NOOP metadata clean", .fn = test_noop_clean},
+    {.desc = "NOOP Add cover", .fn = test_noop_add_cover},
+    {.desc = "NOOP Replace cover", .fn = test_noop_replace_cover},
+    {.desc = "NOOP Crop cover", .fn = test_noop_cover_crop},
+    {.desc = "NOOP Crop no cover on source", .fn = test_noop_nocover_crop},
+    {.desc = "NOOP cover clear configuration", .fn = test_noop_cover_clear},
+};
+// clang-format on
 
 int run_tests(const char *match_testcase) {
     int total = sizeof(testcases) / sizeof(struct Testcase);

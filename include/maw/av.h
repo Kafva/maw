@@ -27,6 +27,14 @@ struct MawAVContext {
     AVCodecContext *enc_codec_ctx;
 } typedef MawAVContext;
 
+// The final output file is identical to the input file if all
+// functions that work on the output file return MAW_AV_RESULT_UNMODIFIED.
+enum MawAVResult {
+    MAW_AV_RESULT_UNMODIFIED = 0x0,
+    MAW_AV_RESULT_MODIFIED = 0x1,
+    MAW_AV_RESULT_ERROR = 0x1 << 1,
+};
+
 int maw_av_remux(MawAVContext *ctx) __attribute__((warn_unused_result));
 void maw_av_free_context(MawAVContext *ctx);
 MawAVContext *maw_av_init_context(const MediaFile *mediafile,
@@ -70,5 +78,8 @@ MawAVContext *maw_av_init_context(const MediaFile *mediafile,
     ctx->input_fmt_ctx->streams[AUDIO_OUTPUT_STREAM_INDEX]
 #define VIDEO_OUTPUT_STREAM(ctx) \
     ctx->input_fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]
+
+#define LHS_EMPTY_OR_EQ(lhs, rhs) \
+    (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
 
 #endif // MAW_AV_H

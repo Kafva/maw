@@ -32,25 +32,34 @@ static void *maw_threads_worker(void *arg) {
     ThreadContext *ctx = (ThreadContext *)arg;
     unsigned long tid = (unsigned long)pthread_self();
     size_t i;
+    size_t noop_done = 0;
+    size_t done = 0;
 
     MAW_LOGF(MAW_DEBUG, "Thread #%lu started: [%zu,%zu]", tid, ctx->index_start,
              ctx->index_end);
 
     for (i = ctx->index_start; i < ctx->index_end; i++) {
         r = maw_update(&ctx->mediafiles[i], ctx->dry_run);
-        if (r != 0)
+        if (r == RESULT_OK) {
+            done++;
+        }
+        else if (r == RESULT_NOOP) {
+            noop_done++;
+        }
+        else {
             goto end;
+        }
     }
 
     ctx->exit_ok = true;
 end:
     if (!ctx->exit_ok) {
-        MAW_LOGF(MAW_ERROR, "Thread #%lu: failed [done %zu job(s)]", tid,
-                 i - ctx->index_start);
+        MAW_LOGF(MAW_ERROR, "Thread #%lu: failed [%zu change(s)] [%zu noop(s)]",
+                 tid, done, noop_done);
     }
     else {
-        MAW_LOGF(MAW_INFO, "Thread #%lu: ok [done %zu job(s)]", tid,
-                 i - ctx->index_start);
+        MAW_LOGF(MAW_INFO, "Thread #%lu: ok [%zu change(s)] [%zu noop(s)]", tid,
+                 done, noop_done);
     }
     return NULL;
 }
@@ -59,7 +68,7 @@ end:
 int maw_threads_launch(MediaFile mediafiles[], size_t size, size_t thread_count,
                        bool dry_run) {
     int status = -1;
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     pthread_t *threads = NULL;
     ThreadContext *thread_ctxs = NULL;
     time_t start_time;

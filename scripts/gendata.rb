@@ -273,15 +273,6 @@ def setup
     generate_dual_video "#{TOP}/unit/dual_video.mp4"
     generate_audio "#{TOP}/unit/only_audio.m4a"
 
-    generate_audio "#{TOP}/unit/crop_nocover.m4a"
-    generate_audio "#{TOP}/unit/crop_ignore.m4a"
-    generate_audio "#{TOP}/unit/add_cover.m4a"
-    generate_audio "#{TOP}/unit/clear_cover.m4a"
-    generate_audio "#{TOP}/unit/crop_cover.m4a",
-                   cover_color: "#98fb98",
-                   cover_res: "1280x720"
-    generate_audio "#{TOP}/unit/replace_cover.m4a",
-                   cover_color: "#00ff00"
     generate_audio "#{TOP}/unit/keep_all.m4a",
                    title: "keep_all",
                    artist: "Artist",
@@ -301,6 +292,18 @@ def setup
                    title: "Not the correct title",
                    artist: "Artist",
                    album: "Album"
+    generate_audio "#{TOP}/unit/noop.m4a"
+    generate_audio "#{TOP}/unit/noop_clean.m4a"
+    generate_audio "#{TOP}/unit/noop_nocover_crop.m4a"
+    generate_audio "#{TOP}/unit/noop_cover_crop.m4a",
+                   cover_color: "#98fb98",
+                   cover_res: "1280x720"
+    generate_audio "#{TOP}/unit/noop_cover_clear.m4a",
+                   cover_color: "#98fb98",
+                   cover_res: "1280x720"
+    generate_audio "#{TOP}/unit/noop_add_cover.m4a"
+    generate_audio "#{TOP}/unit/noop_replace_cover.m4a",
+                   cover_color: "#00ff00"
 
     # E2E testing data
     ALBUMS.each do |album|

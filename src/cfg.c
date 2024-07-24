@@ -41,7 +41,7 @@ static void maw_cfg_dump(MawConfig *cfg);
 
 static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser,
                              FILE **fp) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
 
     *fp = fopen(filepath, "r");
     if (*fp == NULL) {
@@ -51,14 +51,14 @@ static int maw_cfg_yaml_init(const char *filepath, yaml_parser_t **parser,
 
     r = yaml_parser_initialize(*parser);
     if (r != 1) {
-        r = MAW_ERR_YAML;
+        r = RESULT_ERR_YAML;
         MAW_LOGF(MAW_ERROR, "%s: failed to initialize parser", filepath);
         goto end;
     }
 
     yaml_parser_set_input_file(*parser, *fp);
 
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -106,7 +106,7 @@ const char *maw_cfg_cover_policy_tostr(enum CoverPolicy key) {
 }
 
 static int maw_cfg_glob(const char *instr, char **outstr) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     glob_t glob_result;
 
     r = glob(instr, GLOB_TILDE, 0, &glob_result);
@@ -123,7 +123,7 @@ static int maw_cfg_glob(const char *instr, char **outstr) {
 
     globfree(&glob_result);
 
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -194,7 +194,7 @@ static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx,
 static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
                                       yaml_token_t *token, Metadata *metadata,
                                       const char *value) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     char *cover_path = NULL;
 
     switch (ctx->keypath[2]) {
@@ -254,13 +254,13 @@ static int maw_cfg_set_metadata_field(MawConfig *cfg, YamlContext *ctx,
     }
 
     MAW_LOGF(MAW_DEBUG, "Setting: %s", value);
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
 
 static int maw_cfg_add_to_playlist(Playlist *playlist, const char *value) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     PlaylistPath *ppath = NULL;
 
     ppath = calloc(1, sizeof(PlaylistPath));
@@ -273,7 +273,7 @@ static int maw_cfg_add_to_playlist(Playlist *playlist, const char *value) {
     TAILQ_INSERT_TAIL(&playlist->playlist_paths_head, ppath, entry);
 
     MAW_LOGF(MAW_DEBUG, ".%s.m3u added: %s", playlist->name, ppath->path);
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -281,7 +281,7 @@ end:
 // A `YAML_KEY_TOKEN` is not a leaf.
 static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
                              yaml_token_t *token) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     MetadataEntry *metadata_entry = NULL;
     PlaylistEntry *playlist_entry = NULL;
     const char *key = NULL;
@@ -336,7 +336,7 @@ static int maw_cfg_parse_key(MawConfig *cfg, YamlContext *ctx,
 
     maw_cfg_key_push(ctx, key, mkey);
 
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -344,8 +344,9 @@ end:
 // A `YAML_VALUE_TOKEN` is a leaf.
 static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
                                yaml_token_t *token) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     const char *value;
+    char **key = NULL;
     Metadata *metadata = NULL;
     Playlist *playlist = NULL;
 
@@ -359,23 +360,21 @@ static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
     case 1:
         switch (ctx->keypath[0]) {
         case KEY_ART:
-            r = maw_cfg_glob(value, &cfg->art_dir);
-            if (r != 0)
-                goto end;
-
-            (void)maw_cfg_key_pop(ctx);
+            key = &cfg->art_dir;
             break;
         case KEY_MUSIC:
-            r = maw_cfg_glob(value, &cfg->music_dir);
-            if (r != 0)
-                goto end;
-
-            (void)maw_cfg_key_pop(ctx);
+            key = &cfg->music_dir;
             break;
         default:
             MAW_YAML_ERROR(ctx, token, "value", value);
             goto end;
         }
+
+        r = maw_cfg_glob(value, key);
+        if (r != 0)
+            goto end;
+
+        (void)maw_cfg_key_pop(ctx);
         break;
     case 2:
         switch (ctx->keypath[0]) {
@@ -413,7 +412,7 @@ static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
         goto end;
     }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -505,7 +504,7 @@ void maw_cfg_free(MawConfig *cfg) {
 }
 
 int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     bool done = false;
     yaml_token_t token;
     yaml_parser_t *parser;
@@ -543,7 +542,7 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
     while (!done) {
         r = yaml_parser_scan(parser, &token);
         if (r != 1) {
-            r = MAW_ERR_YAML;
+            r = RESULT_ERR_YAML;
             MAW_LOGF(MAW_ERROR, "%s: Error parsing yaml", ctx.filepath);
             goto end;
         }
@@ -586,7 +585,7 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
             done = true;
             break;
         case YAML_NO_TOKEN:
-            r = MAW_ERR_YAML;
+            r = RESULT_ERR_YAML;
             yaml_token_delete(&token);
             goto end;
         default:
@@ -599,7 +598,7 @@ int maw_cfg_parse(const char *filepath, MawConfig **cfg) {
 
     maw_cfg_dump(*cfg);
 
-    r = 0;
+    r = RESULT_OK;
 end:
     maw_cfg_yaml_deinit(parser, fp);
     return r;

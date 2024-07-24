@@ -41,13 +41,17 @@ enum CoverPolicy {
     COVER_POLICY_CROP = 4,
 };
 
-enum MawError {
-    // Fallback error code for maw functions
-    MAW_ERR_INTERNAL = 50,
+enum MawResult {
+    // Successful return code
+    RESULT_OK = 0,
+    // Successful return code, no changes necessary
+    RESULT_NOOP = 49,
+    // Fallback error result code for maw functions
+    RESULT_ERR_INTERNAL = 50,
     // Input file has an unsupported set of streams
-    MAW_ERR_UNSUPPORTED_INPUT_STREAMS = 51,
+    RESULT_UNSUPPORTED_INPUT_STREAMS = 51,
     // Error encountered in libyaml
-    MAW_ERR_YAML = 52,
+    RESULT_ERR_YAML = 52,
 };
 
 struct Metadata {

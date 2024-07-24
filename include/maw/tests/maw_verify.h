@@ -3,10 +3,7 @@
 
 #include "maw/maw.h"
 
-#define LHS_EMPTY_OR_EQ(lhs, rhs) \
-    (lhs == NULL || strlen(lhs) == 0 || strcmp(rhs, lhs) == 0)
-
-bool maw_verify_file(const char *path, const char *expected_content);
 bool maw_verify(const MediaFile *mediafile);
+bool maw_verify_file(const char *path, const char *expected_content);
 
 #endif

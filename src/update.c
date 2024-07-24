@@ -111,7 +111,7 @@ static bool maw_update_should_alloc(MawArguments *args,
 int maw_update_load(MawConfig *cfg, MawArguments *args,
                     MediaFile mediafiles[MAW_MAX_FILES],
                     size_t *mediafiles_count) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     MetadataEntry *metadata_entry = NULL;
     DIR *dir = NULL;
     struct dirent *entry;
@@ -198,7 +198,7 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
         }
     }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     if (dir != NULL)
         (void)closedir(dir);
@@ -232,7 +232,7 @@ void maw_update_free(MediaFile mediafiles[MAW_MAX_FILES], size_t count) {
 }
 
 int maw_update(const MediaFile *mediafile, bool dry_run) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     char tmpfile[MAW_PATH_MAX];
     char *tmpdir;
     int tmphandle;
@@ -268,7 +268,7 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
 
     if (ext == NULL || (!STR_EQ("mp4", ext) && !STR_EQ("m4a", ext))) {
         MAW_LOGF(MAW_WARN, "%s: Skipping unsupported format", mediafile->path);
-        r = 0;
+        r = RESULT_NOOP;
         goto end;
     }
 
@@ -300,11 +300,8 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
 
     // Remux the input file
     r = maw_av_remux(ctx);
-    if (r != 0) {
-        goto end;
-    }
 
-    if (!dry_run) {
+    if (r == RESULT_OK && !dry_run) {
         // Replace the input file with the output file
         if (on_same_device(tmpfile, mediafile->path)) {
             r = rename(tmpfile, mediafile->path);
@@ -319,8 +316,15 @@ int maw_update(const MediaFile *mediafile, bool dry_run) {
                 goto end;
         }
     }
+    else if (r == RESULT_NOOP) {
+        MAW_LOGF(MAW_DEBUG, "%s: No changes needed", mediafile->path);
+        goto end;
+    }
+    else {
+        goto end;
+    }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     if (tmpfile[0] != '\0')
         (void)unlink(tmpfile);

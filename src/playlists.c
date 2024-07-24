@@ -15,12 +15,12 @@ static int select_files(const struct dirent *entry) {
 
 int maw_playlists_path(MawConfig *cfg, const char *name, char *out,
                        size_t size) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     MAW_STRLCPY_SIZE(out, cfg->music_dir, size);
     MAW_STRLCAT_SIZE(out, "/.", size);
     MAW_STRLCAT_SIZE(out, name, size);
     MAW_STRLCAT_SIZE(out, ".m3u", size);
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -28,7 +28,7 @@ end:
 // Create a hidden .m3u playlist under the music_dir for each entry under
 // `playlists`.
 int maw_playlists_gen(MawConfig *cfg) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     PlaylistEntry *p = NULL;
     PlaylistPath *pp = NULL;
     char playlistfile[MAW_PATH_MAX];
@@ -138,7 +138,7 @@ int maw_playlists_gen(MawConfig *cfg) {
         (void)close(fd);
     }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     if (namelist != NULL) {
         for (int i = 0; i < names_count; i++) {

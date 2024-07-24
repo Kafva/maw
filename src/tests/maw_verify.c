@@ -1,27 +1,7 @@
 #include "maw/tests/maw_verify.h"
 #include "maw/av.h"
-#include "maw/cfg.h"
 #include "maw/log.h"
 #include "maw/utils.h"
-
-bool maw_verify_file(const char *path, const char *expected_content) {
-    char data[BUFSIZ];
-    int read_bytes;
-    bool ok = false;
-
-    read_bytes = (int)readfile(path, data, sizeof data);
-    if (read_bytes == 0) {
-        goto end;
-    }
-
-    ok = memcmp(data, expected_content, strlen(expected_content)) == 0;
-    if (!ok) {
-        MAW_LOGF(MAW_ERROR, "Unexpected content in %s", path);
-        goto end;
-    }
-end:
-    return ok;
-}
 
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
                              const MediaFile *mediafile) {
@@ -164,5 +144,24 @@ bool maw_verify(const MediaFile *mediafile) {
     ok = true;
 end:
     avformat_close_input(&fmt_ctx);
+    return ok;
+}
+
+bool maw_verify_file(const char *path, const char *expected_content) {
+    char data[BUFSIZ];
+    int read_bytes;
+    bool ok = false;
+
+    read_bytes = (int)readfile(path, data, sizeof data);
+    if (read_bytes == 0) {
+        goto end;
+    }
+
+    ok = memcmp(data, expected_content, strlen(expected_content)) == 0;
+    if (!ok) {
+        MAW_LOGF(MAW_ERROR, "Unexpected content in %s", path);
+        goto end;
+    }
+end:
     return ok;
 }

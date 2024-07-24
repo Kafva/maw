@@ -212,14 +212,14 @@ static void usage(void) {
 #ifndef MAW_TEST
 
 static int set_config(MawArguments *args, char *config_path, size_t size) {
-    int r = MAW_ERR_INTERNAL;
+    int r = RESULT_ERR_INTERNAL;
     struct stat s;
     char *envvar = NULL;
 
     // Use provided configuration
     if (args->config_path != NULL) {
         MAW_STRLCPY_SIZE(config_path, args->config_path, size);
-        r = 0;
+        r = RESULT_OK;
         goto end;
     }
 
@@ -248,7 +248,7 @@ static int set_config(MawArguments *args, char *config_path, size_t size) {
         goto end;
     }
 
-    r = 0;
+    r = RESULT_OK;
 end:
     return r;
 }
@@ -277,7 +277,7 @@ static int run_update(MawArguments *args, MawConfig *cfg) {
     if (r != 0)
         goto end;
 
-    r = 0;
+    r = RESULT_OK;
 
 end:
     maw_update_free(mediafiles, mediafiles_count);

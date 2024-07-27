@@ -13,8 +13,8 @@ static int select_files(const struct dirent *entry) {
     return (entry->d_type == DT_REG && entry->d_name[0] != '.');
 }
 
-int maw_playlists_path(MawConfig *cfg, const char *name, char *out,
-                       size_t size) {
+static int maw_playlists_path(MawConfig *cfg, const char *name, char *out,
+                              size_t size) {
     int r = RESULT_ERR_INTERNAL;
     MAW_STRLCPY_SIZE(out, cfg->music_dir, size);
     MAW_STRLCAT_SIZE(out, "/.", size);
@@ -43,15 +43,15 @@ int maw_playlists_gen(MawConfig *cfg) {
     struct stat s;
     char *glob_path;
     glob_t glob_result;
+    bool has_glob_result = false;
 
     music_dir_pathlen = strlen(cfg->music_dir) + 1;
 
     TAILQ_FOREACH(p, &(cfg->playlists_head), entry) {
         r = maw_playlists_path(cfg, p->value.name, playlistfile,
                                sizeof(playlistfile));
-        if (r != 0) {
+        if (r != 0)
             goto end;
-        }
 
         fd = open(playlistfile, O_CREAT | O_TRUNC | O_WRONLY, 0644);
         if (fd <= 0) {
@@ -72,6 +72,7 @@ int maw_playlists_gen(MawConfig *cfg) {
                     MAW_PERRORF("glob", path);
                     goto end;
                 }
+                has_glob_result = true;
 
                 for (size_t i = 0; i < glob_result.gl_pathc; i++) {
                     glob_path = glob_result.gl_pathv[i] + music_dir_pathlen;
@@ -80,7 +81,6 @@ int maw_playlists_gen(MawConfig *cfg) {
                     MAW_WRITE(fd, "\n", 1);
                     linecnt++;
                 }
-                globfree(&glob_result);
             }
             else {
                 r = stat(path, &s);
@@ -140,6 +140,9 @@ int maw_playlists_gen(MawConfig *cfg) {
 
     r = RESULT_OK;
 end:
+    if (has_glob_result)
+        globfree(&glob_result);
+
     if (namelist != NULL) {
         for (int i = 0; i < names_count; i++) {
             if (namelist[i] != NULL) {

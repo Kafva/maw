@@ -4,8 +4,8 @@
 #include "maw/maw.h"
 #include <yaml.h>
 
-#define MAW_CFG_KEY_ART       "art_dir"
-#define MAW_CFG_KEY_MUSIC     "music_dir"
+#define MAW_CFG_KEY_ART_DIR   "art_dir"
+#define MAW_CFG_KEY_MUSIC_DIR "music_dir"
 #define MAW_CFG_KEY_PLAYLISTS "playlists"
 #define MAW_CFG_KEY_METADATA  "metadata"
 #define MAW_CFG_KEY_TITLE     "title"
@@ -20,8 +20,8 @@ enum YamlKey {
     KEY_NONE,
     KEY_INVALID,
     KEY_ARBITRARY,
-    KEY_ART,
-    KEY_MUSIC,
+    KEY_ART_DIR,
+    KEY_MUSIC_DIR,
     KEY_PLAYLISTS,
     KEY_METADATA,
     KEY_ALBUM,

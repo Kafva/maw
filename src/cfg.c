@@ -74,8 +74,8 @@ static const char *maw_cfg_key_tostr(enum YamlKey key) {
         CASE_RET(KEY_NONE);
         CASE_RET(KEY_INVALID);
         CASE_RET(KEY_ARBITRARY);
-        CASE_RET(KEY_ART);
-        CASE_RET(KEY_MUSIC);
+        CASE_RET(KEY_ART_DIR);
+        CASE_RET(KEY_MUSIC_DIR);
         CASE_RET(KEY_PLAYLISTS);
         CASE_RET(KEY_METADATA);
         CASE_RET(KEY_ALBUM);
@@ -108,12 +108,15 @@ const char *maw_cfg_cover_policy_tostr(enum CoverPolicy key) {
 static int maw_cfg_glob(const char *instr, char **outstr) {
     int r = RESULT_ERR_INTERNAL;
     glob_t glob_result;
+    bool has_glob_result = false;
 
     r = glob(instr, GLOB_TILDE, 0, &glob_result);
     if (r != 0) {
         MAW_PERRORF("glob", instr);
         goto end;
     }
+    has_glob_result = true;
+
     if (glob_result.gl_pathc != 1) {
         MAW_LOGF(MAW_ERROR, "glob(%s): no exact match", instr);
         goto end;
@@ -121,10 +124,10 @@ static int maw_cfg_glob(const char *instr, char **outstr) {
 
     *outstr = strdup(glob_result.gl_pathv[0]);
 
-    globfree(&glob_result);
-
     r = RESULT_OK;
 end:
+    if (has_glob_result)
+        globfree(&glob_result);
     return r;
 }
 
@@ -161,11 +164,11 @@ static enum YamlKey maw_cfg_parse_key_to_enum(YamlContext *ctx,
         else if (STR_EQ(MAW_CFG_KEY_PLAYLISTS, key)) {
             return KEY_PLAYLISTS;
         }
-        else if (STR_EQ(MAW_CFG_KEY_MUSIC, key)) {
-            return KEY_MUSIC;
+        else if (STR_EQ(MAW_CFG_KEY_MUSIC_DIR, key)) {
+            return KEY_MUSIC_DIR;
         }
-        else if (STR_EQ(MAW_CFG_KEY_ART, key)) {
-            return KEY_ART;
+        else if (STR_EQ(MAW_CFG_KEY_ART_DIR, key)) {
+            return KEY_ART_DIR;
         }
         break;
     case 1:
@@ -359,10 +362,10 @@ static int maw_cfg_parse_value(MawConfig *cfg, YamlContext *ctx,
         goto end;
     case 1:
         switch (ctx->keypath[0]) {
-        case KEY_ART:
+        case KEY_ART_DIR:
             key = &cfg->art_dir;
             break;
-        case KEY_MUSIC:
+        case KEY_MUSIC_DIR:
             key = &cfg->music_dir;
             break;
         default:
@@ -439,8 +442,8 @@ static void maw_cfg_dump(MawConfig *cfg) {
     PlaylistEntry *p;
     PlaylistPath *pp;
     MAW_LOG(MAW_DEBUG, "---");
-    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_ART ": %s", cfg->art_dir);
-    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_MUSIC ": %s", cfg->music_dir);
+    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_ART_DIR ": %s", cfg->art_dir);
+    MAW_LOGF(MAW_DEBUG, MAW_CFG_KEY_MUSIC_DIR ": %s", cfg->music_dir);
     MAW_LOG(MAW_DEBUG, "metadata:");
     TAILQ_FOREACH(m, &(cfg->metadata_head), entry) {
         MAW_LOGF(MAW_DEBUG, "  %s:", m->pattern);

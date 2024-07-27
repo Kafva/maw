@@ -121,6 +121,7 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
     char filepath[MAW_PATH_MAX];
     size_t music_dir_idx;
     bool ok;
+    bool has_glob_result = false;
 
     MAW_STRLCPY(complete_pattern, cfg->music_dir);
     MAW_STRLCAT(complete_pattern, "/");
@@ -150,6 +151,7 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
                     goto end;
                 }
             }
+            has_glob_result = true;
 
             for (size_t i = 0; i < glob_result.gl_pathc; i++) {
                 if (!maw_update_add(glob_result.gl_pathv[i],
@@ -157,7 +159,6 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
                                     mediafiles_count))
                     goto end;
             }
-            globfree(&glob_result);
         }
         else {
             r = stat(complete_pattern, &s);
@@ -200,6 +201,8 @@ int maw_update_load(MawConfig *cfg, MawArguments *args,
 
     r = RESULT_OK;
 end:
+    if (has_glob_result)
+        globfree(&glob_result);
     if (dir != NULL)
         (void)closedir(dir);
     return r;

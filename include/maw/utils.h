@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-size_t readfile(const char *filepath, char *out, size_t outsize)
+size_t readfile(const char *filepath, char **out)
     __attribute__((warn_unused_result));
 int movefile(const char *src, const char *dst)
     __attribute__((warn_unused_result));

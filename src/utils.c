@@ -4,13 +4,40 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
 
-size_t readfile(const char *filepath, char *out, size_t outsize) {
+size_t readfile(const char *filepath, char **out) {
     FILE *fp = NULL;
+    size_t size;
     size_t read_bytes = 0;
+    struct stat s;
+
+    *out = NULL;
+
+    if (stat(filepath, &s)) {
+        MAW_PERRORF("stat", filepath);
+        goto end;
+    }
+    size = (size_t)s.st_size;
+
+    if (size > MAW_MAX_COVER_FILESIZE) {
+        MAW_LOGF(MAW_ERROR, "%s: too large: %zu > %d byte(s)", filepath, size,
+                 MAW_MAX_COVER_FILESIZE);
+        goto end;
+    }
+    else if (size == 0) {
+        MAW_LOGF(MAW_ERROR, "%s: empty", filepath);
+        goto end;
+    }
+
+    *out = calloc(size, sizeof(char));
+    if (*out == NULL) {
+        perror("calloc");
+        goto end;
+    }
 
     fp = fopen(filepath, "r");
     if (fp == NULL) {
@@ -18,13 +45,10 @@ size_t readfile(const char *filepath, char *out, size_t outsize) {
         goto end;
     }
 
-    read_bytes = fread(out, 1, outsize, fp);
-    if (read_bytes <= 0) {
-        MAW_LOGF(MAW_ERROR, "%s: empty", filepath);
-        goto end;
-    }
-    else if (read_bytes == outsize) {
-        MAW_LOGF(MAW_ERROR, "%s: too large", filepath);
+    read_bytes = fread(*out, 1, size, fp);
+    if (read_bytes != (size_t)s.st_size) {
+        MAW_LOGF(MAW_ERROR, "%s: fread failed", filepath);
+        read_bytes = 0;
         goto end;
     }
 end:

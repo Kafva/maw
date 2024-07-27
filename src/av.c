@@ -272,14 +272,14 @@ end:
 // Returns `RESULT_NOOP` if the media file already has the desired cover.
 static int maw_av_cover_check(MawAVContext *ctx) {
     int r = RESULT_ERR_INTERNAL;
-    char cover_data[BUFSIZ];
+    char *cover_data = NULL;
     AVStream *stream = NULL;
     size_t read_bytes;
 
     switch (ctx->mediafile->metadata->cover_policy) {
     case COVER_POLICY_PATH:
-        read_bytes = readfile(ctx->mediafile->metadata->cover_path, cover_data,
-                              sizeof cover_data);
+        read_bytes =
+            readfile(ctx->mediafile->metadata->cover_path, &cover_data);
         if (read_bytes == 0) {
             goto end;
         }
@@ -352,6 +352,7 @@ static int maw_av_cover_check(MawAVContext *ctx) {
 
     r = RESULT_OK;
 end:
+    free(cover_data);
     return r;
 }
 

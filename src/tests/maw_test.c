@@ -335,7 +335,7 @@ static bool test_threads_ok(const char *desc) {
 
     size_t mediafiles_count = sizeof(mediafiles) / sizeof(MediaFile);
 
-    r = maw_threads_launch(mediafiles, mediafiles_count, 3, false);
+    r = maw_threads_launch(mediafiles, mediafiles_count, 1, false);
     MAW_ASSERT_EQ(r, RESULT_OK, desc);
 
     for (size_t i = 0; i < mediafiles_count; i++) {

@@ -6,13 +6,12 @@
 static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
                              const MediaFile *mediafile) {
     int r;
-    char cover_data[BUFSIZ];
+    char *cover_data = NULL;
     AVStream *stream = NULL;
-    int read_bytes;
+    size_t read_bytes;
     bool ok = false;
 
-    read_bytes = (int)readfile(mediafile->metadata->cover_path, cover_data,
-                               sizeof cover_data);
+    read_bytes = readfile(mediafile->metadata->cover_path, &cover_data);
     if (read_bytes == 0) {
         goto end;
     }
@@ -28,14 +27,14 @@ static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
         MAW_LOGF(MAW_ERROR, "%s: video stream is empty", mediafile->path);
         goto end;
     }
-    if (stream->attached_pic.size != read_bytes) {
-        MAW_LOGF(MAW_ERROR, "%s: incorrect cover size: %d != %d",
+    if ((size_t)stream->attached_pic.size != read_bytes) {
+        MAW_LOGF(MAW_ERROR, "%s: incorrect cover size: %d != %zu",
                  mediafile->metadata->cover_path, stream->attached_pic.size,
                  read_bytes);
         goto end;
     }
 
-    r = memcmp(stream->attached_pic.data, cover_data, (size_t)read_bytes);
+    r = memcmp(stream->attached_pic.data, cover_data, read_bytes);
     if (r != 0) {
         MAW_LOGF(MAW_ERROR, "%s: cover data does not match",
                  mediafile->metadata->cover_path);
@@ -44,6 +43,7 @@ static bool maw_verify_cover(const AVFormatContext *fmt_ctx,
 
     ok = true;
 end:
+    free(cover_data);
     return ok;
 }
 
@@ -148,11 +148,11 @@ end:
 }
 
 bool maw_verify_file(const char *path, const char *expected_content) {
-    char data[BUFSIZ];
-    int read_bytes;
+    char *data = NULL;
+    size_t read_bytes;
     bool ok = false;
 
-    read_bytes = (int)readfile(path, data, sizeof data);
+    read_bytes = readfile(path, &data);
     if (read_bytes == 0) {
         goto end;
     }
@@ -163,5 +163,6 @@ bool maw_verify_file(const char *path, const char *expected_content) {
         goto end;
     }
 end:
+    free(data);
     return ok;
 }

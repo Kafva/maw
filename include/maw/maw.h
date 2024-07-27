@@ -18,6 +18,9 @@
 // Maximum length of paths in configuration file etc.
 #define MAW_PATH_MAX 1024
 
+// Maximum allowed size for cover art
+#define MAW_MAX_COVER_FILESIZE 10 * 1024 * 1024
+
 enum CleanPolicy {
     // Same treatment as CLEAN_POLICY_FALSE but can be overriden in the config
     CLEAN_POLICY_UNSPECIFIED = 0,

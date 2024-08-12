@@ -274,6 +274,54 @@ static bool test_noop_cover_clear(const char *desc) {
     return true;
 }
 
+static bool test_noop_crop_unsupported(const char *desc) {
+    int r;
+    struct stat s_first;
+    struct stat s_second;
+    Metadata metadata = {
+        .title = "Keep modification time",
+        .cover_policy = COVER_POLICY_CROP,
+    };
+    const MediaFile mediafile = {
+        .path = "./.testenv/unit/noop_crop_unsupported.m4a",
+        .metadata = &metadata};
+    (void)desc;
+
+    r = maw_update(&mediafile, false);
+    MAW_ASSERT_EQ(r, RESULT_OK, desc);
+
+    // Verification with COVER_POLICY_CROP will fail since no cropping could be
+    // performed.
+    metadata.cover_policy = COVER_POLICY_UNSPECIFIED;
+    r = maw_verify(&mediafile);
+    MAW_ASSERT_EQ(r, true, desc);
+
+    if (stat(mediafile.path, &s_first) != 0) {
+        MAW_PERRORF("stat", mediafile.path);
+        return false;
+    }
+
+    usleep(500000);
+
+    metadata.cover_policy = COVER_POLICY_CROP;
+    r = maw_update(&mediafile, false);
+    MAW_ASSERT_EQ(r, RESULT_NOOP, desc);
+
+    metadata.cover_policy = COVER_POLICY_UNSPECIFIED;
+    r = maw_verify(&mediafile);
+    MAW_ASSERT_EQ(r, true, desc);
+
+    if (stat(mediafile.path, &s_second) != 0) {
+        MAW_PERRORF("stat", mediafile.path);
+        return false;
+    }
+
+    MAW_ASSERT_EQ((int)s_second.st_mtime, (int)s_first.st_mtime,
+                  "Modification time has changed");
+
+    return true;
+}
+
 // Covers //////////////////////////////////////////////////////////////////////
 
 static bool test_bad_covers(const char *desc) {
@@ -578,6 +626,7 @@ static struct Testcase testcases[] = {
     {.desc = "NOOP Crop cover", .fn = test_noop_cover_crop},
     {.desc = "NOOP Crop no cover on source", .fn = test_noop_nocover_crop},
     {.desc = "NOOP cover clear configuration", .fn = test_noop_cover_clear},
+    {.desc = "NOOP Crop unsupported dimensions", .fn = test_noop_crop_unsupported},
 };
 // clang-format on
 

@@ -107,7 +107,7 @@ bool maw_verify(const MediaFile *mediafile) {
         if (!(fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->width ==
                   CROP_DESIRED_WIDTH &&
               fmt_ctx->streams[VIDEO_OUTPUT_STREAM_INDEX]->codecpar->height ==
-                  CROP_ACCEPTED_HEIGHT)) {
+                  CROP_DESIRED_HEIGHT)) {
             MAW_LOGF(
                 MAW_ERROR, "%s: Expected cropped cover: found %dx%d",
                 mediafile->path,

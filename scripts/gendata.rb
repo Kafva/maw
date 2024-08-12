@@ -298,6 +298,9 @@ def setup
     generate_audio "#{TOP}/unit/noop_cover_crop.m4a",
                    cover_color: "#98fb98",
                    cover_res: "1280x720"
+    generate_audio "#{TOP}/unit/noop_crop_unsupported.m4a",
+                   cover_color: "#98fb98",
+                   cover_res: "555x444"
     generate_audio "#{TOP}/unit/noop_cover_clear.m4a",
                    cover_color: "#98fb98",
                    cover_res: "1280x720"

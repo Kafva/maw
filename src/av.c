@@ -16,6 +16,7 @@ static int maw_av_filter_crop_cover(MawAVContext *ctx);
 static int maw_av_copy_metadata_fields(AVFormatContext *ctx,
                                        const MediaFile *mediafile);
 static int maw_av_metadata_check(MawAVContext *ctx);
+static int maw_av_cover_check_crop(MawAVContext *ctx);
 static int maw_av_cover_check(MawAVContext *ctx);
 static int maw_av_set_metadata(MawAVContext *ctx);
 static int maw_av_demux(MawAVContext *ctx);
@@ -269,6 +270,26 @@ end:
     return r;
 }
 
+static int maw_av_cover_check_crop(MawAVContext *ctx) {
+    if (ctx->dec_codec_ctx->width == CROP_DESIRED_WIDTH &&
+        ctx->dec_codec_ctx->height == CROP_DESIRED_HEIGHT) {
+        MAW_LOGF(MAW_DEBUG, "%s: Crop filter has already been applied",
+                 ctx->mediafile->path);
+        return RESULT_NOOP;
+    }
+    else if (ctx->dec_codec_ctx->width != CROP_ACCEPTED_WIDTH ||
+             ctx->dec_codec_ctx->height != CROP_ACCEPTED_HEIGHT) {
+        MAW_LOGF(MAW_WARN,
+                 "%s: Crop filter not applied: unsupported cover "
+                 "dimensions: %dx%d",
+                 ctx->mediafile->path, ctx->dec_codec_ctx->width,
+                 ctx->dec_codec_ctx->height);
+        return RESULT_NOOP;
+    }
+
+    return RESULT_OK;
+}
+
 // Returns `RESULT_NOOP` if the media file already has the desired cover.
 static int maw_av_cover_check(MawAVContext *ctx) {
     int r = RESULT_ERR_INTERNAL;
@@ -317,24 +338,8 @@ static int maw_av_cover_check(MawAVContext *ctx) {
         }
         break;
     case COVER_POLICY_CROP:
-        if (ctx->dec_codec_ctx->width == CROP_DESIRED_WIDTH &&
-            ctx->dec_codec_ctx->height == CROP_DESIRED_HEIGHT) {
-            MAW_LOGF(MAW_DEBUG, "%s: Crop filter has already been applied",
-                     ctx->mediafile->path);
-            r = RESULT_NOOP;
-            goto end;
-        }
-        else if (ctx->dec_codec_ctx->width != CROP_ACCEPTED_WIDTH ||
-                 ctx->dec_codec_ctx->height != CROP_ACCEPTED_HEIGHT) {
-            MAW_LOGF(MAW_WARN,
-                     "%s: Crop filter not applied: unsupported cover "
-                     "dimensions: %dx%d",
-                     ctx->mediafile->path, ctx->dec_codec_ctx->width,
-                     ctx->dec_codec_ctx->height);
-            r = RESULT_NOOP;
-            goto end;
-        }
-        break;
+        r = maw_av_cover_check_crop(ctx);
+        goto end;
     case COVER_POLICY_CLEAR:
         if (ctx->input_fmt_ctx->nb_streams == 1) {
             MAW_LOGF(MAW_DEBUG, "%s: Video stream(s) already removed",
@@ -629,7 +634,9 @@ static int maw_av_mux(MawAVContext *ctx) {
     AVPacket *pkt = NULL;
     bool should_crop =
         ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
-        ctx->video_input_stream_index != -1;
+        ctx->video_input_stream_index != -1 &&
+        ctx->dec_codec_ctx->width == CROP_ACCEPTED_WIDTH &&
+        ctx->dec_codec_ctx->height == CROP_ACCEPTED_HEIGHT;
 
     r = avio_open(&(ctx->output_fmt_ctx->pb), ctx->output_filepath,
                   AVIO_FLAG_WRITE);
@@ -856,15 +863,20 @@ int maw_av_remux(MawAVContext *ctx) {
         goto end;
     }
 
-    // Only try to crop if there is an input video stream
+    // Only try to crop if there is a valid input video stream...
     if (ctx->mediafile->metadata->cover_policy == COVER_POLICY_CROP &&
         ctx->video_input_stream_index != -1) {
-        MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter", ctx->mediafile->path);
+        // ... and valid input cover dimensions
+        r = maw_av_cover_check_crop(ctx);
 
-        // Initialize a filter to crop the existing video stream
-        r = maw_av_filter_crop_cover(ctx);
-        if (r != 0)
-            goto end;
+        if (r == RESULT_OK) {
+            MAW_LOGF(MAW_DEBUG, "%s: Applying crop filter",
+                     ctx->mediafile->path);
+            // Initialize a filter to crop the existing video stream
+            r = maw_av_filter_crop_cover(ctx);
+            if (r != 0)
+                goto end;
+        }
     }
     else if (ctx->mediafile->metadata->cover_policy == COVER_POLICY_PATH) {
         // Find the input stream in the cover and create a corresponding

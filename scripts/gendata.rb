@@ -131,7 +131,6 @@ end
 # @param artist [String, void]
 # @param cover_color [String, void]
 # @param cover_res [String, void]
-# @param duration [Integer, void]
 def generate_audio(outputfile,
                    title: nil,
                    album: nil,
@@ -143,19 +142,32 @@ def generate_audio(outputfile,
     system_run "ffmpeg", ["-y"] +
                          # Audio source
                          ["-f", "lavfi", "-i", "anullsrc=duration=#{duration}"] +
-                         # Image source
-                         (cover_color.nil? ? [] : ["-f", "lavfi",  "-i", "color=c=#{cover_color}:s=#{cover_res}"]) +
                          # Audio output
-                         ["-map", "0", "-c:a", "aac", "-shortest"] +
-                         # Image output
-                         (cover_color.nil? ? [] :
-                           ["-map", "1", "-frames:v", "1", "-c:v", "png", "-disposition:1", "attached_pic"]) +
+                         ["-c:a", "aac"] +
                          # Metadata
                          generate_metadata(title: title,
                                            album: album,
                                            artist: artist,
                                            random: random_metadata) +
                          [outputfile]
+    unless cover_color.nil?
+        # Add the cover image separately to make sure that -frames:v does
+        # not clamp the length to 0 seconds.
+        inputfile = "#{outputfile}.tmp#{File.extname outputfile}"
+        FileUtils.mv outputfile, inputfile
+
+        system_run "ffmpeg", ["-y"] +
+                ["-i", inputfile] +
+                # Image source
+                ["-f", "lavfi", "-i", "color=c=#{cover_color}:s=#{cover_res}"] +
+                # Audio output
+                ["-map", "0", "-c", "copy"] +
+                # Image output
+                ["-map", "1", "-frames:v", "1", "-c:v", "png", "-disposition:1", "attached_pic"] +
+                [outputfile]
+        FileUtils.rm inputfile
+    end
+
 end
 
 def generate_dual_audio outputfile
@@ -313,6 +325,10 @@ def setup
         FileUtils.mkdir_p "#{MUSIC_ROOT}/#{album}"
         generate_cover album, "#{ART_ROOT}/#{album}.png"
         basepath = "#{MUSIC_ROOT}/#{album}"
+
+        generate_audio "#{basepath}/ten-minutes.m4a",
+                       title: "Ten minutes 😴",
+                       duration: 60*10
 
         (0...1).each do |i|
             # Audio stream with cover

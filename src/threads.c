@@ -92,7 +92,7 @@ int maw_threads_launch(MediaFile mediafiles[], size_t size, size_t thread_count,
     increment = size / thread_count;
     leftover = size % thread_count;
 
-    MAW_LOGF(MAW_INFO, "Launching %zu threads: %zu job item(s)", thread_count,
+    MAW_LOGF(MAW_INFO, "Launching %zu thread(s): %zu job item(s)", thread_count,
              size);
     for (size_t i = 0; i < thread_count; i++) {
         thread_ctxs[i].spawned = false;

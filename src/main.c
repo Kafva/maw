@@ -19,14 +19,6 @@
 #define MAW_VERSION "unknown"
 #endif
 
-#ifndef MAW_BUILDER_NAME
-#define MAW_BUILDER_NAME ""
-#endif
-
-#ifndef MAW_BUILDER_EMAIL
-#define MAW_BUILDER_EMAIL ""
-#endif
-
 #ifdef DEBUG
 #define MAW_BUILDTYPE "debug"
 #else
@@ -184,10 +176,6 @@ static void usage(void) {
     }
     else {
         printf(OPT_COLOR MAW_PROGRAM NO_COLOR " [" MAW_BUILDTYPE "]\n");
-    }
-    if (strlen(MAW_BUILDER_NAME) > /* DISABLES CODE */ (0) && 
-        strlen(MAW_BUILDER_EMAIL) > /* DISABLES CODE */ (0)) {
-        printf(MAW_BUILDER_NAME " <" MAW_BUILDER_EMAIL ">\n");
     }
     printf("\n");
     printf(HEADER_COLOR"USAGE:"NO_COLOR"\n");

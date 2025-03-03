@@ -12,10 +12,10 @@ struct Testcase {
 
 int run_tests(const char *match_testcase);
 
-#define MAW_ASSERT_EQ(lhs, rhs, msg) \
+#define MAW_ASSERT_EQ(expected, actual, msg) \
     do { \
-        if (lhs != rhs) { \
-            MAW_LOGF(MAW_ERROR, "%s: got %d, expected %d", msg, lhs, rhs); \
+        if (expected != actual) { \
+            MAW_LOGF(MAW_ERROR, "%s: expected %d, actual: %d", msg, expected, actual); \
             return false; \
         } \
     } while (0)

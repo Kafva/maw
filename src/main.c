@@ -25,8 +25,8 @@
 #define MAW_BUILDTYPE "release"
 #endif
 
-#define HEADER_COLOR "\033[33m"
-#define OPT_COLOR    "\033[32m"
+#define HEADER_COLOR "\033[1;4m"
+#define OPT_COLOR    "\033[1m"
 #define NO_COLOR     "\033[0m"
 
 #define _MAW_OPTS "c:j:l:hvn"

@@ -112,22 +112,15 @@ CFLAGS            += $(COVERAGE_FLAGS)
 LDFLAGS           += $(COVERAGE_FLAGS)
 endif
 
-all: $(BUILD)/$(PROGRAM) compile_commands.json
+all: $(BUILD)/$(PROGRAM)
 
 $(BUILD)/%.o: $(SRCS_PATTERN) $(HEADERS)
 	@mkdir -p $(dir $@)
-	@# A compilation database for each TU is created with `-MJ`
-	$(CC) $(CFLAGS) -MJ $(dir $@)/.$(notdir $@).json $< -c -o $@
+	$(CC) $(CFLAGS) $< -c -o $@
 
 $(BUILD)/$(PROGRAM): $(OBJS)
 	@$(CC) --version
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
-
-compile_commands.json: $(BUILD)/$(PROGRAM)
-	@# Combine JSON fragments from build into a complete compilation database
-	@echo [ > $@
-	@cat $(BUILD)/.*.json >> $@
-	@echo ] >> $@
 
 # For DEBUG builds, download and build dependencies from source
 dep: $(BUILD)/deps/lib/libavfilter.a $(BUILD)/deps/lib/libyaml.a

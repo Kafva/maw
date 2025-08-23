@@ -62,7 +62,7 @@ static const struct option long_options[] = {
 // clang-format off
 static const char *long_options_usage[] = {
     "YAML configuration file to use",
-    "Number of parrallel jobs to run",
+    "Number of parallel jobs to run",
     "Verbose logging",
     "Do not make any changes to media files",
     "Log level for libav*",
